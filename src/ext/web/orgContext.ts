@@ -3,6 +3,7 @@ import { manifestAdapterForPath } from '../../core/manifest';
 import type { ManifestKind } from '../../core/model';
 import { logError, logInfo } from '../log';
 import { S } from '../strings';
+import { OrgLayer, parseOrgContext, type OrgContextData } from './orgLayer';
 import type { OrgMcpFolder } from './orgMcpServers';
 import { agentTextToFields, OrgNotesCopy, parseOrgNote, parseOrgNotesSync, parseSnapshot } from './orgNotes';
 import { type WebConnection, workspaceRepository } from './webConnection';
@@ -23,6 +24,8 @@ export const ORG_NOTES_SCHEME = 'pacmon-org';
 interface Cached {
   repoUlid: string;
   orgUlid: string;
+  /** The repository's allowlist layer, with its ETag and when it was last confirmed. */
+  allowlist?: { data: OrgContextData; etag?: string; receivedAt: number };
 }
 
 /** A workspace folder whose repository is added to one of the user's organizations in Depos. */
@@ -30,6 +33,11 @@ export interface FolderOrg {
   origin: string;
   repoUlid: string;
   orgUlid: string;
+  /** The allowlist layer; undefined until Depos has answered once. */
+  layer?: OrgLayer;
+  /** When Depos last confirmed the allowlist layer (ms since epoch). */
+  receivedAt: number;
+  etag?: string;
 }
 
 /** A refused save or delete, with a message for the user. */
@@ -39,6 +47,8 @@ export class OrgNoteError extends Error {}
  * Org mode of each workspace folder (docs/format.md, "The organization layer").
  *
  * - The folder's organization: Depos matches the repository of its GitHub remote.
+ * - The allowlist layer, per repository: one request with an ETag, so an unchanged
+ *   layer costs a 304. Its results are looked up here, at the manifest line.
  * - The org notes, per organization: a local copy in the extension's global storage,
  *   kept current by a delta sync. A folder whose copy is loaded is in org mode: its
  *   notes come from the copy, through a read-only notes text per ecosystem.
@@ -49,7 +59,7 @@ export class OrgNoteError extends Error {}
  */
 export class OrgContext implements vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<void>();
-  /** Org data changed: the org notes, or the mode of a folder. */
+  /** Org data changed: the allowlist layer, the org notes, or the mode of a folder. */
   readonly onDidChange = this.emitter.event;
   private readonly folders = new Map<string, FolderOrg>();
   private readonly copies = new Map<string, OrgNotesCopy>();
@@ -248,19 +258,54 @@ export class OrgContext implements vscode.Disposable {
         logInfo(`depos: workspace lookup for ${folder.name} answered HTTP ${found.status}`);
         return changed;
       }
+      if (found.kind !== 'ok') return changed;
       const body = found.body as { repository?: { ulid?: unknown }; organization?: { ulid?: unknown } } | null;
       const repoUlid = body?.repository?.ulid;
       const orgUlid = body?.organization?.ulid;
       if (typeof repoUlid !== 'string' || typeof orgUlid !== 'string') return changed;
-      const next: Cached = { repoUlid, orgUlid };
-      if (cached?.repoUlid !== repoUlid || cached.orgUlid !== orgUlid) await this.memento.update(cacheKey, next);
+      // The allowlist layer belongs to the repository: a new one starts without it.
+      const next: Cached = cached?.repoUlid === repoUlid && cached.orgUlid === orgUlid ? cached : { repoUlid, orgUlid };
+      if (next !== cached) await this.memento.update(cacheKey, next);
       changed = this.show(folderKey, origin, next) || changed;
-      return (await this.loadCopy(origin, orgUlid)) || changed;
+      changed = (await this.loadCopy(origin, orgUlid)) || changed;
+      return (await this.refreshAllowlist(folder, folderKey, cacheKey, origin, next)) || changed;
     } catch (e) {
       // Offline or the server is down: the last copies stay, with their times.
       logError(`orgContext.fetch ${folder.name}`, e);
       return changed;
     }
+  }
+
+  /** The repository's allowlist layer, asked with the last ETag. True when what the folder shows changed. */
+  private async refreshAllowlist(
+    folder: vscode.WorkspaceFolder,
+    folderKey: string,
+    cacheKey: string,
+    origin: string,
+    cached: Cached,
+  ): Promise<boolean> {
+    const answer = await this.web.fetchJson(`/api/extension/repositories/${encodeURIComponent(cached.repoUlid)}/context`, cached.allowlist?.etag);
+    if (answer.kind === 'signedOut') return false;
+    if (answer.kind === 'unchanged') {
+      if (!cached.allowlist) return false;
+      const next: Cached = { ...cached, allowlist: { ...cached.allowlist, receivedAt: Date.now() } };
+      await this.memento.update(cacheKey, next);
+      return this.show(folderKey, origin, next);
+    }
+    if (answer.kind === 'status') {
+      // The repository left Depos, or the user left the organization: nothing of it stays.
+      if (answer.status === 404) return this.forget(folderKey, cacheKey);
+      logInfo(`depos: allowlist layer for ${folder.name} answered HTTP ${answer.status}`);
+      return false;
+    }
+    const data = parseOrgContext(answer.body);
+    if (!data) {
+      logError('orgContext.allowlist', new Error(`unexpected answer for ${folder.name}`));
+      return false;
+    }
+    const next: Cached = { ...cached, allowlist: { data, etag: answer.etag, receivedAt: Date.now() } };
+    await this.memento.update(cacheKey, next);
+    return this.show(folderKey, origin, next);
   }
 
   /** Bring the org notes copy up to date, page by page. True when anything changed. */
@@ -303,8 +348,25 @@ export class OrgContext implements vscode.Disposable {
 
   private show(folderKey: string, origin: string, cached: Cached): boolean {
     const before = this.folders.get(folderKey);
-    if (before && before.origin === origin && before.orgUlid === cached.orgUlid && before.repoUlid === cached.repoUlid) return false;
-    this.folders.set(folderKey, { origin, repoUlid: cached.repoUlid, orgUlid: cached.orgUlid });
+    const allowlist = cached.allowlist;
+    if (before && before.origin === origin && before.orgUlid === cached.orgUlid && before.repoUlid === cached.repoUlid) {
+      // Same ETag, same layer: only its time moves.
+      const sameLayer = allowlist
+        ? before.layer !== undefined && allowlist.etag !== undefined && before.etag === allowlist.etag
+        : before.layer === undefined;
+      if (sameLayer) {
+        before.receivedAt = allowlist?.receivedAt ?? before.receivedAt;
+        return false;
+      }
+    }
+    this.folders.set(folderKey, {
+      origin,
+      repoUlid: cached.repoUlid,
+      orgUlid: cached.orgUlid,
+      layer: allowlist ? new OrgLayer(allowlist.data) : undefined,
+      receivedAt: allowlist?.receivedAt ?? 0,
+      etag: allowlist?.etag,
+    });
     return true;
   }
 

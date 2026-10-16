@@ -91,7 +91,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(new SettingsView(store, web));
 
   context.subscriptions.push(registerHover(store, orgContext));
-  context.subscriptions.push(new OrgDiagnostics(orgContext));
+  context.subscriptions.push(new OrgDiagnostics(store, orgContext));
 
   const decorations = new DecorationController(store);
   context.subscriptions.push(decorations);

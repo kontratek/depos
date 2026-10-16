@@ -31,7 +31,8 @@ class SessionEndedError extends Error {}
 export type FetchResult =
   | { kind: 'signedOut' }
   | { kind: 'status'; origin: string; status: number }
-  | { kind: 'ok'; origin: string; body: unknown };
+  | { kind: 'unchanged'; origin: string }
+  | { kind: 'ok'; origin: string; body: unknown; etag?: string };
 
 export type SendResult =
   | { kind: 'signedOut' }
@@ -113,19 +114,24 @@ export class WebConnection implements vscode.Disposable {
     return token ? { origin: parsed.origin, token } : undefined;
   }
 
-  /** A GET for org mode. A 401 removes the token: the sign-in has ended. */
-  async fetchJson(path: string): Promise<FetchResult> {
+  /**
+   * A GET for org mode. With `etag`, an unchanged answer is a 304 and has no body.
+   * A 401 removes the token: the sign-in has ended.
+   */
+  async fetchJson(path: string, etag?: string): Promise<FetchResult> {
     const creds = await this.credentials();
     if (!creds) return { kind: 'signedOut' };
     const headers: Record<string, string> = { Authorization: `Bearer ${creds.token}`, Accept: 'application/json' };
+    if (etag) headers['If-None-Match'] = etag;
     const response = await fetch(`${creds.origin}${path}`, { method: 'GET', headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     if (response.status === 401) {
       await this.secrets.delete(this.tokenKey(creds.origin));
       logInfo(`depos: sign-in at ${creds.origin} ended (401)`);
       return { kind: 'signedOut' };
     }
+    if (response.status === 304) return { kind: 'unchanged', origin: creds.origin };
     if (!response.ok) return { kind: 'status', origin: creds.origin, status: response.status };
-    return { kind: 'ok', origin: creds.origin, body: await response.json() };
+    return { kind: 'ok', origin: creds.origin, body: await response.json(), etag: response.headers.get('etag') ?? undefined };
   }
 
   /**

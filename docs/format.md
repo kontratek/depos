@@ -200,7 +200,7 @@ A tool that adds a section puts it at its sorted position when the file is sorte
 
 Status: proposal. VS Code implements it as a preview. JetBrains and Visual Studio do not yet.
 
-A web app for Pacmon, such as Depos, can hold org notes for an organization: one note per package, shared by all its repositories. They live in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
+A web app for Pacmon, such as Depos, can hold two kinds of data for an organization: org notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
 
 ### Two modes
 
@@ -211,7 +211,7 @@ A tool works in one of two modes for each workspace folder.
 
 ### Matching
 
-The repository is found by its GitHub remote, as `owner/name`. A package matches an org note by its ecosystem and its name, normalized the same way as when a dependency is matched to a section.
+The repository is found by its GitHub remote, as `owner/name`. A package matches org data by its ecosystem and its name, normalized the same way as when a dependency is matched to a section.
 
 ### Org notes
 
@@ -235,9 +235,17 @@ The web app reads the notes files of the organization's repositories. A section 
 
 A section written later in file mode becomes a candidate again. It does not change an existing org note.
 
+### Allowlist results
+
+Each ecosystem has a policy mode: Off, Audit or Enforce. In an ecosystem set to Audit or Enforce, each package is Allowed, Denied or Not listed in each repository.
+
+- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed. A decision whose expiry has passed is Not listed.
+- A tool marks Denied and Not listed packages at their manifest line. In Audit this is a warning. In Enforce it is an error.
+- An ecosystem set to Off shows nothing.
+
 ### Local copy
 
-A tool keeps a copy of the org notes on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
+A tool keeps a copy of the org notes and the allowlist results on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
 
 ### Agents
 

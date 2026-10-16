@@ -26,6 +26,16 @@
   `http://localhost:3000` until there is a public Depos); it must use `https`,
   except for `localhost`, and a workspace cannot set it.
 
+- **The organization's allowlist in the editor (preview).** In org mode,
+  Pacmon shows the allowlist result Depos decides for each package of the
+  folder's repository. Denied and Not listed packages are marked at their
+  manifest line: a warning when the ecosystem is set to Audit, an error in
+  Enforce. The hover and the note editor show the result, the reason, the
+  expiry, and **Open in Depos** for the package's page. A line you just added
+  is checked at once, before you push it. An ecosystem set to Off shows
+  nothing. Pacmon asks Depos again only when the allowlist changed, and uses
+  the last copy while Depos cannot be reached.
+
 - **AI agents read org notes in org mode (preview).** For each folder in org
   mode, Pacmon adds a "Depos org notes" MCP server to VS Code, so Copilot and
   other agents in VS Code read the org notes and check a package against the
