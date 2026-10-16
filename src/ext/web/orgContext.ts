@@ -3,6 +3,7 @@ import { manifestAdapterForPath } from '../../core/manifest';
 import type { ManifestKind } from '../../core/model';
 import { logError, logInfo } from '../log';
 import { S } from '../strings';
+import type { OrgMcpFolder } from './orgMcpServers';
 import { agentTextToFields, OrgNotesCopy, parseOrgNote, parseOrgNotesSync, parseSnapshot } from './orgNotes';
 import { type WebConnection, workspaceRepository } from './webConnection';
 
@@ -93,6 +94,19 @@ export class OrgContext implements vscode.Disposable {
     const folder = this.forUri(uri);
     const copy = folder ? this.copies.get(folder.orgUlid) : undefined;
     return folder && copy?.loaded ? { folder, copy } : undefined;
+  }
+
+  /** The workspace folders in org mode, for the MCP servers of their repositories. */
+  orgFolders(): OrgMcpFolder[] {
+    const result: OrgMcpFolder[] = [];
+    for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+      const folder = this.folders.get(workspaceFolder.uri.toString());
+      const copy = folder ? this.copies.get(folder.orgUlid) : undefined;
+      if (folder && copy?.loaded) {
+        result.push({ name: workspaceFolder.name, origin: folder.origin, repoUlid: folder.repoUlid, canEdit: copy.canEdit });
+      }
+    }
+    return result;
   }
 
   // ── Org mode notes: a read-only notes text per folder and ecosystem ─────────────

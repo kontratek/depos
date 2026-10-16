@@ -24,6 +24,7 @@ import { normalizeNotesFile, openManifest, openNotesFile, toggleDecorations } fr
 import { setOrgWriter } from './commands/writeNote';
 import { MANIFEST_ADAPTERS } from '../core/manifest';
 import { OrgContext, OrgNoteError, ORG_NOTES_SCHEME } from './web/orgContext';
+import { registerOrgMcp } from './web/orgMcp';
 import { S } from './strings';
 import { WebConnection } from './web/webConnection';
 
@@ -51,6 +52,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // (docs/format.md, "The organization layer"). Every other folder stays in file mode.
   const orgContext = new OrgContext(web, context.globalState, context.globalStorageUri);
   context.subscriptions.push(orgContext);
+  // AI agents in VS Code get the org notes of each folder in org mode over MCP.
+  context.subscriptions.push(registerOrgMcp(orgContext, web));
   store.setVirtualNotes(ORG_NOTES_SCHEME, orgContext);
   setNotesOverride((manifestUri) => orgContext.notesUriFor(manifestUri));
   setOrgWriter(async (pkgUri, name, human, agent) => {

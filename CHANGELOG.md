@@ -26,6 +26,16 @@
   `http://localhost:3000` until there is a public Depos); it must use `https`,
   except for `localhost`, and a workspace cannot set it.
 
+- **AI agents read org notes in org mode (preview).** For each folder in org
+  mode, Pacmon adds a "Depos org notes" MCP server to VS Code, so Copilot and
+  other agents in VS Code read the org notes and check a package against the
+  organization's allowlist before they add it. The agents of organization
+  admins can also write the agent fields of an org note; they never change the
+  human text. The server uses your Depos sign-in, which Pacmon adds when the
+  server starts and never saves in your MCP settings. `.pacmon/AGENT-RULES.md`
+  tells agents to use these tools when they have them; run **Set Up AI
+  Instructions** to refresh it. VS Code 1.101 or later is required.
+
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing
   and shared coverage backed by `.pacmon/ruby/DEPENDENCY-NOTES.md`. Groups,

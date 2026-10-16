@@ -4,6 +4,17 @@
   "Pacmon: Set Up AI Instructions" refreshes it. The format reference is
   https://pacmon.dev/format/ -->
 
+## Org mode
+
+If your tools include `get_dependency_note` from the Depos org notes MCP server, this repository's notes live in the organization's Depos. Then:
+
+- Read notes with `get_dependency_note` and `list_dependency_notes`, not from the notes files. The files can be out of date.
+- Before you add a package, call `check_package`. Do not add a package that is Denied. Tell the user about a package that is Not listed.
+- Write with `set_agent_fields` only: the same keys and rules as `### Agent notes` below. It replaces all fields, so send the full list. Never edit the notes files.
+- If `set_agent_fields` is not offered, you can only read. Tell the user what you would change.
+
+Without these tools, follow the rest of this file.
+
 ## Before you touch a dependency
 
 Its notes are beside the manifest you are changing: npm uses `.pacmon/DEPENDENCY-NOTES.md`, Rust uses `.pacmon/cargo/DEPENDENCY-NOTES.md`, Maven uses `.pacmon/maven/DEPENDENCY-NOTES.md`, Gradle uses `.pacmon/gradle/DEPENDENCY-NOTES.md`, Mix uses `.pacmon/mix/DEPENDENCY-NOTES.md`, Gleam uses `.pacmon/gleam/DEPENDENCY-NOTES.md`, Zig uses `.pacmon/zig/DEPENDENCY-NOTES.md`, Python uses `.pacmon/python/DEPENDENCY-NOTES.md`, Ruby uses `.pacmon/ruby/DEPENDENCY-NOTES.md`, PHP/Composer uses `.pacmon/composer/DEPENDENCY-NOTES.md`, Go uses `.pacmon/go/DEPENDENCY-NOTES.md`, .NET/NuGet uses `.pacmon/nuget/DEPENDENCY-NOTES.md`, vcpkg uses `.pacmon/vcpkg/DEPENDENCY-NOTES.md`, and Conan uses `.pacmon/conan/DEPENDENCY-NOTES.md`. In a monorepo, use the nearest file for the same ecosystem, walking up. Read two things first: the free text between `# Dependency Notes` and the first section (this repository's own rules), then the dependency's `## <name>` section.

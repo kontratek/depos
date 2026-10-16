@@ -241,7 +241,23 @@ A tool keeps a copy of the org notes on the user's machine. It asks the web app 
 
 ### Agents
 
-Agents are not told about org data yet. `AGENT-RULES.md` does not change, and agents keep reading the notes files. In org mode those files can be older than the org notes. Giving org notes to agents is a later change to this section.
+In org mode, a tool can give AI agents the org notes through an MCP server. The web app serves one MCP server per repository. The tool registers it for the agents of the editor, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write.
+
+- An agent that has these tools reads notes through them. It does not read or write the notes files of the folder.
+- An agent acts with the rights of the signed-in user, or of the admin who added the key. Only an admin's agent can write, and with a key only when the key can write.
+- An agent writes agent fields only. It never changes the human layer.
+- An agent without these tools works as in file mode. In org mode the notes files can be older than the org notes.
+
+The tools:
+
+| Tool | Input | Answer |
+|---|---|---|
+| `get_dependency_note` | ecosystem, package name | The org note of the package for this repository, or nothing. |
+| `list_dependency_notes` | ecosystem (optional) | The org notes for this repository. |
+| `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. |
+| `set_agent_fields` | ecosystem, package name, fields | Replaces the agent fields of the org note. Adds the org note when there is none. Admins only. |
+
+`AGENT-RULES.md` tells agents to use these tools when they have them.
 
 ## Versioning
 

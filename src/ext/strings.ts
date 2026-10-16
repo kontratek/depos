@@ -210,6 +210,7 @@ export const S = {
   // Org mode: the org notes are the notes (docs/format.md, "The organization layer").
   orgDiagSource: 'Pacmon (organization)',
   orgNotesLabel: (org: string) => `org notes of ${org}`,
+  orgMcpLabel: (folder: string) => `Depos org notes (${folder})`,
   orgNotesGone: 'These org notes are no longer available. Sign in to Depos again, or open the notes file of the repository.',
   orgModeNotesFile: (org: string) =>
     `You are signed in to Depos, so Pacmon shows the org notes of ${org}. Changes in this file are not used while you are signed in.`,
