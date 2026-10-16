@@ -6,6 +6,7 @@ import { NoteComments } from './comments';
 import { NOTES_GLOB, isManifest, isNotesFile } from './config';
 import { DecorationController } from './decorations';
 import { NotesDiagnostics } from './diagnostics';
+import { OrgDiagnostics } from './orgDiagnostics';
 import { registerHover } from './hover';
 import { logError, logInfo } from './log';
 import { NoteButtons } from './noteButtons';
@@ -13,14 +14,18 @@ import { NotePanel } from './notePanel';
 import { OrphanMarkers } from './orphanMarkers';
 import { ProblemDecorations } from './problemDecorations';
 import { SettingsView, openSettings, resetView } from './settingsView';
-import { clearResolverCache } from './resolveNotesFile';
+import { clearResolverCache, setNotesOverride } from './resolveNotesFile';
 import { Store } from './state';
 import { StatusBarController } from './statusBar';
 import { addOrEditNote } from './commands/addOrEditNote';
 import { setupAiInstructions } from './commands/aiSetup';
 import { showCoverage } from './commands/coverage';
 import { normalizeNotesFile, openManifest, openNotesFile, toggleDecorations } from './commands/simple';
+import { setOrgWriter } from './commands/writeNote';
 import { MANIFEST_ADAPTERS } from '../core/manifest';
+import { OrgContext, OrgNoteError, ORG_NOTES_SCHEME } from './web/orgContext';
+import { S } from './strings';
+import { WebConnection } from './web/webConnection';
 
 export function activate(context: vscode.ExtensionContext): void {
   setExtensionRoot(context.extensionUri);
@@ -39,12 +44,51 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
   const noteComments = new NoteComments(store);
   context.subscriptions.push(noteComments);
-  const notePanel = new NotePanel(store);
+  const web = new WebConnection(context.secrets);
+  context.subscriptions.push(web);
+  // Org notes from Depos: requests only while signed in. A folder whose repository is
+  // added to one of the user's organizations is in org mode: its notes are the org notes
+  // (docs/format.md, "The organization layer"). Every other folder stays in file mode.
+  const orgContext = new OrgContext(web, context.globalState, context.globalStorageUri);
+  context.subscriptions.push(orgContext);
+  store.setVirtualNotes(ORG_NOTES_SCHEME, orgContext);
+  setNotesOverride((manifestUri) => orgContext.notesUriFor(manifestUri));
+  setOrgWriter(async (pkgUri, name, human, agent) => {
+    const notesUri = orgContext.notesUriFor(pkgUri);
+    if (!notesUri) return undefined;
+    if (human === undefined) return notesUri;
+    try {
+      const { dropped } = await orgContext.saveNote(pkgUri, name, human, agent);
+      if (dropped > 0) void vscode.window.showWarningMessage(S.orgNoteDropped(dropped));
+    } catch (e) {
+      if (e instanceof OrgNoteError) void vscode.window.showErrorMessage(e.message);
+      throw e;
+    }
+    return notesUri;
+  });
+  // The org notes "file" of a folder opens as a read-only document.
+  const orgNotesDocs = new vscode.EventEmitter<vscode.Uri>();
+  context.subscriptions.push(
+    orgNotesDocs,
+    vscode.workspace.registerTextDocumentContentProvider(ORG_NOTES_SCHEME, {
+      onDidChange: orgNotesDocs.event,
+      provideTextDocumentContent: (uri) => orgContext.readNotes(uri)?.text ?? S.orgNotesGone,
+    }),
+    orgContext.onDidChange(() => {
+      clearResolverCache();
+      store.invalidateAll();
+      for (const doc of vscode.workspace.textDocuments) {
+        if (doc.uri.scheme === ORG_NOTES_SCHEME) orgNotesDocs.fire(doc.uri);
+      }
+    }),
+  );
+  const notePanel = new NotePanel(store, orgContext);
   context.subscriptions.push(notePanel);
   context.subscriptions.push(new NoteButtons(store));
-  context.subscriptions.push(new SettingsView(store));
+  context.subscriptions.push(new SettingsView(store, web));
 
-  context.subscriptions.push(registerHover(store));
+  context.subscriptions.push(registerHover(store, orgContext));
+  context.subscriptions.push(new OrgDiagnostics(orgContext));
 
   const decorations = new DecorationController(store);
   context.subscriptions.push(decorations);
@@ -136,6 +180,14 @@ export function activate(context: vscode.ExtensionContext): void {
     command('pacmon.saveNoteComment', (reply) => noteComments.saveFromReply(reply as vscode.CommentReply)),
     // Behind the code lens above an agent block; not in the palette.
     command('pacmon.fixAgentNotes', (uri) => fixAgentNotes(uri)),
+  );
+
+  // Optional Depos connection (pacmon.depos.url). Network only while signed in.
+  context.subscriptions.push(
+    command('pacmon.depos.signIn', () => web.signIn()),
+    command('pacmon.depos.signOut', () => web.signOut()),
+    command('pacmon.depos.showConnection', () => web.showConnection()),
+    command('pacmon.depos.refresh', () => orgContext.refresh()),
   );
 }
 

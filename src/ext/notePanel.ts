@@ -11,6 +11,7 @@ import { resolveNotesFileFor } from './resolveNotesFile';
 import type { Store } from './state';
 import { S } from './strings';
 import { upsertNoteLayers } from './commands/writeNote';
+import type { OrgContext } from './web/orgContext';
 
 const VIEW_TYPE = 'pacmon.noteEditor';
 
@@ -127,10 +128,18 @@ export class NotePanel implements vscode.Disposable {
   private queue: Promise<void> = Promise.resolve();
   /** Listeners of the CURRENT panel — cleared each time one is closed. */
   private listeners: vscode.Disposable[] = [];
+  private readonly orgListener: vscode.Disposable;
 
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly org: OrgContext,
+  ) {
+    // A fresh copy of the org notes from Depos redraws the open panel.
+    this.orgListener = org.onDidChange(() => void this.onOrgChange());
+  }
 
   dispose(): void {
+    this.orgListener.dispose();
     this.panel?.dispose();
     for (const d of this.listeners) d.dispose();
     this.listeners = [];
@@ -291,17 +300,33 @@ export class NotePanel implements vscode.Disposable {
     const token = this.loadToken;
     const [humanHtml, agentHtml] = await Promise.all([renderMarkdown(this.live.human), renderMarkdown(this.live.agent)]);
     if (token !== this.loadToken || this.current !== target || !this.panel) return;
+    const orgNotes = this.org.notesFor(target.pkgUri);
     void this.panel.webview.postMessage({
       type: 'load',
       key: target.key,
       name: target.name,
       depSection: target.depSection ?? '',
-      hint: S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri)),
+      hint: orgNotes
+        ? S.panelTargetSuffix(S.orgNotesLabel(orgNotes.copy.orgName))
+        : S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri)),
+      // Org mode: only org admins change org notes; the server checks it too.
+      readOnly: orgNotes !== undefined && !orgNotes.copy.canEdit,
+      readOnlyHint: S.orgNoteReadOnly,
       human: this.live.human,
       agent: this.live.agent,
       humanHtml,
       agentHtml,
       problems: problemsOf(this.live.agent),
     });
+  }
+
+  /**
+   * New org notes from Depos. In org mode the note itself may have changed: it is
+   * read again, unless the user has unsaved text in the panel.
+   */
+  private async onOrgChange(): Promise<void> {
+    const target = this.current;
+    if (!target || !this.panel) return;
+    if (this.org.notesFor(target.pkgUri) && sameLayers(this.live, this.loaded)) await this.reload();
   }
 }

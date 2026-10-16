@@ -98,7 +98,24 @@ export function agentRulesUriFor(anyUri: vscode.Uri): vscode.Uri | undefined {
   return folder ? vscode.Uri.joinPath(folder.uri, ...AGENT_RULES_REL_PATH.split('/')) : undefined;
 }
 
+/**
+ * Org mode (web/orgContext.ts): the notes of a manifest are the org notes, through a
+ * read-only notes "file" that is not on disk. Undefined in file mode.
+ */
+let notesOverride: ((manifestUri: vscode.Uri) => vscode.Uri | undefined) | undefined;
+
+export function setNotesOverride(fn: (manifestUri: vscode.Uri) => vscode.Uri | undefined): void {
+  notesOverride = fn;
+}
+
+/** The org mode notes of a manifest, or undefined in file mode. */
+export function orgModeNotesUri(manifestUri: vscode.Uri): vscode.Uri | undefined {
+  return notesOverride?.(manifestUri);
+}
+
 export async function resolveNotesFileFor(manifestUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+  const orgNotes = orgModeNotesUri(manifestUri);
+  if (orgNotes) return orgNotes;
   const adapter = manifestAdapterForPath(manifestUri.path);
   const folder = vscode.workspace.getWorkspaceFolder(manifestUri);
   if (!adapter || !folder) return undefined;

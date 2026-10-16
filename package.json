@@ -134,6 +134,26 @@
         "category": "Pacmon"
       },
       {
+        "command": "pacmon.depos.signIn",
+        "title": "Sign In to Depos",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.signOut",
+        "title": "Sign Out of Depos",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.showConnection",
+        "title": "Show Depos Connection",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.refresh",
+        "title": "Refresh Org Notes from Depos",
+        "category": "Pacmon"
+      },
+      {
         "command": "pacmon.openNotesFile",
         "title": "Open DEPENDENCY-NOTES.md",
         "category": "Pacmon"
@@ -246,6 +266,12 @@
     "configuration": {
       "title": "Pacmon",
       "properties": {
+        "pacmon.depos.url": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "scope": "application",
+          "markdownDescription": "Address of Depos, for the optional organization connection (`Pacmon: Sign In to Depos`, or the Pacmon view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's org notes instead of its notes files. Pacmon makes network requests only while you are signed in: for the commands, and to fetch the org notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is a local Depos until there is a public one."
+        },
         "pacmon.decorations": {
           "type": "string",
           "enum": [

@@ -196,6 +196,53 @@ Duplicate sections keep their relative order. A tool that rewrites a file into c
 
 A tool that adds a section puts it at its sorted position when the file is sorted. Otherwise it appends the section at the end.
 
+## The organization layer
+
+Status: proposal. VS Code implements it as a preview. JetBrains and Visual Studio do not yet.
+
+A web app for Pacmon, such as Depos, can hold org notes for an organization: one note per package, shared by all its repositories. They live in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
+
+### Two modes
+
+A tool works in one of two modes for each workspace folder.
+
+- **File mode.** The user is not signed in to the web app, or the folder's repository is not in one of the user's organizations. The tool works as the rest of this document describes. It makes no network request.
+- **Org mode.** The user is signed in, and the folder's repository is in one of the user's organizations. The org notes of that organization are the notes. The notes files of the folder are read-only.
+
+### Matching
+
+The repository is found by its GitHub remote, as `owner/name`. A package matches an org note by its ecosystem and its name, normalized the same way as when a dependency is matched to a section.
+
+### Org notes
+
+An organization has at most one org note per package. All repositories of the organization share it.
+
+An org note has the same two layers as a section: a human layer and agent fields. Its fields are the fields of [Fields](#fields), with the same rules for their values.
+
+In org mode:
+
+- The tool shows the org note of a package where it would show the section: the hover, the note editor, the end-of-line preview, coverage.
+- Only an admin of the organization changes an org note. The tool sends the change to the web app. For every other member, the org note is read-only.
+- The tool does not change the notes files. It does not show their sections as notes. A notes file still exists in the repository for people in file mode.
+- The human layer of an org note is shown the same way as the human layer of a section. HTML in it is shown as text, never rendered.
+
+### From notes files to org notes
+
+The web app reads the notes files of the organization's repositories. A section of a package that has no org note yet is a candidate for one.
+
+- A package with sections in one repository, or with the same sections in several repositories, has one candidate.
+- A package with different sections in several repositories is a conflict. An admin chooses one of them, or writes the org note from them.
+
+A section written later in file mode becomes a candidate again. It does not change an existing org note.
+
+### Local copy
+
+A tool keeps a copy of the org notes on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
+
+### Agents
+
+Agents are not told about org data yet. `AGENT-RULES.md` does not change, and agents keep reading the notes files. In org mode those files can be older than the org notes. Giving org notes to agents is a later change to this section.
+
 ## Versioning
 
 `format` is the contract between the file and its reader. The number is a major version alone. It changes when a file that is valid under version *n* would be invalid under version *n + 1*. It changes for no other reason. Additions are recorded under [Changes](#changes) and do not change the number. A reader that meets a version it does not know reports it.

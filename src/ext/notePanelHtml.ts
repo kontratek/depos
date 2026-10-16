@@ -294,7 +294,12 @@ export function renderHtml(): string {
     status.classList.add('dirty');
     post('save');
   }
+  // Org mode for a member who cannot change org notes: the note is shown, never edited.
+  let readOnly = false;
+  let readOnlyHint = '';
+
   function edit(name) {
+    if (readOnly) return;
     const l = layers[name];
     l.view.hidden = true;
     l.box.hidden = false;
@@ -316,7 +321,7 @@ export function renderHtml(): string {
       layers[name].box.hidden = true;
       layers[name].view.hidden = false;
     }
-    editHint.textContent = '';
+    editHint.textContent = readOnly ? readOnlyHint : '';
   }
 
   for (const name of Object.keys(layers)) {
@@ -356,6 +361,8 @@ export function renderHtml(): string {
       // Text still pending for the previous dependency is saved under ITS key first.
       if (timer !== undefined) save();
       key = m.key;
+      readOnly = !!m.readOnly;
+      readOnlyHint = m.readOnlyHint || '';
       dep.textContent = m.name;
       depSection.textContent = m.depSection;
       depSection.hidden = !m.depSection;
@@ -371,7 +378,7 @@ export function renderHtml(): string {
       readMode();
       showProblems(m.problems);
       // A dependency without a note opens straight into writing.
-      if (m.human === '') edit('human');
+      if (m.human === '' && !readOnly) edit('human');
     } else if (m.type === 'saved') {
       if (m.key !== key) return;
       baseline = { human: m.human, agent: m.agent };

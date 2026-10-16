@@ -7,8 +7,9 @@ import { logError } from './log';
 import { resolveNotesFileFor } from './resolveNotesFile';
 import type { Store } from './state';
 import { S } from './strings';
+import type { OrgContext } from './web/orgContext';
 
-export function registerHover(store: Store): vscode.Disposable {
+export function registerHover(store: Store, org: OrgContext): vscode.Disposable {
   return vscode.languages.registerHoverProvider(MANIFEST_SELECTOR, {
     async provideHover(doc, position) {
       try {
@@ -40,7 +41,9 @@ export function registerHover(store: Store): vscode.Disposable {
       if (parts.length === 0) return undefined; // a heading with nothing under it is no note
       const md = new vscode.MarkdownString(undefined, true);
       md.isTrusted = { enabledCommands: ['pacmon.addOrEditNote', 'pacmon.openNotesFile'] };
-      const fileLabel = notesFileLabelForManifest(doc.uri);
+      // Org mode: the note is the org note, not a section of the notes file.
+      const orgNotes = org.notesFor(doc.uri);
+      const fileLabel = orgNotes ? S.orgNotesLabel(orgNotes.copy.orgName) : notesFileLabelForManifest(doc.uri);
       md.appendMarkdown(`**${dep.displayName}** ${S.hoverSourceSuffix(fileLabel)}\n\n`);
       if (parts.length > 0) md.appendMarkdown(`${parts.map((p) => p.text).join('\n\n---\n\n')}\n\n`);
       const arg = encodeURIComponent(JSON.stringify([dep.noteKey]));

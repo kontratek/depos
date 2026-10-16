@@ -12,6 +12,18 @@ import { agentRulesText } from '../agentRules';
 import { agentRulesUriFor, clearResolverCache, creationTargetFor, resolveNotesFileFor } from '../resolveNotesFile';
 import type { Store } from '../state';
 
+/**
+ * Org mode: a note is saved to the organization, never to the notes file. Returns the
+ * notes uri when the package is in org mode and the note was handled, else undefined.
+ * `agent` undefined keeps the agent fields as they are.
+ */
+export type OrgWriter = (pkgUri: vscode.Uri, name: string, human: string | undefined, agent: string | undefined) => Promise<vscode.Uri | undefined>;
+let orgWriter: OrgWriter | undefined;
+
+export function setOrgWriter(fn: OrgWriter): void {
+  orgWriter = fn;
+}
+
 /** Write full text to the notes file. Through the open document only when it
  *  has UNSAVED edits (preserves them + undo); otherwise straight to disk —
  *  VS Code refreshes clean open editors by itself, and this avoids
@@ -111,6 +123,9 @@ async function createNotesFile(
 
 /** Make sure the section exists. Never touches what is already there. */
 export async function ensureSection(store: Store, pkgUri: vscode.Uri, name: string): Promise<vscode.Uri> {
+  // Org mode: an org note exists only once it says something; nothing to prepare.
+  const org = await orgWriter?.(pkgUri, name, undefined, undefined);
+  if (org) return org;
   const { notesUri, text } = await locate(store, pkgUri);
   if (text === undefined) {
     await createNotesFile(notesUri, pkgUri, name, '');
@@ -134,6 +149,8 @@ export async function upsertNote(
   name: string,
   human: string,
 ): Promise<vscode.Uri> {
+  const org = await orgWriter?.(pkgUri, name, human, undefined);
+  if (org) return org;
   const { notesUri, text } = await locate(store, pkgUri);
   if (text === undefined) {
     await createNotesFile(notesUri, pkgUri, name, human);
@@ -156,6 +173,8 @@ export async function upsertNoteLayers(
   human: string,
   agent: string,
 ): Promise<vscode.Uri> {
+  const org = await orgWriter?.(pkgUri, name, human, agent);
+  if (org) return org;
   const { notesUri, text } = await locate(store, pkgUri);
   if (text === undefined) {
     await createNotesFile(notesUri, pkgUri, name, composeSectionBody({ human, agent }));

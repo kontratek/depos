@@ -7,6 +7,25 @@
 
 ## Unreleased
 
+- **Org notes from Depos in VS Code (preview).** The Pacmon view has a new
+  **Depos** section: **Sign in to Depos** opens the browser, you check the
+  code and approve it, and VS Code keeps the sign-in in its secret storage.
+  Signed in, a workspace folder whose GitHub repository is added to one of
+  your organizations in Depos uses that organization's org notes as its notes:
+  the hover, the note editor, the end-of-line preview and coverage show them,
+  and `DEPENDENCY-NOTES.md` is not read or changed. Organization admins edit
+  org notes in the note editor and the change goes to Depos; other members
+  read them. If someone else changed the note first, the save is refused and
+  the editor shows the new version. Pacmon keeps a copy of the org notes on
+  your machine, asks Depos only for what changed (at start, when the window
+  gets focus, every 5 minutes, or with **Refresh Org Notes from Depos**), and
+  uses the copy while Depos cannot be reached. **Show connection** tells which
+  organization each folder belongs to; **Sign out** ends the sign-in in Depos
+  too and removes the copy. Pacmon makes network requests only while you are
+  signed in. The address is `pacmon.depos.url` (default
+  `http://localhost:3000` until there is a public Depos); it must use `https`,
+  except for `localhost`, and a workspace cannot set it.
+
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing
   and shared coverage backed by `.pacmon/ruby/DEPENDENCY-NOTES.md`. Groups,

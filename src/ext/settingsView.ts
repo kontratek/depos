@@ -17,6 +17,7 @@ import { choiceValues, writeScope } from './settingChoices';
 import { renderHtml } from './settingsViewHtml';
 import type { Store } from './state';
 import { S } from './strings';
+import type { WebConnection } from './web/webConnection';
 
 const VIEW_ID = 'pacmon.settings';
 
@@ -37,6 +38,9 @@ const ALLOWED_COMMANDS = new Set([
   'pacmon.showCoverage',
   'pacmon.normalizeNotesFile',
   'pacmon.setupAiInstructions',
+  'pacmon.depos.signIn',
+  'pacmon.depos.showConnection',
+  'pacmon.depos.signOut',
 ]);
 
 /**
@@ -57,8 +61,12 @@ export class SettingsView implements vscode.WebviewViewProvider, vscode.Disposab
    *  blank the moment you switch to DEPENDENCY-NOTES.md or anything else. */
   private lastPkg: vscode.Uri | undefined;
 
-  constructor(private readonly store: Store) {
+  constructor(
+    private readonly store: Store,
+    private readonly web: WebConnection,
+  ) {
     this.disposables.push(
+      web.onDidChange(() => void this.postState()),
       vscode.window.registerWebviewViewProvider(VIEW_ID, this),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('pacmon')) void this.postState();
@@ -166,7 +174,16 @@ export class SettingsView implements vscode.WebviewViewProvider, vscode.Disposab
       otherEntry: S.viewOtherEntry(noteEntryMode()),
       openNotesLabel: S.viewOpenNotes(notesFileLabel()),
       coverage: await this.coverage(),
+      web: await this.webState(),
     });
+  }
+
+  /** Sign-in state for the Depos section. Settings and secret storage only: no request. */
+  private async webState(): Promise<{ signedIn: boolean; text: string }> {
+    const status = await this.web.status();
+    if (status.invalid) return { signedIn: false, text: S.viewWebInvalidUrl };
+    if (status.signedIn && status.host) return { signedIn: true, text: S.viewWebSignedIn(status.host) };
+    return { signedIn: false, text: S.viewWebSignedOut(status.host) };
   }
 
   /**
