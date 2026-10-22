@@ -23,6 +23,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.PsiManager
+import com.intellij.ui.EditorNotifications
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import dev.pacmon.jetbrains.core.AiInstructions
@@ -33,6 +34,7 @@ import dev.pacmon.jetbrains.core.ManifestRegistry
 import dev.pacmon.jetbrains.core.NotesCore
 import dev.pacmon.jetbrains.core.NotesFileModel
 import dev.pacmon.jetbrains.core.SectionLayers
+import dev.pacmon.jetbrains.depos.OrgContext
 import dev.pacmon.jetbrains.settings.Decorations
 import dev.pacmon.jetbrains.settings.InlineSources
 import dev.pacmon.jetbrains.settings.MonorepoModes
@@ -61,10 +63,15 @@ class PacmonProjectService(private val project: Project) :
         var noteButtons: MutableList<String> = NoteButtons.DEFAULT.toMutableList(),
     )
 
+    /**
+     * A dependency's note. In org mode it comes from the organization's org notes in
+     * Depos: [file] is null and [orgName] names the organization.
+     */
     data class Note(
-        val file: VirtualFile,
+        val file: VirtualFile?,
         val model: NotesFileModel,
         val layers: SectionLayers,
+        val orgName: String? = null,
     )
 
     private var settings = Settings()
@@ -126,6 +133,21 @@ class PacmonProjectService(private val project: Project) :
     fun settingsChanged() {
         PsiManager.getInstance(project).dropPsiCaches()
         refreshOpenEditors()
+    }
+
+    /** Whether [file]'s root is in org mode: signed in to Depos, its repository in an organization. */
+    fun isOrgMode(file: VirtualFile): Boolean = OrgContext.getInstance(project).notesFor(file) != null
+
+    /**
+     * Org data changed — the org notes, the allowlist, or the mode of a root. No file
+     * changed, so the PSI caches have to go for the marks to follow (see
+     * [settingsChanged]), and the tool window is told with [PacmonNotesListener.ORG_NOTES].
+     */
+    fun orgChanged() {
+        settingsChanged()
+        // The org-mode banner on open notes files comes and goes with org mode.
+        EditorNotifications.getInstance(project).updateAllNotifications()
+        project.messageBus.syncPublisher(PacmonNotesListener.TOPIC).notesChanged(setOf(PacmonNotesListener.ORG_NOTES))
     }
 
     /**
@@ -200,7 +222,19 @@ class PacmonProjectService(private val project: Project) :
         return entries.firstOrNull { document.getLineNumber(it.primaryRange.offset) == line }
     }
 
+    /**
+     * The one place a note is read: quick documentation, the marks, the end-of-line
+     * hint, coverage and the note editor all come here. In org mode the notes file is
+     * not read — the organization's org notes are the notes.
+     */
     fun noteFor(manifest: VirtualFile, dependency: String): Note? {
+        val org = OrgContext.getInstance(project)
+        org.notesModel(manifest)?.let { model ->
+            val section = NotesCore.findSection(model, dependency) ?: return null
+            val layers = NotesCore.layers(model, section)
+            if (layers.human.isBlank() && layers.agent.isBlank() && layers.generated.isBlank()) return null
+            return Note(null, model, layers, org.notesFor(manifest)?.orgName)
+        }
         val notesFile = resolveNotesFile(manifest) ?: return null
         val text = textOf(notesFile)
         val model = NotesCore.parse(text)

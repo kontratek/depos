@@ -32,7 +32,13 @@ object NoteEditor {
         val service = project.getService(PacmonProjectService::class.java)
         service.rememberManifest(dependency.manifest)
         val entry = service.noteEntry()
-        if (entry == NoteEntries.PEEK) openPeek(project, dependency, editor) else openPanel(project, dependency)
+        // Org mode always opens the panel, as in VS Code: it carries the allowlist
+        // result and the read-only state, which a popup over the line has no room for.
+        if (entry == NoteEntries.PEEK && !service.isOrgMode(dependency.manifest)) {
+            openPeek(project, dependency, editor)
+        } else {
+            openPanel(project, dependency)
+        }
     }
 
     private fun openPanel(project: Project, dependency: DependencyRef) {

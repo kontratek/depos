@@ -198,42 +198,42 @@ A tool that adds a section puts it at its sorted position when the file is sorte
 
 ## The organization layer
 
-Status: proposal. VS Code implements it as a preview. JetBrains and Visual Studio do not yet.
+Status: proposal. VS Code and JetBrains implement it as a preview. Visual Studio does not yet.
 
-A web app for Pacmon, such as Depos, can hold two kinds of data for an organization: org notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
+A web app for Pacmon, such as Depos, can hold two kinds of data for an organization: notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
 
 ### Two modes
 
 A tool works in one of two modes for each workspace folder.
 
 - **File mode.** The user is not signed in to the web app, or the folder's repository is not in one of the user's organizations. The tool works as the rest of this document describes. It makes no network request.
-- **Org mode.** The user is signed in, and the folder's repository is in one of the user's organizations. The org notes of that organization are the notes. The notes files of the folder are read-only.
+- **Org mode.** The user is signed in, and the folder's repository is in one of the user's organizations. The notes of that organization in the web app are the notes. The notes files of the folder are read-only.
 
 ### Matching
 
 The repository is found by its GitHub remote, as `owner/name`. A package matches org data by its ecosystem and its name, normalized the same way as when a dependency is matched to a section.
 
-### Org notes
+### Notes in the web app
 
-An organization has at most one org note per package. All repositories of the organization share it.
+An organization has at most one note per package in the web app. All repositories of the organization share it.
 
-An org note has the same two layers as a section: a human layer and agent fields. Its fields are the fields of [Fields](#fields), with the same rules for their values.
+Such a note has the same two layers as a section: a human layer and agent fields. Its fields are the fields of [Fields](#fields), with the same rules for their values.
 
 In org mode:
 
-- The tool shows the org note of a package where it would show the section: the hover, the note editor, the end-of-line preview, coverage.
-- Only an admin of the organization changes an org note. The tool sends the change to the web app. For every other member, the org note is read-only.
+- The tool shows the web app's note of a package where it would show the section: the hover, the note editor, the end-of-line preview, coverage.
+- Only an admin of the organization changes a note in the web app. The tool sends the change to the web app. For every other member, it is read-only.
 - The tool does not change the notes files. It does not show their sections as notes. A notes file still exists in the repository for people in file mode.
-- The human layer of an org note is shown the same way as the human layer of a section. HTML in it is shown as text, never rendered.
+- The human layer of a note from the web app is shown the same way as the human layer of a section. HTML in it is shown as text, never rendered.
 
-### From notes files to org notes
+### From notes files to the web app
 
-The web app reads the notes files of the organization's repositories. A section of a package that has no org note yet is a candidate for one.
+The web app reads the notes files of the organization's repositories. A section of a package that has no note in the web app yet is a candidate for one.
 
 - A package with sections in one repository, or with the same sections in several repositories, has one candidate.
-- A package with different sections in several repositories is a conflict. An admin chooses one of them, or writes the org note from them.
+- A package with different sections in several repositories is a conflict. An admin chooses one of them, or writes the note from them.
 
-A section written later in file mode becomes a candidate again. It does not change an existing org note.
+A section written later in file mode becomes a candidate again. It does not change an existing note in the web app.
 
 ### Allowlist results
 
@@ -245,25 +245,25 @@ Each ecosystem has a policy mode: Off, Audit or Enforce. In an ecosystem set to 
 
 ### Local copy
 
-A tool keeps a copy of the org notes and the allowlist results on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
+A tool keeps a copy of the notes and the allowlist results on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
 
 ### Agents
 
-In org mode, a tool can give AI agents the org notes through an MCP server. The web app serves one MCP server per repository. The tool registers it for the agents of the editor, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write.
+In org mode, a tool can give AI agents the notes of the web app through an MCP server. The web app serves one MCP server per repository. Where the editor has a way to add MCP servers, the tool registers it for the editor's agents, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write. A tool whose editor has no way to add an MCP server can give the user the setup for the key instead: the server's address, with the key read from the environment, never the key itself.
 
 - An agent that has these tools reads notes through them. It does not read or write the notes files of the folder.
 - An agent acts with the rights of the signed-in user, or of the admin who added the key. Only an admin's agent can write, and with a key only when the key can write.
 - An agent writes agent fields only. It never changes the human layer.
-- An agent without these tools works as in file mode. In org mode the notes files can be older than the org notes.
+- An agent without these tools works as in file mode. In org mode the notes files can be older than the notes in the web app.
 
 The tools:
 
 | Tool | Input | Answer |
 |---|---|---|
-| `get_dependency_note` | ecosystem, package name | The org note of the package for this repository, or nothing. |
-| `list_dependency_notes` | ecosystem (optional) | The org notes for this repository. |
+| `get_dependency_note` | ecosystem, package name | The note of the package for this repository, or nothing. |
+| `list_dependency_notes` | ecosystem (optional) | The notes for this repository. |
 | `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. |
-| `set_agent_fields` | ecosystem, package name, fields | Replaces the agent fields of the org note. Adds the org note when there is none. Admins only. |
+| `set_agent_fields` | ecosystem, package name, fields | Replaces the agent fields of the note. Adds the note when there is none. Admins only. |
 
 `AGENT-RULES.md` tells agents to use these tools when they have them.
 

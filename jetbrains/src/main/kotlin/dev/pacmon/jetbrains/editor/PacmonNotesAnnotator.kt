@@ -38,12 +38,12 @@ class PacmonNotesAnnotator : Annotator {
         val notesFile = file.virtualFile ?: file.originalFile.virtualFile ?: return
         val service = file.project.getService(PacmonProjectService::class.java)
         val kind = service.notesKind(notesFile) ?: return
+        val starts = lineStartOffsets(text)
+        val fileEnd = file.textRange.endOffset
         val dependencies = service.dependenciesForNotes(notesFile).map { it.name }
         val findings = NotesLint.lint(model, dependencies, kind)
         if (findings.isEmpty()) return
 
-        val starts = lineStartOffsets(text)
-        val fileEnd = file.textRange.endOffset
         findings.forEach { finding ->
             val range = rangeFor(finding, text, starts, fileEnd) ?: return@forEach
             holder.newAnnotation(HighlightSeverity.WARNING, finding.message())

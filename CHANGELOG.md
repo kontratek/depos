@@ -7,18 +7,18 @@
 
 ## Unreleased
 
-- **Org notes from Depos in VS Code (preview).** The Pacmon view has a new
+- **Notes from Depos in VS Code (preview).** The Pacmon view has a new
   **Depos** section: **Sign in to Depos** opens the browser, you check the
   code and approve it, and VS Code keeps the sign-in in its secret storage.
   Signed in, a workspace folder whose GitHub repository is added to one of
-  your organizations in Depos uses that organization's org notes as its notes:
+  your organizations in Depos uses that organization's notes in Depos:
   the hover, the note editor, the end-of-line preview and coverage show them,
   and `DEPENDENCY-NOTES.md` is not read or changed. Organization admins edit
-  org notes in the note editor and the change goes to Depos; other members
+  these notes in the note editor and the change goes to Depos; other members
   read them. If someone else changed the note first, the save is refused and
-  the editor shows the new version. Pacmon keeps a copy of the org notes on
+  the editor shows the new version. Pacmon keeps a copy of the notes on
   your machine, asks Depos only for what changed (at start, when the window
-  gets focus, every 5 minutes, or with **Refresh Org Notes from Depos**), and
+  gets focus, every 5 minutes, or with **Refresh Notes from Depos**), and
   uses the copy while Depos cannot be reached. **Show connection** tells which
   organization each folder belongs to; **Sign out** ends the sign-in in Depos
   too and removes the copy. Pacmon makes network requests only while you are
@@ -36,15 +36,38 @@
   nothing. Pacmon asks Depos again only when the allowlist changed, and uses
   the last copy while Depos cannot be reached.
 
-- **AI agents read org notes in org mode (preview).** For each folder in org
-  mode, Pacmon adds a "Depos org notes" MCP server to VS Code, so Copilot and
-  other agents in VS Code read the org notes and check a package against the
+- **AI agents read the notes from Depos in org mode (preview).** For each folder in org
+  mode, Pacmon adds a "Depos notes" MCP server to VS Code, so Copilot and
+  other agents in VS Code read the notes and check a package against the
   organization's allowlist before they add it. The agents of organization
-  admins can also write the agent fields of an org note; they never change the
+  admins can also write the agent fields of a note; they never change the
   human text. The server uses your Depos sign-in, which Pacmon adds when the
   server starts and never saves in your MCP settings. `.pacmon/AGENT-RULES.md`
   tells agents to use these tools when they have them; run **Set Up AI
   Instructions** to refresh it. VS Code 1.101 or later is required.
+
+- **Notes and the allowlist from Depos in JetBrains IDEs (preview).** The
+  same organization connection as in VS Code. **Tools → Sign In to Depos**, or
+  the new **DEPOS** group of the Pacmon tool window, opens the browser; you
+  check the code and approve it, and the IDE keeps the sign-in in its password
+  safe. Signed in, the project's folder and each content root whose GitHub
+  repository is added to one of your organizations use that organization's
+  notes from Depos: quick documentation, the marks, the end-of-line preview, coverage and
+  the note editor show them, **Open DEPENDENCY-NOTES.md** opens them read-only,
+  and `DEPENDENCY-NOTES.md` is not read or changed, which a notice at its top
+  says. Organization admins edit these notes in the note editor, which then
+  always opens in the tool window; other members read them. Denied and Not
+  listed packages are marked at their manifest line, a warning in Audit and an
+  error in Enforce, and quick documentation and the note editor show the
+  result, its reason, its expiry and **Open in Depos**. The copy on your
+  machine is refreshed at start, when the IDE gets focus, every 5 minutes and
+  with **Refresh Notes from Depos**. JetBrains IDEs have no way for a
+  plugin to add an MCP server, so **Copy Depos MCP Setup** puts an `.mcp.json`
+  for the repository on the clipboard instead: it reads an MCP key from the
+  `DEPOS_MCP_KEY` environment variable, which an admin adds in Depos under
+  Settings → AI agents. The address is **Depos address** under **Settings →
+  Tools → Pacmon**, for every project; it uses the IDE's proxy and certificate
+  settings. Pacmon makes network requests only while you are signed in.
 
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing

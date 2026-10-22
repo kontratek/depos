@@ -14,5 +14,11 @@
         <lang.documentationProvider
             language="Requirements"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
+        <annotator
+            language="Python"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
+        <annotator
+            language="Requirements"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
     </extensions>
 </idea-plugin>

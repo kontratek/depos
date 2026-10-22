@@ -12,5 +12,8 @@
         <lang.documentationProvider
             language="vgo"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
+        <annotator
+            language="vgo"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
     </extensions>
 </idea-plugin>
