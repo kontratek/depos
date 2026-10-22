@@ -9,7 +9,7 @@ describe('mcpServersFor', () => {
   it('gives each folder in org mode the server of its repository', () => {
     expect(mcpServersFor([{ name: 'api', origin: 'https://depos.example.com', repoUlid: REPO, canEdit: false }])).toEqual([
       {
-        label: 'Depos org notes (api)',
+        label: 'Depos notes (api)',
         url: `https://depos.example.com/api/extension/repositories/${REPO}/mcp`,
         version: 'read',
       },

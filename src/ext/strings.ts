@@ -66,7 +66,7 @@ export const S = {
   viewGroupActions: 'Actions',
   viewGroupWeb: 'Depos',
   viewWebSignedOut: (host: string | undefined) =>
-    `Not signed in${host ? ` to ${host}` : ''}. Sign in to use your organization's org notes and allowlist in folders it has added to Depos.`,
+    `Not signed in${host ? ` to ${host}` : ''}. Sign in to use your organization's notes and allowlist in folders it has added to Depos.`,
   viewWebSignedIn: (host: string) => `Signed in to ${host}.`,
   viewWebInvalidUrl: 'pacmon.depos.url is not a valid address. Fix it in Settings.',
   viewWebSignIn: 'Sign in to Depos',
@@ -74,7 +74,7 @@ export const S = {
   viewWebShow: 'Show connection',
   viewWebShowHelp: 'Who you are signed in as, and the organization of each folder.',
   viewWebSignOut: 'Sign out',
-  viewWebSignOutHelp: 'Ends the sign-in in this editor and in Depos, and removes the local copy of the org notes and allowlist results.',
+  viewWebSignOutHelp: 'Ends the sign-in in this editor and in Depos, and removes the local copy of the notes and allowlist results from Depos.',
   viewOpenNotes: (fileName: string) => `Open ${fileName}`,
   viewOpenPackage: 'Open dependency manifest',
   viewOpenPackageHelp: 'The JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet, vcpkg, or Conan manifest these notes describe.',
@@ -207,7 +207,7 @@ export const S = {
   webFolderNoOrg: (folder: string, repo: string) =>
     `${folder}: ${repo} is not added to any of your organizations in Depos`,
   webFolderNoRemote: (folder: string) => `${folder}: no GitHub remote`,
-  // Org mode: the org notes are the notes (docs/format.md, "The organization layer").
+  // Org mode: the notes in Depos are the notes (docs/format.md, "The organization layer").
   orgDiagSource: 'Pacmon (organization)',
   orgDenied: (name: string, org: string, reason: string) =>
     reason ? `${name} is denied in ${org}. Reason: ${reason}` : `${name} is denied in ${org}.`,
@@ -222,14 +222,14 @@ export const S = {
   orgExpires: (date: string) => `Expires ${date}`,
   orgReceived: (time: string) => `Updated from Depos at ${time}`,
   orgOpenWeb: 'Open in Depos',
-  orgNotesLabel: (org: string) => `org notes of ${org}`,
-  orgMcpLabel: (folder: string) => `Depos org notes (${folder})`,
-  orgNotesGone: 'These org notes are no longer available. Sign in to Depos again, or open the notes file of the repository.',
+  orgNotesLabel: (org: string) => `notes of ${org} in Depos`,
+  orgMcpLabel: (folder: string) => `Depos notes (${folder})`,
+  orgNotesGone: 'These notes from Depos are no longer available. Sign in to Depos again, or open the notes file of the repository.',
   orgModeNotesFile: (org: string) =>
-    `You are signed in to Depos, so Pacmon shows the org notes of ${org}. Changes in this file are not used while you are signed in.`,
-  orgNoteReadOnly: 'Only organization admins can change org notes.',
+    `You are signed in to Depos, so Pacmon shows the notes of ${org} from Depos. Changes in this file are not used while you are signed in.`,
+  orgNoteReadOnly: 'Only organization admins can change these notes.',
   orgNoteNotConnected: 'This repository is not added to an organization in Depos.',
-  orgNoteSaveFailed: 'Pacmon: the org note could not be saved. Try again.',
+  orgNoteSaveFailed: 'Pacmon: the note could not be saved to Depos. Try again.',
   orgNoteDropped: (count: number) =>
-    `Pacmon: ${count} ${count === 1 ? 'line' : 'lines'} of the agent notes ${count === 1 ? 'is' : 'are'} not a field and ${count === 1 ? 'was' : 'were'} not saved. An org note keeps "- key: value" lines only.`,
+    `Pacmon: ${count} ${count === 1 ? 'line' : 'lines'} of the agent notes ${count === 1 ? 'is' : 'are'} not a field and ${count === 1 ? 'was' : 'were'} not saved. A note in Depos keeps "- key: value" lines only.`,
 };

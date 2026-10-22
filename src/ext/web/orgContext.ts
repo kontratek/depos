@@ -128,7 +128,7 @@ export class OrgContext implements vscode.Disposable {
     if (!kind || !folder || !this.notesFor(manifestUri)) return undefined;
     return vscode.Uri.from({
       scheme: ORG_NOTES_SCHEME,
-      path: `/Org notes (${kind}).md`,
+      path: `/Notes from Depos (${kind}).md`,
       query: new URLSearchParams({ folder: folder.uri.toString(), ecosystem: kind }).toString(),
     });
   }

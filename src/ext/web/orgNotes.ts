@@ -233,7 +233,7 @@ export class OrgNotesCopy {
     const lines = [
       ...frontmatterLinesFor(ecosystem),
       '',
-      `<!-- Org notes of ${this.orgName.replace(/-->/g, '')}, from Depos. Read-only: change them in the note editor or in Depos. -->`,
+      `<!-- Notes of ${this.orgName.replace(/-->/g, '')}, from Depos. Read-only: change them in the note editor or in Depos. -->`,
       '',
       DEFAULT_TITLE,
     ];
