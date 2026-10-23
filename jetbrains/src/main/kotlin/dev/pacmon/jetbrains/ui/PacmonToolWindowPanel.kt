@@ -11,7 +11,17 @@ import com.intellij.util.ui.JBUI
 import dev.pacmon.jetbrains.core.AgentNotes
 import dev.pacmon.jetbrains.core.AgentProblem
 import dev.pacmon.jetbrains.core.ManifestRegistry
+import dev.pacmon.jetbrains.action.PacmonCommands
+import dev.pacmon.jetbrains.depos.DeposConnection
+import dev.pacmon.jetbrains.depos.DeposException
+import dev.pacmon.jetbrains.depos.DeposStrings
+import dev.pacmon.jetbrains.depos.OrgContext
+import dev.pacmon.jetbrains.depos.OrgResult
+import dev.pacmon.jetbrains.service.PacmonNotesListener
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import com.intellij.ide.BrowserUtil
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
@@ -86,9 +96,39 @@ class PacmonToolWindowPanel(
         putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true)
     }
 
+    private val org = OrgContext.getInstance(project)
+    private val mutedColor = JBColor.namedColor("Label.disabledForeground", JBColor(0x6F737A, 0xA0A0A0))
+    private val readOnlyLabel = JBLabel(DeposStrings.orgNoteReadOnly).apply {
+        foreground = mutedColor
+        border = JBUI.Borders.emptyBottom(6)
+        alignmentX = Component.LEFT_ALIGNMENT
+    }
+    private val orgResultLabel = JBLabel("").apply { font = font.deriveFont(Font.BOLD) }
+    private val orgDetailLabel = JBLabel("")
+    private val orgReceivedLabel = JBLabel("").apply {
+        foreground = mutedColor
+        font = font.deriveFont(font.size2D - 1f)
+    }
+    private val openWebButton = JButton(DeposStrings.orgOpenWeb).apply {
+        font = font.deriveFont(font.size2D - 1f)
+        margin = JBUI.insets(2, 10)
+    }
+    private val orgPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        alignmentX = Component.LEFT_ALIGNMENT
+        border = BorderFactory.createCompoundBorder(
+            JBUI.Borders.customLineBottom(JBColor.border()),
+            JBUI.Borders.empty(0, 0, 8, 0),
+        )
+        isVisible = false
+    }
+
     private var target: PacmonTarget? = null
     private var baseline = Layers("", "")
     private var writing = false
+    /** A save to Depos is on its way; the next one waits for it. */
+    private var orgSaving = false
+    private var readOnly = false
     private var conflict = false
     private var agentExpanded = false
     private var disposed = false
@@ -100,6 +140,11 @@ class PacmonToolWindowPanel(
         add(createFooter(), BorderLayout.SOUTH)
 
         openFileButton.addActionListener { openNotesFile() }
+        // The link is built here from the local copy, not taken from anything shown.
+        openWebButton.addActionListener {
+            val current = target ?: return@addActionListener
+            org.view(current.manifest, current.name)?.let { BrowserUtil.browse(it.link) }
+        }
         agentToggle.addActionListener { setAgentExpanded(!agentExpanded) }
         reloadButton.addActionListener { loadFromDisk(focusEmpty = false) }
         keepButton.addActionListener { saveNow() }
@@ -179,9 +224,20 @@ class PacmonToolWindowPanel(
             add(JBLabel("Generated (read-only)"), BorderLayout.NORTH)
             add(generatedPreview, BorderLayout.CENTER)
         }
+        orgPanel.apply {
+            for (label in listOf(orgResultLabel, orgDetailLabel, orgReceivedLabel)) {
+                label.alignmentX = Component.LEFT_ALIGNMENT
+                add(label)
+            }
+            openWebButton.alignmentX = Component.LEFT_ALIGNMENT
+            add(Box.createVerticalStrut(JBUI.scale(4)))
+            add(openWebButton)
+        }
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(8, 12, 16, 12)
+            add(orgPanel)
+            add(readOnlyLabel)
             humanLayer.alignmentX = Component.LEFT_ALIGNMENT
             add(humanLayer)
             add(agentToggle)
@@ -215,13 +271,20 @@ class PacmonToolWindowPanel(
         target = value
         nameLabel.text = value.name
         sectionLabel.text = value.section
-        notesPathLabel.text = "->  ${ManifestRegistry.forPath(value.manifest.path)?.notesRelativePath.orEmpty()}"
         loadFromDisk(focusEmpty = true)
     }
 
     fun externalNotesChanged(paths: Set<String>) {
         if (disposed || writing || target == null) return
         val current = target ?: return
+        if (PacmonNotesListener.ORG_NOTES in paths) {
+            // An edit in progress stays: only the allowlist block follows, as in VS Code.
+            SwingUtilities.invokeLater {
+                if (disposed || writing || target == null) return@invokeLater
+                if (isDirty()) refreshOrg() else loadFromDisk(focusEmpty = false, forceReset = false)
+            }
+            return
+        }
         val relativePath = dev.pacmon.jetbrains.core.ManifestRegistry.forPath(current.manifest.path)
             ?.notesRelativePath ?: dev.pacmon.jetbrains.core.NotesCore.NOTES_RELATIVE_PATH
         val relevantPath = notes.resolveNotesFile(current.manifest)?.path?.replace('\\', '/')
@@ -269,8 +332,40 @@ class PacmonToolWindowPanel(
         conflict = false
         showConflict(false)
         statusLabel.text = ""
+        refreshOrg()
         validateAgent()
-        if (focusEmpty && loaded.human.isBlank()) SwingUtilities.invokeLater(humanLayer::startEditing)
+        if (focusEmpty && loaded.human.isBlank() && !readOnly) SwingUtilities.invokeLater(humanLayer::startEditing)
+    }
+
+    /**
+     * Org mode: where the note comes from, whether the user may change it, and the
+     * package's allowlist result with a link to its page in Depos.
+     */
+    private fun refreshOrg() {
+        val current = target ?: return
+        val state = org.notesFor(current.manifest)
+        notesPathLabel.text = "->  " + (state?.orgName?.let(DeposStrings::orgNotesLabel)
+            ?: ManifestRegistry.forPath(current.manifest.path)?.notesRelativePath.orEmpty())
+        readOnly = state != null && !state.canEdit
+        humanLayer.setReadOnly(readOnly)
+        agentLayer.setReadOnly(readOnly)
+        readOnlyLabel.isVisible = readOnly
+        val view = org.view(current.manifest, current.name)
+        orgPanel.isVisible = view != null
+        if (view != null) {
+            orgResultLabel.text = DeposStrings.orgAllowlistLine(view.result, view.mode)
+            orgResultLabel.foreground = when (view.kind) {
+                OrgResult.Kind.ALLOWED -> JBColor(0x2E7D32, 0x6CC070)
+                OrgResult.Kind.DENIED -> JBColor.RED
+                OrgResult.Kind.UNLISTED -> JBColor.ORANGE
+            }
+            val detail = listOfNotNull(view.reason?.let(DeposStrings::orgReason), view.expires?.let(DeposStrings::orgExpires))
+            orgDetailLabel.text = detail.joinToString(" · ")
+            orgDetailLabel.isVisible = detail.isNotEmpty()
+            orgReceivedLabel.text = view.received
+        }
+        revalidate()
+        repaint()
     }
 
     private fun onInput() {
@@ -291,6 +386,10 @@ class PacmonToolWindowPanel(
         }
         val before = baseline
         val next = currentLayers()
+        if (notes.isOrgMode(current.manifest)) {
+            saveToOrg(current, next)
+            return
+        }
         writing = true
         statusLabel.text = "Saving..."
         try {
@@ -309,9 +408,52 @@ class PacmonToolWindowPanel(
         }
     }
 
+    /**
+     * Org mode: the note goes to Depos, which is a request, so it leaves the UI
+     * thread. A save that is refused keeps the text in the box and says why — a 409
+     * also brings the copy up to date, so the next save starts from it.
+     */
+    private fun saveToOrg(current: PacmonTarget, next: Layers) {
+        if (orgSaving) {
+            saveAlarm.addRequest(::saveNow, 600)
+            return
+        }
+        orgSaving = true
+        writing = true
+        statusLabel.text = "Saving..."
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val outcome = runCatching { org.saveNote(current.manifest, current.name, next.human, next.agent) }
+            ApplicationManager.getApplication().invokeLater {
+                orgSaving = false
+                writing = false
+                outcome.onSuccess { dropped ->
+                    if (dropped > 0) DeposConnection.notify(project, DeposStrings.orgNoteDropped(dropped), NotificationType.WARNING)
+                }
+                outcome.onFailure { error ->
+                    if (error is DeposException) DeposConnection.notify(project, error.message.orEmpty(), NotificationType.ERROR)
+                }
+                if (disposed || target != current) return@invokeLater
+                outcome.onSuccess {
+                    baseline = next
+                    humanLayer.refreshPreview()
+                    agentLayer.refreshPreview()
+                    statusLabel.text = "Saved ${java.time.LocalTime.now().withNano(0)}"
+                }
+                outcome.onFailure { error ->
+                    val message = if (error is DeposException) error.message else null
+                    statusLabel.text = "Could not save: ${message ?: DeposStrings.orgNoteSaveFailed}"
+                }
+            }
+        }
+    }
+
     private fun openNotesFile() {
         val current = target ?: return
         flushPending()
+        if (notes.isOrgMode(current.manifest)) {
+            PacmonCommands.openOrgNotes(project, current.manifest)
+            return
+        }
         val file = notes.resolveNotesFile(current.manifest)
             ?: notes.saveNoteLayers(current.manifest, current.name, humanLayer.text, agentLayer.text)
         notes.open(file)
@@ -322,7 +464,7 @@ class PacmonToolWindowPanel(
         problemsPanel.isVisible = problems.isNotEmpty()
         if (problems.isEmpty()) return
         problemsLabel.text = problemsHtml(problems)
-        fixButton.isVisible = problems.any(AgentProblem::fixable)
+        fixButton.isVisible = problems.any(AgentProblem::fixable) && !readOnly
         setAgentExpanded(true)
     }
 

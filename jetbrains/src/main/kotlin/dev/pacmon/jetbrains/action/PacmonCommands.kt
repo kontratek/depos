@@ -10,7 +10,9 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 import dev.pacmon.jetbrains.core.NotesCore
 import dev.pacmon.jetbrains.core.ManifestRegistry
+import dev.pacmon.jetbrains.depos.OrgContext
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import com.intellij.testFramework.LightVirtualFile
 import dev.pacmon.jetbrains.settings.Decorations
 
 /**
@@ -26,6 +28,13 @@ import dev.pacmon.jetbrains.settings.Decorations
  */
 object PacmonCommands {
     fun openNotesFile(project: Project, manifest: VirtualFile? = null) {
+        val chosen = manifest?.takeIf { it.isValid && ManifestRegistry.forPath(it.path) != null }
+            ?: FileEditorManager.getInstance(project).selectedFiles.firstOrNull { ManifestRegistry.forPath(it.path) != null }
+            ?: service(project).defaultManifest()
+        if (chosen != null && service(project).isOrgMode(chosen)) {
+            openOrgNotes(project, chosen)
+            return
+        }
         val notesFile = findNotesFile(project, manifest)
         if (notesFile == null) {
             Messages.showInfoMessage(
@@ -36,6 +45,18 @@ object PacmonCommands {
             return
         }
         service(project).open(notesFile)
+    }
+
+    /**
+     * Org mode: the org notes of the manifest's ecosystem, as the notes file they
+     * stand in for — read-only, and never on disk. A change goes through the note
+     * editor or Depos.
+     */
+    fun openOrgNotes(project: Project, manifest: VirtualFile) {
+        val text = OrgContext.getInstance(project).notesText(manifest) ?: return
+        val kind = ManifestRegistry.forPath(manifest.path)?.kind ?: return
+        val file = LightVirtualFile("Notes from Depos (${kind.id}).md", text).apply { isWritable = false }
+        service(project).open(file)
     }
 
     /** The mirror of [openNotesFile]: the manifest the notes describe. */

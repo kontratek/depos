@@ -80,14 +80,17 @@ describe('settings view html', () => {
   it('gives every action an inline icon, so nothing is loaded from disk', () => {
     const html = renderHtml();
     const buttons = [...html.matchAll(/<button[^>]*class="act"[\s\S]*?<\/button>/g)];
-    expect(buttons).toHaveLength(5);
+    expect(buttons).toHaveLength(8);
     for (const [b] of buttons) expect(b).toMatch(/<svg[\s\S]*<path/);
   });
 
-  it('only wires the four commands the host allows', () => {
+  it('only wires the commands the host allows (ALLOWED_COMMANDS in settingsView.ts)', () => {
     const html = renderHtml();
     const commands = [...html.matchAll(/data-command="([^"]+)"/g)].map((m) => m[1]).sort();
     expect(commands).toEqual([
+      'pacmon.depos.showConnection',
+      'pacmon.depos.signIn',
+      'pacmon.depos.signOut',
       'pacmon.normalizeNotesFile',
       'pacmon.openManifest',
       'pacmon.openNotesFile',
@@ -121,5 +124,17 @@ describe('settings view html', () => {
     }
     // No per-dependency message: the view no longer lists them.
     expect(script).not.toContain("type: 'note'");
+  });
+
+  it('offers the Depos sign-in, and draws both states from the posted state', () => {
+    const html = renderHtml();
+    for (const id of ['pacmon.depos.signIn', 'pacmon.depos.showConnection', 'pacmon.depos.signOut']) {
+      expect(html, `no button for ${id}`).toContain(`data-command="${id}"`);
+    }
+    // Both groups start hidden: the server address and the sign-in state arrive by
+    // postMessage, so the markup itself never holds an address.
+    expect(html).toMatch(/id="webSignedOut" hidden/);
+    expect(html).toMatch(/id="webSignedIn" hidden/);
+    expect(scriptOf(html)).toContain('m.web.signedIn');
   });
 });

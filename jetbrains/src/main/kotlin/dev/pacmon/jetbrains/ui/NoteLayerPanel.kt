@@ -79,6 +79,8 @@ class NoteLayerPanel(
         horizontalScrollBarPolicy = JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER
     }
     private var loading = false
+    /** Org mode for a member who is not an admin: the note shows, but does not open for writing. */
+    private var readOnly = false
     /** True while the user is actively writing; guards against a background
      *  refresh (an autosave echo, or another process editing the same file)
      *  from pulling the box out from under them mid-sentence. */
@@ -170,7 +172,18 @@ class NoteLayerPanel(
         resizePreviewToContent()
     }
 
+    fun setReadOnly(value: Boolean) {
+        readOnly = value
+        editor.isEditable = !value
+        if (value && editing) {
+            editing = false
+            refreshPreview()
+            cards.show(cardPanel, "preview")
+        }
+    }
+
     fun startEditing() {
+        if (readOnly) return
         editing = true
         cards.show(cardPanel, "editor")
         resizeEditorToContent()
@@ -179,6 +192,7 @@ class NoteLayerPanel(
     }
 
     private fun finishEditing() {
+        if (readOnly) return
         editing = false
         refreshPreview()
         cards.show(cardPanel, "preview")

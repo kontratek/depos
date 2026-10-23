@@ -114,15 +114,29 @@ Pacmon does not call any AI service. Agents use their own tools; Pacmon gives th
 | `pacmon.inlineSource` | `human-first` | Which layer feeds the preview and leads the hover: `human-first`, `ai-first`, `human-only`, `ai-only`. |
 | `pacmon.noteEntry` | `panel` | How you write a note from a manifest: `panel`, `peek`, `input`, `inputBeside`, or `comments` (experimental). |
 | `pacmon.noteButtons` | `["iconLeft", "link"]` | Clickable ways into a note: `iconLeft`, `link`, `codelens`, `inlayHint`, `lightbulb`. |
+| `pacmon.depos.url` | `http://localhost:3000` | Address of Depos (in JetBrains IDEs, **Depos address** under **Settings → Tools → Pacmon**, for every project), for the optional organization connection: **Sign in to Depos** in the Pacmon view, or the commands **Pacmon: Sign In to Depos**, **Sign Out of Depos**, **Show Depos Connection** and **Refresh Notes from Depos**. Requests are made only while you are signed in. `https` is required, except for `localhost`. See [Notes from Depos](#notes-from-depos). |
 | `pacmon.monorepo` | `nearest` | Which notes file a manifest uses: the nearest one for its ecosystem, walking up, or only the one at the workspace root (`rootOnly`). |
 
 The **Pacmon** view in the activity bar switches these without opening the settings editor.
 
 Visual Studio exposes the corresponding choices in **Tools → Options → Pacmon** and in its Pacmon tool window, which opens beside Solution Explorer. Its native entry modes are `ToolWindow`, `QuickInput` and `OpenBeside`; it also provides Quick Info, a clickable Pacmon mark beside each package ID, inline previews, Ctrl+click navigation and Quick Actions in NuGet manifests.
 
+## Notes from Depos
+
+Depos is a web app that holds one note per package for a whole organization, shared by all its repositories. In VS Code and JetBrains IDEs (preview), sign in to Depos and every workspace folder — in a JetBrains IDE, the project's folder and each content root — whose GitHub repository is added to one of your organizations works in **org mode**:
+
+- The hover, the note editor, the end-of-line preview and coverage show the organization's notes from Depos. `DEPENDENCY-NOTES.md` is not read or changed; a notice at its top says so.
+- Organization admins edit these notes in the note editor, and the change goes to Depos. Other members read them.
+- If someone else changed the note first, the save is refused and the editor fetches the new version.
+- The organization's allowlist shows at each manifest line: Denied and Not listed packages are a warning in Audit and an error in Enforce, and the hover and the note editor show the result, its reason and a link to the package in Depos. A line you just added is checked at once.
+- Pacmon keeps a copy of the notes and allowlist results on your machine, asks Depos only for what changed, and uses the copy while Depos cannot be reached. Signing out removes the copy.
+- AI agents in VS Code (Copilot and others) get a "Depos notes" MCP server for the folder: they read the notes and check a package against the organization's allowlist before they add it. An admin's agent can also write agent fields, never the human text. Agents outside VS Code connect with an MCP key from Depos → Settings → AI agents. JetBrains IDEs have no way for a plugin to add an MCP server, so there **Copy Depos MCP Setup** puts an `.mcp.json` for the folder's repository on the clipboard; it reads the key from `DEPOS_MCP_KEY`.
+
+To sign in, run **Pacmon: Sign In to Depos** (or use the Depos section of the Pacmon view; in a JetBrains IDE, **Tools → Sign In to Depos** or the DEPOS group of the Pacmon tool window). Your browser opens Depos; check that it shows the same code and approve. Every other folder, and everything while you are signed out, works from the notes files as before. The rules are in [docs/format.md](docs/format.md#the-organization-layer).
+
 ## Requirements
 
-VS Code 1.100 or newer, a JetBrains IDE 2025.2 or newer, or Visual Studio 2022 or newer on Windows. Nothing else: Pacmon reads the manifests itself, so it needs no language runtime or package manager installation, and it reads and writes files in your workspace without making network requests. RubyMine or the Ruby plugin supplies Ruby editor integration in JetBrains IDEs; Pacmon still does not require a Ruby SDK. In VS Code it also works in VS Code for the Web (vscode.dev, github.dev), Remote-SSH, WSL and dev containers.
+VS Code 1.101 or newer, a JetBrains IDE 2025.2 or newer, or Visual Studio 2022 or newer on Windows. Nothing else: Pacmon reads the manifests itself, so it needs no language runtime or package manager installation, and it reads and writes files in your workspace without making network requests. The one exception is the optional Depos connection in VS Code and JetBrains IDEs: it makes requests only while you are signed in, to sign in and out, to fetch your organization's notes and allowlist results, and to save a note you change. RubyMine or the Ruby plugin supplies Ruby editor integration in JetBrains IDEs; Pacmon still does not require a Ruby SDK. In VS Code it also works in VS Code for the Web (vscode.dev, github.dev), Remote-SSH, WSL and dev containers.
 
 ## Format reference
 

@@ -6,7 +6,7 @@ import { dependencyAtOffset } from '../../core/manifest';
 import { findSection, parseNotes } from '../../core/parseNotes';
 import { isManifest, noteEntryMode, notesFileLabelForManifest } from '../config';
 import type { NotePanel } from '../notePanel';
-import { defaultManifest, resolveNotesFileFor } from '../resolveNotesFile';
+import { defaultManifest, orgModeNotesUri, resolveNotesFileFor } from '../resolveNotesFile';
 import type { Store } from '../state';
 import { S } from '../strings';
 import { ensureSection, upsertNote } from './writeNote';
@@ -118,7 +118,8 @@ export async function addOrEditNote(
 
   // Primary experience: the note editor beside package.json. Needs no anchor in
   // the editor, so it works from the command palette and coverage list too.
-  if (bodyArg === undefined && noteEntryMode() === 'panel') {
+  // Org mode: the org note has no file to open, so the note editor is the only surface.
+  if (bodyArg === undefined && (noteEntryMode() === 'panel' || orgModeNotesUri(pkgUri))) {
     await panel.show(pkgUri, name);
     return;
   }

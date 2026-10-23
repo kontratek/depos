@@ -14,6 +14,11 @@ interface CacheEntry<T> {
  * keystrokes: callers are notified via a debounced onDidChange event and pull
  * lazily.
  */
+/** Notes that are not files: org mode builds them from the org notes (web/orgContext.ts). */
+export interface VirtualNotes {
+  readNotes(uri: vscode.Uri): { version: string; text: string } | undefined;
+}
+
 export class Store implements vscode.Disposable {
   private notesCache = new Map<string, CacheEntry<NotesFileModel>>();
   private depsCache = new Map<string, CacheEntry<DepEntry[]>>();
@@ -21,6 +26,14 @@ export class Store implements vscode.Disposable {
   readonly onDidChange = this.emitter.event;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private lastManifest: vscode.Uri | undefined;
+  private virtual: VirtualNotes | undefined;
+  private virtualScheme: string | undefined;
+
+  /** Notes under `scheme` are read from `source`, never from disk. */
+  setVirtualNotes(scheme: string, source: VirtualNotes): void {
+    this.virtualScheme = scheme;
+    this.virtual = source;
+  }
 
   dispose(): void {
     if (this.timer !== undefined) clearTimeout(this.timer);
@@ -57,6 +70,7 @@ export class Store implements vscode.Disposable {
   /** Text of a file. The open document wins only while it has unsaved edits;
    *  otherwise disk is the source of truth (mirrors writeNotesText). */
   async getText(uri: vscode.Uri): Promise<string | undefined> {
+    if (uri.scheme === this.virtualScheme) return this.virtual?.readNotes(uri)?.text;
     const open = this.openDoc(uri);
     if (open && open.isDirty) return open.getText();
     try {
@@ -117,6 +131,10 @@ export class Store implements vscode.Disposable {
   }
 
   private async versionKey(uri: vscode.Uri): Promise<string | undefined> {
+    if (uri.scheme === this.virtualScheme) {
+      const version = this.virtual?.readNotes(uri)?.version;
+      return version === undefined ? undefined : `virtual:${version}`;
+    }
     const open = this.openDoc(uri);
     if (open) return `doc:${open.version}`;
     try {

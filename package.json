@@ -15,7 +15,7 @@
   },
   "homepage": "https://pacmon.dev",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
     "Other"
@@ -127,10 +127,36 @@
     "virtualWorkspaces": true
   },
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "pacmon.orgNotes",
+        "label": "Depos notes"
+      }
+    ],
     "commands": [
       {
         "command": "pacmon.addOrEditNote",
         "title": "Add/Edit Dependency Note",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.signIn",
+        "title": "Sign In to Depos",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.signOut",
+        "title": "Sign Out of Depos",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.showConnection",
+        "title": "Show Depos Connection",
+        "category": "Pacmon"
+      },
+      {
+        "command": "pacmon.depos.refresh",
+        "title": "Refresh Notes from Depos",
         "category": "Pacmon"
       },
       {
@@ -246,6 +272,12 @@
     "configuration": {
       "title": "Pacmon",
       "properties": {
+        "pacmon.depos.url": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "scope": "application",
+          "markdownDescription": "Address of Depos, for the optional organization connection (`Pacmon: Sign In to Depos`, or the Pacmon view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of its notes files. Pacmon makes network requests only while you are signed in: for the commands, and to fetch the notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is a local Depos until there is a public one."
+        },
         "pacmon.decorations": {
           "type": "string",
           "enum": [
@@ -347,7 +379,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.20.1",
-    "@types/vscode": "~1.100.0",
+    "@types/vscode": "~1.101.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",

@@ -7,5 +7,8 @@
         <lang.documentationProvider
             language="Groovy"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
+        <annotator
+            language="Groovy"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
     </extensions>
 </idea-plugin>

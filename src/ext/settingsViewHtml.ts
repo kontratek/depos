@@ -75,6 +75,9 @@ const ACTION_ICONS: Record<string, string> = {
   'pacmon.showCoverage': '<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/>',
   'pacmon.normalizeNotesFile': '<path d="M2.5 3.5h11M2.5 6.5h7M2.5 9.5h11M2.5 12.5h7"/>',
   'pacmon.setupAiInstructions': '<path d="M8 2l1.4 3.6L13 7l-3.6 1.4L8 12l-1.4-3.6L3 7l3.6-1.4z"/><path d="M12.5 10.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
+  'pacmon.depos.signIn': '<path d="M9.5 2.5h3v11h-3"/><path d="M2.5 8h7M7 5.5L9.5 8 7 10.5"/>',
+  'pacmon.depos.showConnection': '<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.3 3.4 2.3 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.7 5.9 5.7 8s.7 3.9 2.3 5.5"/>',
+  'pacmon.depos.signOut': '<path d="M6.5 2.5h-3v11h3"/><path d="M6.5 8h7M11 5.5L13.5 8 11 10.5"/>',
 };
 
 function actionButton(command: string, label: string, help: string, nameId?: string): string {
@@ -211,6 +214,18 @@ export function renderHtml(): string {
 </style>
 </head>
 <body>
+  <section id="web">
+    <h2>${esc(S.viewGroupWeb)}</h2>
+    <p class="lede" id="webText"></p>
+    <div class="actions" id="webSignedOut" hidden>
+      ${actionButton('pacmon.depos.signIn', S.viewWebSignIn, S.viewWebSignInHelp)}
+    </div>
+    <div class="actions" id="webSignedIn" hidden>
+      ${actionButton('pacmon.depos.showConnection', S.viewWebShow, S.viewWebShowHelp)}
+      ${actionButton('pacmon.depos.signOut', S.viewWebSignOut, S.viewWebSignOutHelp)}
+    </div>
+  </section>
+
   <section id="coverage">
     <h2>${esc(S.viewGroupCoverage)}<span class="count" id="ratio"></span></h2>
     <p class="lede" id="pkgLabel"></p>
@@ -289,6 +304,9 @@ export function renderHtml(): string {
     const m = event.data;
     if (m.type !== 'state') return;
     renderCoverage(m.coverage);
+    document.getElementById('webText').textContent = m.web.text;
+    document.getElementById('webSignedOut').hidden = m.web.signedIn;
+    document.getElementById('webSignedIn').hidden = !m.web.signedIn;
     document.getElementById('openNotesLabel').textContent = m.openNotesLabel;
     const on = new Set(m.noteButtons);
     toggles.forEach((t) => { t.checked = on.has(t.dataset.button); });

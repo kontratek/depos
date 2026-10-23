@@ -6,7 +6,10 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import dev.pacmon.jetbrains.depos.DeposConnection
+import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import com.intellij.ui.components.JBTextField
 import javax.swing.BoxLayout
 import javax.swing.JComboBox
 import javax.swing.JComponent
@@ -23,6 +26,7 @@ class PacmonConfigurable(private val project: Project) : Configurable {
     private val noteEntry = JComboBox(NoteEntries.ALL.toTypedArray())
     private val decorations = JComboBox(Decorations.ALL.toTypedArray())
     private val noteButtons = NoteButtons.ALL.associateWith { JBCheckBox(NoteButtons.label(it)) }
+    private val deposUrl = JBTextField().apply { emptyText.text = DeposStrings.webUrlPlaceholder }
     private var panel: JPanel? = null
 
     override fun getDisplayName(): String = "Pacmon"
@@ -39,6 +43,9 @@ class PacmonConfigurable(private val project: Project) : Configurable {
             .addLabeledComponent(JBLabel("Note editor:"), noteEntry)
             .addLabeledComponent(JBLabel("Note markers:"), decorations)
             .addLabeledComponent(JBLabel("Click targets:"), targets)
+            .addSeparator()
+            .addLabeledComponent(JBLabel("Depos address:"), deposUrl)
+            .addComponentToRightColumn(JBLabel(DEPOS_HELP).apply { foreground = com.intellij.util.ui.UIUtil.getContextHelpForeground() })
             .addComponentFillVertically(JPanel(), 0)
             .panel
         reset()
@@ -51,7 +58,8 @@ class PacmonConfigurable(private val project: Project) : Configurable {
             inlineSource.selectedItem != settings.inlineSource ||
             noteEntry.selectedItem != settings.noteEntry ||
             decorations.selectedItem != settings.decorations ||
-            selectedButtons() != settings.noteButtons.toList()
+            selectedButtons() != settings.noteButtons.toList() ||
+            deposUrl.text.trim() != DeposConnection.getInstance().url
     }
 
     override fun apply() {
@@ -63,6 +71,8 @@ class PacmonConfigurable(private val project: Project) : Configurable {
         settings.decorations = decorations.selectedItem as String
         service.setNoteButtons(selectedButtons())
         service.settingsChanged()
+        // For every project: the address, like the VS Code setting, is application-wide.
+        DeposConnection.getInstance().url = deposUrl.text.trim()
     }
 
     override fun reset() {
@@ -73,6 +83,7 @@ class PacmonConfigurable(private val project: Project) : Configurable {
         noteEntry.selectedItem = settings.noteEntry
         decorations.selectedItem = settings.decorations
         for ((id, box) in noteButtons) box.isSelected = service.noteButtonEnabled(id)
+        deposUrl.text = DeposConnection.getInstance().url
     }
 
     override fun disposeUIResources() {
@@ -84,4 +95,12 @@ class PacmonConfigurable(private val project: Project) : Configurable {
         NoteButtons.ALL.filter { noteButtons.getValue(it).isSelected }
 
     private fun service(): PacmonProjectService = project.getService(PacmonProjectService::class.java)
+
+    private companion object {
+        const val DEPOS_HELP = "<html>For the optional organization connection (Tools → Sign In to Depos, or the Pacmon " +
+            "tool window). Signed in, a folder whose GitHub repository is added to one of your organizations uses the " +
+            "organization's notes in Depos instead of its notes files. Pacmon makes network requests only while you are " +
+            "signed in: for the actions, and to fetch the notes of each folder (at start, when the IDE gets focus, " +
+            "and every 5 minutes). Must use https, except for localhost. For every project.</html>"
+    }
 }

@@ -22,7 +22,12 @@ import com.intellij.util.ui.JBUI
 import dev.pacmon.jetbrains.action.PacmonCommands
 import dev.pacmon.jetbrains.core.NotesCore
 import dev.pacmon.jetbrains.core.ManifestRegistry
+import dev.pacmon.jetbrains.depos.DeposCommands
+import dev.pacmon.jetbrains.depos.DeposConnection
+import dev.pacmon.jetbrains.depos.DeposConnectionListener
+import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import com.intellij.ui.dsl.builder.Row
 import dev.pacmon.jetbrains.settings.Decorations
 import dev.pacmon.jetbrains.settings.InlineSources
 import dev.pacmon.jetbrains.settings.NoteButtons
@@ -74,6 +79,9 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
     private lateinit var targetsCountLabel: JLabel
     private lateinit var markersLede: JEditorPane
     private lateinit var openNotesLink: ActionLink
+    private lateinit var webStatusLabel: JEditorPane
+    private val signedOutRows = mutableListOf<Row>()
+    private val signedInRows = mutableListOf<Row>()
 
     private val buttonToggles = LinkedHashMap<String, JBCheckBox>()
     private val noteEntryRadios = LinkedHashMap<String, JBRadioButton>()
@@ -182,6 +190,25 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
                     )
             }
         }
+
+        group(DeposStrings.viewGroupWeb) {
+            row { webStatusLabel = comment("").component }
+            signedOutRows += row {
+                link(DeposStrings.viewWebSignIn) { DeposCommands.signIn(project) }.comment(DeposStrings.viewWebSignInHelp)
+            }
+            signedInRows += row {
+                link(DeposStrings.viewWebShow) { DeposCommands.showConnection(project) }.comment(DeposStrings.viewWebShowHelp)
+            }
+            signedInRows += row {
+                link(DeposStrings.viewWebRefresh) { DeposCommands.refresh(project) }.comment(DeposStrings.viewWebRefreshHelp)
+            }
+            signedInRows += row {
+                link(DeposStrings.viewWebMcp) { DeposCommands.copyMcpSetup(project) }.comment(DeposStrings.viewWebMcpHelp)
+            }
+            signedInRows += row {
+                link(DeposStrings.viewWebSignOut) { DeposCommands.signOut(project) }.comment(DeposStrings.viewWebSignOutHelp)
+            }
+        }
     }
 
     init {
@@ -207,6 +234,13 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
                 }
             },
         )
+        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+            DeposConnectionListener.TOPIC,
+            object : DeposConnectionListener {
+                override fun connectionChanged() = scheduleRefresh()
+                override fun statusKnown() = scheduleRefresh()
+            },
+        )
         EditorFactory.getInstance().eventMulticaster.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
                 if (FileDocumentManager.getInstance().getFile(event.document)?.let { ManifestRegistry.forPath(it.path) } != null) {
@@ -224,6 +258,7 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
         inlineSourceRadios[service.state.inlineSource]?.isSelected = true
         loading = false
         refreshTargetsCount()
+        refreshWeb()
 
         val selected = FileEditorManager.getInstance(project).selectedFiles
             .firstOrNull { ManifestRegistry.forPath(it.path) != null }
@@ -298,6 +333,18 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
         service.setNoteButtons(buttonToggles.filterValues { it.isSelected }.keys)
         refreshTargetsCount()
         service.settingsChanged()
+    }
+
+    /** The Depos group: from the setting and the last known token state, with no request. */
+    private fun refreshWeb() {
+        val status = DeposConnection.getInstance().status()
+        webStatusLabel.text = when {
+            status.invalid -> DeposStrings.viewWebInvalidUrl
+            status.signedIn && status.host != null -> DeposStrings.viewWebSignedIn(status.host)
+            else -> DeposStrings.viewWebSignedOut(status.host)
+        }
+        signedOutRows.forEach { it.visible(!status.signedIn) }
+        signedInRows.forEach { it.visible(status.signedIn) }
     }
 
     private fun refreshTargetsCount() {

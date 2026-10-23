@@ -20,6 +20,9 @@
         <p>Notes are plain Markdown under <code>.pacmon/</code>, separated by ecosystem.
         No database, no service, no account: files that you read, diff and commit like
         any other. AI coding agents read the same files before they touch a package.</p>
+        <p>Optionally, sign in to Depos: a folder whose GitHub repository is added to one
+        of your organizations then shows the organization's notes, and marks packages its
+        allowlist denies or has not decided on.</p>
         <ul>
             <li>Five ways into a note from a dependency manifest, each one you turn
             on or off: a mark at the dependency declaration — filled when it has a note,
@@ -37,8 +40,8 @@
             <code>.pacmon/AGENT-RULES.md</code> and points <code>AGENTS.md</code>,
             <code>CLAUDE.md</code> and similar files to it.</li>
         </ul>
-        <p>Pacmon reads and writes files in your project and makes no network
-        requests; it does not call any AI service. The
+        <p>Pacmon reads and writes files in your project and makes network requests
+        only while you are signed in to Depos; it does not call any AI service. The
         <a href="https://marketplace.visualstudio.com/items?itemName=kontra.pacmon">VS Code
         extension</a> reads the same files, and the format is documented at
         <a href="https://pacmon.dev/format/">pacmon.dev/format</a>.</p>
@@ -96,6 +99,23 @@
         <annotator
             language="TEXT"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonNotesAnnotator"/>
+        <!-- Org mode: the organization's allowlist result at the manifest line. One
+             registration per manifest language, like the quick documentation; the
+             optional language xmls add the rest. -->
+        <annotator
+            language="JSON"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
+        <annotator
+            language="XML"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
+        <annotator
+            language="TEXT"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
+        <!-- The Depos connection: sign-in codes, refused saves, the copied MCP setup. -->
+        <notificationGroup id="Pacmon" displayType="BALLOON"/>
+        <!-- Org mode: a banner on DEPENDENCY-NOTES.md, which is not read then. -->
+        <editorNotificationProvider implementation="dev.pacmon.jetbrains.editor.PacmonOrgModeNotificationProvider"/>
+        <postStartupActivity implementation="dev.pacmon.jetbrains.depos.OrgStartupActivity"/>
         <lang.documentationProvider
             language="JSON"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
@@ -166,6 +186,41 @@
             class="dev.pacmon.jetbrains.action.NormalizeNotesFileAction"
             text="Format DEPENDENCY-NOTES.md"
             description="Rewrite the dependency notes file into canonical form">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action
+            id="Pacmon.Depos.SignIn"
+            class="dev.pacmon.jetbrains.depos.SignInToDeposAction"
+            text="Sign In to Depos"
+            description="Sign in to Depos to use your organization's notes and allowlist">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action
+            id="Pacmon.Depos.SignOut"
+            class="dev.pacmon.jetbrains.depos.SignOutOfDeposAction"
+            text="Sign Out of Depos"
+            description="End the Depos sign-in and remove the local copy of the notes and allowlist results">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action
+            id="Pacmon.Depos.ShowConnection"
+            class="dev.pacmon.jetbrains.depos.ShowDeposConnectionAction"
+            text="Show Depos Connection"
+            description="Who you are signed in to Depos as, and the organization of each folder">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action
+            id="Pacmon.Depos.Refresh"
+            class="dev.pacmon.jetbrains.depos.RefreshOrgNotesAction"
+            text="Refresh Notes from Depos"
+            description="Ask Depos for what changed in the notes and the allowlist">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action
+            id="Pacmon.Depos.CopyMcpSetup"
+            class="dev.pacmon.jetbrains.depos.CopyDeposMcpSetupAction"
+            text="Copy Depos MCP Setup"
+            description="Copy an .mcp.json for AI agents, for the repository of a folder in org mode">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>

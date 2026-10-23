@@ -7,5 +7,8 @@
         <lang.documentationProvider
             language="kotlin"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
+        <annotator
+            language="kotlin"
+            implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
     </extensions>
 </idea-plugin>

@@ -166,6 +166,18 @@ export function renderHtml(): string {
     font-size: .9em; color: var(--vscode-descriptionForeground); min-height: 1.2em;
   }
   .status.dirty { color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground)); }
+  /* The organization layer: read-only, from Depos, never merged with the note. */
+  .org {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 8px 10px; border-left: 3px solid var(--vscode-textLink-foreground);
+    background: var(--vscode-textBlockQuote-background);
+  }
+  .org-head, .org-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .org-foot { font-size: .9em; color: var(--vscode-descriptionForeground); }
+  .org-foot button { margin-left: auto; }
+  .org-detail { font-size: .9em; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
+  .pill.denied { background: var(--vscode-inputValidation-errorBackground, var(--vscode-badge-background)); }
+  .pill.unlisted { background: var(--vscode-inputValidation-warningBackground, var(--vscode-badge-background)); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -178,6 +190,17 @@ export function renderHtml(): string {
       <button type="button" id="openFile">${esc(S.panelOpenFile)}</button>
     </div>
   </header>
+
+  <section class="org" id="orgLayer" hidden>
+    <div class="org-head">
+      <span class="pill" id="orgResult"></span>
+    </div>
+    <div class="org-detail" id="orgDetail" hidden></div>
+    <div class="org-foot">
+      <span id="orgReceived"></span>
+      <button type="button" id="openWeb"></button>
+    </div>
+  </section>
 
   <section class="layer">
     <div class="caption"><span id="humanCaption">${esc(S.panelHumanNotes)}</span><svg class="pen" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 14l1.4-4.2 7.2-7.2a2 2 0 0 1 2.8 2.8l-7.2 7.2L2 14z"/></svg></div>
@@ -294,7 +317,12 @@ export function renderHtml(): string {
     status.classList.add('dirty');
     post('save');
   }
+  // Org mode for a member who cannot change org notes: the note is shown, never edited.
+  let readOnly = false;
+  let readOnlyHint = '';
+
   function edit(name) {
+    if (readOnly) return;
     const l = layers[name];
     l.view.hidden = true;
     l.box.hidden = false;
@@ -316,7 +344,7 @@ export function renderHtml(): string {
       layers[name].box.hidden = true;
       layers[name].view.hidden = false;
     }
-    editHint.textContent = '';
+    editHint.textContent = readOnly ? readOnlyHint : '';
   }
 
   for (const name of Object.keys(layers)) {
@@ -348,6 +376,21 @@ export function renderHtml(): string {
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   el('humanCaption').parentElement.addEventListener('click', () => edit('human'));
   el('openFile').addEventListener('click', () => vscode.postMessage({ type: 'openFile' }));
+  el('openWeb').addEventListener('click', () => vscode.postMessage({ type: 'openWeb' }));
+
+  // The allowlist result from Depos. Every string is set as text.
+  function showOrg(o) {
+    const box = el('orgLayer');
+    box.hidden = !o;
+    if (!o) return;
+    const result = el('orgResult'), detail = el('orgDetail');
+    result.className = 'pill ' + o.tone;
+    result.textContent = o.text;
+    detail.hidden = !o.detail;
+    detail.textContent = o.detail;
+    el('orgReceived').textContent = o.received;
+    el('openWeb').textContent = o.openWeb;
+  }
   fixBtn.addEventListener('click', () => post('fixAgent'));
 
   window.addEventListener('message', (event) => {
@@ -356,6 +399,8 @@ export function renderHtml(): string {
       // Text still pending for the previous dependency is saved under ITS key first.
       if (timer !== undefined) save();
       key = m.key;
+      readOnly = !!m.readOnly;
+      readOnlyHint = m.readOnlyHint || '';
       dep.textContent = m.name;
       depSection.textContent = m.depSection;
       depSection.hidden = !m.depSection;
@@ -370,8 +415,9 @@ export function renderHtml(): string {
       status.classList.remove('dirty');
       readMode();
       showProblems(m.problems);
+      showOrg(m.org);
       // A dependency without a note opens straight into writing.
-      if (m.human === '') edit('human');
+      if (m.human === '' && !readOnly) edit('human');
     } else if (m.type === 'saved') {
       if (m.key !== key) return;
       baseline = { human: m.human, agent: m.agent };
@@ -386,6 +432,8 @@ export function renderHtml(): string {
       status.classList.remove('dirty');
     } else if (m.type === 'problems') {
       if (m.key === key) showProblems(m.problems);
+    } else if (m.type === 'org') {
+      if (m.key === key) showOrg(m.org);
     }
   });
 

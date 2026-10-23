@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { type AgentProblem, fixAgentText, lintAgentText } from '../core/fixes';
 import { sectionLayers } from '../core/layers';
+import { manifestAdapterForPath } from '../core/manifest';
 import { miniMarkdown } from '../core/miniMarkdown';
 import { normalizeName } from '../core/match';
 import { findSection } from '../core/parseNotes';
@@ -11,6 +12,8 @@ import { resolveNotesFileFor } from './resolveNotesFile';
 import type { Store } from './state';
 import { S } from './strings';
 import { upsertNoteLayers } from './commands/writeNote';
+import type { OrgContext } from './web/orgContext';
+import { orgView } from './web/orgView';
 
 const VIEW_TYPE = 'pacmon.noteEditor';
 
@@ -32,7 +35,7 @@ const EMPTY: Layers = { human: '', agent: '' };
 /** Messages from the webview. `key` names the dependency the text belongs to,
  *  so a save that arrives after a retarget still lands in the right section. */
 interface Incoming {
-  type: 'ready' | 'input' | 'save' | 'fixAgent' | 'openFile';
+  type: 'ready' | 'input' | 'save' | 'fixAgent' | 'openFile' | 'openWeb';
   key?: string;
   human?: string;
   agent?: string;
@@ -127,10 +130,18 @@ export class NotePanel implements vscode.Disposable {
   private queue: Promise<void> = Promise.resolve();
   /** Listeners of the CURRENT panel — cleared each time one is closed. */
   private listeners: vscode.Disposable[] = [];
+  private readonly orgListener: vscode.Disposable;
 
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly org: OrgContext,
+  ) {
+    // A fresh copy of the org notes from Depos redraws the open panel.
+    this.orgListener = org.onDidChange(() => void this.onOrgChange());
+  }
 
   dispose(): void {
+    this.orgListener.dispose();
     this.panel?.dispose();
     for (const d of this.listeners) d.dispose();
     this.listeners = [];
@@ -218,6 +229,12 @@ export class NotePanel implements vscode.Disposable {
         case 'openFile':
           await vscode.commands.executeCommand('pacmon.openNotesFile');
           break;
+        case 'openWeb': {
+          // The link is built here, never taken from the webview.
+          const link = this.current ? this.orgFor(this.current)?.link : undefined;
+          if (link) await vscode.env.openExternal(vscode.Uri.parse(link));
+          break;
+        }
       }
     } catch (e) {
       logError(`notePanel.${msg.type}`, e);
@@ -291,17 +308,72 @@ export class NotePanel implements vscode.Disposable {
     const token = this.loadToken;
     const [humanHtml, agentHtml] = await Promise.all([renderMarkdown(this.live.human), renderMarkdown(this.live.agent)]);
     if (token !== this.loadToken || this.current !== target || !this.panel) return;
+    const orgNotes = this.org.notesFor(target.pkgUri);
     void this.panel.webview.postMessage({
       type: 'load',
       key: target.key,
       name: target.name,
       depSection: target.depSection ?? '',
-      hint: S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri)),
+      hint: orgNotes
+        ? S.panelTargetSuffix(S.orgNotesLabel(orgNotes.copy.orgName))
+        : S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri)),
+      // Org mode: only org admins change org notes; the server checks it too.
+      readOnly: orgNotes !== undefined && !orgNotes.copy.canEdit,
+      readOnlyHint: S.orgNoteReadOnly,
       human: this.live.human,
       agent: this.live.agent,
       humanHtml,
       agentHtml,
       problems: problemsOf(this.live.agent),
+      org: this.orgPayload(target),
     });
   }
+
+  private orgFor(target: Target) {
+    const kind = manifestAdapterForPath(target.pkgUri.path)?.kind;
+    const folder = kind ? this.org.forUri(target.pkgUri) : undefined;
+    return kind && folder?.layer ? orgView({ ...folder, layer: folder.layer }, kind, target.name, clockAt) : undefined;
+  }
+
+  /** The allowlist result as the webview shows it: plain strings, set as text. */
+  private orgPayload(target: Target): OrgPayload | null {
+    const view = this.orgFor(target);
+    if (!view) return null;
+    return {
+      tone: view.allowlist.tone,
+      text: S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode),
+      detail: [view.allowlist.reason && S.orgReason(view.allowlist.reason), view.allowlist.expires && S.orgExpires(view.allowlist.expires)]
+        .filter(Boolean)
+        .join(' · '),
+      received: view.received,
+      openWeb: S.orgOpenWeb,
+    };
+  }
+
+  /**
+   * New org data from Depos. In org mode the note itself may have changed: it is
+   * read again, unless the user has unsaved text in the panel. The allowlist result
+   * is redrawn either way.
+   */
+  private async onOrgChange(): Promise<void> {
+    const target = this.current;
+    if (!target || !this.panel) return;
+    if (this.org.notesFor(target.pkgUri) && sameLayers(this.live, this.loaded)) {
+      await this.reload();
+      return;
+    }
+    void this.panel.webview.postMessage({ type: 'org', key: target.key, org: this.orgPayload(target) });
+  }
+}
+
+interface OrgPayload {
+  tone: string;
+  text: string;
+  detail: string;
+  received: string;
+  openWeb: string;
+}
+
+function clockAt(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
