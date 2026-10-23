@@ -36,6 +36,7 @@ export function renderHtml(): string {
     background: var(--vscode-editor-background);
   }
   header { display: flex; flex-direction: column; gap: 4px; }
+  .title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .dep {
     font-size: 1.25em; font-weight: 600; line-height: 1.2;
     font-family: var(--vscode-editor-font-family);
@@ -52,6 +53,15 @@ export function renderHtml(): string {
     background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
     font-size: .85em;
   }
+  /* Pacmon green (the mark's colors), for the dependency section and an allowed package. */
+  .pill.green { background: #00662f; color: #ffffff; }
+  body.vscode-dark .pill.green,
+  body.vscode-high-contrast:not(.vscode-high-contrast-light) .pill.green { background: #00ff66; color: #0a0a0a; }
+  .pill.red {
+    background: var(--vscode-statusBarItem-errorBackground, #c72e2e);
+    color: var(--vscode-statusBarItem-errorForeground, #ffffff);
+  }
+  .pill.yellow { background: #f2c200; color: #1a1a1a; }
   button {
     font-family: inherit; font-size: .9em;
     padding: 3px 9px; border-radius: 2px; cursor: pointer;
@@ -166,39 +176,22 @@ export function renderHtml(): string {
     font-size: .9em; color: var(--vscode-descriptionForeground); min-height: 1.2em;
   }
   .status.dirty { color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground)); }
-  /* The organization layer: read-only, from Depos, never merged with the note. */
-  .org {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 8px 10px; border-left: 3px solid var(--vscode-textLink-foreground);
-    background: var(--vscode-textBlockQuote-background);
-  }
-  .org-head, .org-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .org-foot { font-size: .9em; color: var(--vscode-descriptionForeground); }
-  .org-detail { font-size: .9em; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
-  .pill.denied { background: var(--vscode-inputValidation-errorBackground, var(--vscode-badge-background)); }
-  .pill.unlisted { background: var(--vscode-inputValidation-warningBackground, var(--vscode-badge-background)); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
   <header>
-    <div class="dep" id="dep"></div>
+    <div class="title">
+      <div class="dep" id="dep"></div>
+      <!-- The allowlist result from Depos: red when denied, yellow when not listed, green when allowed. -->
+      <span class="pill" id="orgResult" hidden></span>
+    </div>
     <div class="meta">
-      <span class="pill" id="depSection" hidden></span>
+      <span class="pill green" id="depSection" hidden></span>
       <span id="fileHint"></span>
       <button type="button" id="openFile">${esc(S.panelOpenFile)}</button>
     </div>
   </header>
-
-  <section class="org" id="orgLayer" hidden>
-    <div class="org-head">
-      <span class="pill" id="orgResult"></span>
-    </div>
-    <div class="org-detail" id="orgDetail" hidden></div>
-    <div class="org-foot">
-      <span id="orgReceived"></span>
-    </div>
-  </section>
 
   <section class="layer">
     <div class="caption"><span id="humanCaption">${esc(S.panelHumanNotes)}</span><svg class="pen" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 14l1.4-4.2 7.2-7.2a2 2 0 0 1 2.8 2.8l-7.2 7.2L2 14z"/></svg></div>
@@ -383,19 +376,17 @@ export function renderHtml(): string {
     else vscode.postMessage({ type: 'openFile' });
   });
 
-  // The allowlist result from Depos. Every string is set as text.
+  // The allowlist result from Depos, as a badge beside the name; the mode, reason
+  // and expiry are its tooltip. Every string is set as text.
   function showOrg(o) {
-    const box = el('orgLayer');
-    box.hidden = !o;
+    const result = el('orgResult');
+    result.hidden = !o;
     openInWeb = !!o;
     openFileBtn.textContent = o ? o.openWeb : openFileLabel;
     if (!o) return;
-    const result = el('orgResult'), detail = el('orgDetail');
-    result.className = 'pill ' + o.tone;
+    result.className = 'pill ' + (o.tone === 'denied' ? 'red' : o.tone === 'unlisted' ? 'yellow' : 'green');
     result.textContent = o.text;
-    detail.hidden = !o.detail;
-    detail.textContent = o.detail;
-    el('orgReceived').textContent = o.received;
+    result.title = o.detail;
   }
   fixBtn.addEventListener('click', () => post('fixAgent'));
 

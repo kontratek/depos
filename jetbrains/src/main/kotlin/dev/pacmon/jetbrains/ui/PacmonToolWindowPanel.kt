@@ -23,6 +23,7 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -55,7 +56,9 @@ class PacmonToolWindowPanel(
         val editorScheme = EditorColorsManager.getInstance().globalScheme
         font = Font(editorScheme.editorFontName, Font.BOLD, editorScheme.editorFontSize + 2)
     }
-    private val sectionLabel = DependencySectionBadge()
+    private val sectionLabel = Badge()
+    /** The allowlist result from Depos beside the name: red when denied, yellow when not listed, green when allowed. */
+    private val orgBadge = Badge().apply { isVisible = false }
     private val notesPathLabel = JBLabel("->  .pacmon/DEPENDENCY-NOTES.md").apply {
         // Matches `.meta`: smaller and muted, secondary to the title above it.
         font = font.deriveFont(font.size2D - 1f)
@@ -106,21 +109,6 @@ class PacmonToolWindowPanel(
         border = JBUI.Borders.emptyBottom(6)
         alignmentX = Component.LEFT_ALIGNMENT
     }
-    private val orgResultLabel = JBLabel("").apply { font = font.deriveFont(Font.BOLD) }
-    private val orgDetailLabel = JBLabel("")
-    private val orgReceivedLabel = JBLabel("").apply {
-        foreground = mutedColor
-        font = font.deriveFont(font.size2D - 1f)
-    }
-    private val orgPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.Y_AXIS)
-        alignmentX = Component.LEFT_ALIGNMENT
-        border = BorderFactory.createCompoundBorder(
-            JBUI.Borders.customLineBottom(JBColor.border()),
-            JBUI.Borders.empty(0, 0, 8, 0),
-        )
-        isVisible = false
-    }
 
     private var target: PacmonTarget? = null
     private var baseline = Layers("", "")
@@ -153,7 +141,14 @@ class PacmonToolWindowPanel(
     }
 
     private fun createHeader(): JPanel {
-        val titleRow = ResponsiveHeaderRow(nameLabel, openFileButton)
+        val title = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            isOpaque = false
+            add(nameLabel)
+            add(Box.createHorizontalStrut(JBUI.scale(8)))
+            add(orgBadge)
+        }
+        val titleRow = ResponsiveHeaderRow(title, openFileButton)
         val metadataRow = JPanel(BorderLayout(6, 0)).apply {
             isOpaque = false
             add(sectionLabel, BorderLayout.WEST)
@@ -218,16 +213,9 @@ class PacmonToolWindowPanel(
             add(JBLabel("Generated (read-only)"), BorderLayout.NORTH)
             add(generatedPreview, BorderLayout.CENTER)
         }
-        orgPanel.apply {
-            for (label in listOf(orgResultLabel, orgDetailLabel, orgReceivedLabel)) {
-                label.alignmentX = Component.LEFT_ALIGNMENT
-                add(label)
-            }
-        }
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(8, 12, 16, 12)
-            add(orgPanel)
             add(readOnlyLabel)
             humanLayer.alignmentX = Component.LEFT_ALIGNMENT
             add(humanLayer)
@@ -343,19 +331,23 @@ class PacmonToolWindowPanel(
         agentLayer.setReadOnly(readOnly)
         readOnlyLabel.isVisible = readOnly
         val view = org.view(current.manifest, current.name)
-        orgPanel.isVisible = view != null
+        orgBadge.isVisible = view != null
         openFileButton.text = if (view != null) DeposStrings.orgOpenWeb else OPEN_NOTES_FILE
         if (view != null) {
-            orgResultLabel.text = DeposStrings.orgAllowlistLine(view.result, view.mode)
-            orgResultLabel.foreground = when (view.kind) {
-                OrgResult.Kind.ALLOWED -> JBColor(0x2E7D32, 0x6CC070)
-                OrgResult.Kind.DENIED -> JBColor.RED
-                OrgResult.Kind.UNLISTED -> JBColor.ORANGE
-            }
-            val detail = listOfNotNull(view.reason?.let(DeposStrings::orgReason), view.expires?.let(DeposStrings::orgExpires))
-            orgDetailLabel.text = detail.joinToString(" · ")
-            orgDetailLabel.isVisible = detail.isNotEmpty()
-            orgReceivedLabel.text = view.received
+            orgBadge.text = view.result
+            orgBadge.tone(
+                when (view.kind) {
+                    OrgResult.Kind.ALLOWED -> Badge.Tone.GREEN
+                    OrgResult.Kind.UNLISTED -> Badge.Tone.YELLOW
+                    OrgResult.Kind.DENIED -> Badge.Tone.RED
+                },
+            )
+            // The mode, reason and expiry are the badge's tooltip.
+            orgBadge.toolTipText = listOfNotNull(
+                DeposStrings.orgAllowlistLine(view.result, view.mode),
+                view.reason?.let(DeposStrings::orgReason),
+                view.expires?.let(DeposStrings::orgExpires),
+            ).joinToString(" · ")
         }
         revalidate()
         repaint()
@@ -509,14 +501,27 @@ class PacmonToolWindowPanel(
         saveAlarm.cancelAllRequests()
     }
 
-    private class DependencySectionBadge : JBLabel("") {
-        private val badgeBackground = JBColor(0xD9D9D9, 0x5A5D5E)
+    /** A small rounded badge, Pacmon green (the mark's colors) unless given another [Tone]. */
+    private class Badge : JBLabel("") {
+        enum class Tone(val background: Color, val foreground: Color) {
+            GREEN(JBColor(0x00662F, 0x00FF66), JBColor(0xFFFFFF, 0x0A0A0A)),
+            YELLOW(JBColor(0xF2C200, 0xF2C200), JBColor(0x1A1A1A, 0x1A1A1A)),
+            RED(JBColor(0xC72E2E, 0xC72E2E), JBColor(0xFFFFFF, 0xFFFFFF)),
+        }
+
+        private var badgeBackground: Color = Tone.GREEN.background
 
         init {
             isOpaque = false
-            foreground = JBColor(0x303030, 0xFFFFFF)
+            foreground = Tone.GREEN.foreground
             border = JBUI.Borders.empty(1, 6)
             font = font.deriveFont(font.size2D - 1f)
+        }
+
+        fun tone(tone: Tone) {
+            badgeBackground = tone.background
+            foreground = tone.foreground
+            repaint()
         }
 
         override fun paintComponent(graphics: Graphics) {
