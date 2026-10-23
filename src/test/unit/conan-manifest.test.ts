@@ -45,6 +45,12 @@ CMakeDeps
     ]);
   });
 
+  it('reads version ranges that contain spaces', () => {
+    const ranged = '[requires]\nopenssl/[>=3.0 <4]\nzlib/[~1.3]\nboost/[>=1.80 <2]@vendor/stable\nspaced/1.0 trailing\n';
+    expect(extractConanTextDependencies(ranged).map((dependency) => dependency.noteKey))
+      .toEqual(['openssl', 'zlib', 'boost']);
+  });
+
   it('keeps exact package ranges', () => {
     for (const dependency of extractConanTextDependencies(manifest)) {
       expect(manifest.slice(
@@ -52,6 +58,24 @@ CMakeDeps
         dependency.primaryRange.offset + dependency.primaryRange.length,
       )).toBe(dependency.displayName);
     }
+  });
+
+  it('reads version ranges that contain spaces', () => {
+    const ranges = `[requires]
+openssl/[>=3.0 <4]
+boost/[>1.80 <2, include_prerelease]@vendor/stable
+unclosed/[>=1.0 <2
+trailing/1.0 text
+
+[tool_requires]
+cmake/[>=3.25 <4]
+`;
+    expect(extractConanTextDependencies(ranges).map((dependency) =>
+      `${dependency.scope}:${dependency.noteKey}`)).toEqual([
+      'requires:openssl',
+      'requires:boost',
+      'tool_requires:cmake',
+    ]);
   });
 });
 
@@ -104,9 +128,37 @@ def unrelated():
     expect(extractConanDependencies('[requires]\nzlib/1.3.1\n', '/repo/conanfile.txt')[0]?.noteKey).toBe('zlib');
   });
 
+  it('reads version ranges that contain spaces', () => {
+    const ranges = `class Recipe(ConanFile):
+    requires = "openssl/[>=3.0 <4]", "fmt/[>=10 <12]"
+
+    def requirements(self):
+        self.tool_requires("cmake/[>=3.25 <4, include_prerelease]")
+`;
+    expect(extractConanPythonDependencies(ranges).map((dependency) =>
+      `${dependency.scope}:${dependency.noteKey}`)).toEqual([
+      'requires:openssl',
+      'requires:fmt',
+      'tool_requires:cmake',
+    ]);
+  });
+
   it('keeps declarations before malformed Python', () => {
     const malformed = 'class Recipe:\n    requires = "zlib/1.3.1"\n    broken = "unterminated';
     expect(extractConanPythonDependencies(malformed).map((dependency) => dependency.noteKey)).toEqual(['zlib']);
+  });
+
+  it('reads version ranges that contain spaces', () => {
+    const ranged = `class Recipe(ConanFile):
+    requires = "openssl/[>=3.0 <4]", "zlib/[~1.3]"
+
+    def requirements(self):
+        self.requires("boost/[>=1.80 <2]@vendor/stable")
+        self.tool_requires("cmake/[>=3.20 <3.29 || >=3.30]")
+        self.requires("spaced/1.0 trailing")
+`;
+    expect(extractConanPythonDependencies(ranged).map((dependency) => dependency.noteKey))
+      .toEqual(['openssl', 'zlib', 'boost', 'cmake']);
   });
 
   it('matches note headings case-insensitively', () => {

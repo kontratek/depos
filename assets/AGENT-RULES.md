@@ -50,6 +50,8 @@ Text written by people. Do not touch it.
   - `Gemfile`, `gems.rb`, or a gemspec: the literal, case-sensitive gem name — `## rails`, `## rspec`
   - `go.mod`: the module path in `require`, including any major-version suffix; a `tool` belongs to the module that contains it — `## github.com/spf13/cobra`, `## github.com/jackc/pgx/v5`
   - `composer.json`: the lower-cased package or platform key in `require` or `require-dev` — `## monolog/monolog`, `## php`, `## ext-mbstring`
+  - `vcpkg.json`: the lower-cased port name in `dependencies` or a feature's `dependencies` — `## fmt`, `## openssl`
+  - `conanfile.py` or `conanfile.txt`: the lower-cased package name before the first `/` of the reference — `## zlib`, `## openssl`
 - **The text right under the heading is written by people.** Never edit or delete it. Treat it as one of your sources — alongside the code, the git history, the registry and your own reasoning. If your block disagrees with it, the human text wins: fix your block and add a `log:` line saying so.
 - **`### Agent notes` is yours.** Lower-case keys, one fact per line, keys may repeat (several `constraint:` or `log:` lines are normal). Keys outside the vocabulary below are flagged by Pacmon; if something fits none of them, write it as `note:` — never invent a key.
 - One `## name` section per direct dependency, in alphabetical order. `##` is reserved for dependencies; inside a section the only heading is `### Agent notes`.

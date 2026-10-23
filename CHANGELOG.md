@@ -77,12 +77,23 @@
   ignores dynamic declarations, `eval_gemfile`, `Gemfile.lock` and transitive
   gems.
 
-- **Pacmon supports PHP/Composer projects in VS Code.** Package and platform
-  requirements in the root `require` and `require-dev` objects of
-  `composer.json` get markers, hover, note editing and coverage backed by
-  `.pacmon/composer/DEPENDENCY-NOTES.md`. Parsing is static: Pacmon never runs
+- **Pacmon supports PHP/Composer projects in VS Code and JetBrains/PhpStorm.**
+  Package and platform requirements in the root `require` and `require-dev`
+  objects of `composer.json` get markers, hover, note editing and coverage
+  backed by `.pacmon/composer/DEPENDENCY-NOTES.md`. Parsing is static: Pacmon never runs
   PHP or Composer, and ignores other package-link fields, `composer.lock` and
   transitive packages.
+
+- **Pacmon supports C/C++ projects that use vcpkg or Conan in VS Code.**
+  Dependencies in the root `dependencies` array and the
+  `features.<name>.dependencies` arrays of `vcpkg.json`, in the `requires`,
+  `tool_requires`, `test_requires` and `build_requires` sections of
+  `conanfile.txt`, and in the literal requirement fields and `self.*` calls of
+  `conanfile.py` get markers, hover, note editing and coverage backed by
+  `.pacmon/vcpkg/DEPENDENCY-NOTES.md` and `.pacmon/conan/DEPENDENCY-NOTES.md`.
+  vcpkg host dependencies keep a scope of their own. Parsing is static: Pacmon
+  never runs vcpkg, Conan or the recipe's Python code, and ignores overrides,
+  baselines, dynamic expressions, lockfiles and transitive packages.
 
 - **The VS Code and Open VSX pages describe dependency review and
   allowlisting.** Like the Visual Studio Marketplace page, they say that a notes
@@ -90,6 +101,14 @@
   accepted, with their `risk`, `runtime`, `exposure` and advisory `log`, and
   that a dependency without a note is shown, not blocked. The README also says
   which editors add the pointer to agent instruction files.
+
+- **The JetBrains Marketplace page links to https://pacmon.dev**, as the
+  VS Code, Open VSX and Visual Studio Marketplace pages already do.
+
+- **JetBrains IDEs write the same agent pointer as VS Code.** The three lines
+  **Set Up AI Instructions** adds to `AGENTS.md`, `CLAUDE.md` and the other
+  instruction files now name the Ruby, .NET/NuGet, vcpkg, Conan and
+  PHP/Composer notes files too.
 
 ## 0.9.0 — 2026-09-29
 

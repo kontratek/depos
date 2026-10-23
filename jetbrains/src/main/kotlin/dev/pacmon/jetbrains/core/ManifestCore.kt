@@ -10,8 +10,11 @@ enum class ManifestKind(val id: String) {
     ZIG("zig"),
     PYTHON("python"),
     RUBY("ruby"),
+    COMPOSER("composer"),
     NUGET("nuget"),
-    GO("go");
+    GO("go"),
+    VCPKG("vcpkg"),
+    CONAN("conan");
 
     companion object {
         fun fromId(value: String?): ManifestKind? = entries.firstOrNull { it.id == value }
@@ -53,8 +56,11 @@ object ManifestRegistry {
         ZigManifestAdapter,
         PythonManifestAdapter,
         RubyManifestAdapter,
+        ComposerManifestAdapter,
         NugetManifestAdapter,
         GoManifestAdapter,
+        VcpkgManifestAdapter,
+        ConanManifestAdapter,
     )
 
     fun forFileName(fileName: String): ManifestAdapter? = forPath(fileName)
@@ -77,7 +83,7 @@ object ManifestRegistry {
     fun normalizeName(raw: String, ecosystem: ManifestKind?): String {
         val value = stripName(raw)
         if (ecosystem == ManifestKind.PYTHON) return PythonManifestAdapter.normalizePackageName(value)
-        if (ecosystem == ManifestKind.NUGET) return value.lowercase()
+        if (ecosystem in setOf(ManifestKind.NUGET, ManifestKind.COMPOSER, ManifestKind.VCPKG, ManifestKind.CONAN)) return value.lowercase()
         return if (ecosystem != null && ecosystem != ManifestKind.NPM) value else value.lowercase()
     }
 }
@@ -116,16 +122,106 @@ object NpmManifestAdapter : ManifestAdapter {
     }
 }
 
-private sealed interface JsonValue
-private data class JsonObject(val properties: List<JsonProperty>) : JsonValue
-private data object JsonScalar : JsonValue
+object ComposerManifestAdapter : ManifestAdapter {
+    override val kind = ManifestKind.COMPOSER
+    override val fileNames = listOf("composer.json")
+    override val notesRelativePath = ".pacmon/composer/DEPENDENCY-NOTES.md"
+    override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
+
+    private val dependencySections = listOf("require", "require-dev")
+    private val packageName = Regex("^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$")
+    private val platformPackage = Regex(
+        "^(?:php(?:-[A-Za-z0-9_.-]+)?|hhvm|ext-[A-Za-z0-9_.-]+|lib-[A-Za-z0-9_.-]+|composer(?:-(?:plugin|runtime)-api)?)$",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Reads direct Composer requirements without invoking PHP or Composer. */
+    override fun extractDependencies(text: String): List<DependencyEntry> {
+        val root = JsonReader(text).readValue() as? JsonObject ?: return emptyList()
+        return dependencySections.flatMap { section ->
+            val dependencies = root.property(section) as? JsonObject ?: return@flatMap emptyList()
+            dependencies.properties.mapNotNull { dependency ->
+                if (dependency.value !is JsonText || !isDependencyName(dependency.key)) return@mapNotNull null
+                val keyRange = dependency.keyRange
+                val range = SourceRange(keyRange.offset + 1, keyRange.length - 2)
+                dependencyEntry(
+                    dependency.key.lowercase(),
+                    section,
+                    range,
+                    displayName = dependency.key,
+                    iconRange = SourceRange(keyRange.offset, 1),
+                )
+            }
+        }
+    }
+
+    private fun isDependencyName(value: String): Boolean =
+        packageName.matches(value) || platformPackage.matches(value)
+}
+
+object VcpkgManifestAdapter : ManifestAdapter {
+    override val kind = ManifestKind.VCPKG
+    override val fileNames = listOf("vcpkg.json")
+    override val notesRelativePath = ".pacmon/vcpkg/DEPENDENCY-NOTES.md"
+    override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
+
+    private val packageName = Regex("^[A-Za-z0-9][A-Za-z0-9-]*$")
+
+    /** Reads direct dependency declarations from vcpkg.json without invoking vcpkg. */
+    override fun extractDependencies(text: String): List<DependencyEntry> {
+        val root = JsonReader(text).readValue() as? JsonObject ?: return emptyList()
+        val out = dependenciesFrom(root.property("dependencies"), "dependencies").toMutableList()
+        val features = root.property("features") as? JsonObject ?: return out
+        for (feature in features.properties) {
+            val body = feature.value as? JsonObject ?: continue
+            out.addAll(dependenciesFrom(body.property("dependencies"), "feature:${feature.key}"))
+        }
+        return out
+    }
+
+    private fun dependenciesFrom(node: JsonValue?, scope: String): List<DependencyEntry> {
+        val array = node as? JsonArray ?: return emptyList()
+        return array.items.mapNotNull { dependencyFrom(it, scope) }
+    }
+
+    private fun dependencyFrom(node: JsonValue, scope: String): DependencyEntry? {
+        val name = when (node) {
+            is JsonText -> node
+            is JsonObject -> node.property("name") as? JsonText
+            else -> null
+        } ?: return null
+        if (!packageName.matches(name.value)) return null
+        val host = node is JsonObject && (node.property("host") as? JsonScalar)?.raw == "true"
+        val range = SourceRange(name.range.offset + 1, name.range.length - 2)
+        return dependencyEntry(
+            name.value.lowercase(),
+            if (host) "$scope:host" else scope,
+            range,
+            displayName = name.value,
+            iconRange = SourceRange(node.offset, 1),
+        )
+    }
+}
+
+private sealed interface JsonValue {
+    val offset: Int
+}
+private data class JsonObject(val properties: List<JsonProperty>, override val offset: Int) : JsonValue {
+    fun property(name: String): JsonValue? = properties.firstOrNull { it.key == name }?.value
+}
+private data class JsonArray(val items: List<JsonValue>, override val offset: Int) : JsonValue
+private data class JsonText(val value: String, val range: SourceRange) : JsonValue {
+    override val offset: Int get() = range.offset
+}
+/** A number, literal or unreadable value; [raw] is its source text. */
+private data class JsonScalar(val raw: String, override val offset: Int) : JsonValue
 private data class JsonProperty(
     val key: String,
     val keyRange: SourceRange,
     val value: JsonValue,
 )
 
-/** Small JSONC reader: enough structure for package.json, with no runtime dependency. */
+/** Small JSONC reader: enough structure for package.json, composer.json and vcpkg.json, with no runtime dependency. */
 private class JsonReader(private val text: String) {
     private var cursor = 0
 
@@ -135,13 +231,13 @@ private class JsonReader(private val text: String) {
         return when (text[cursor]) {
             '{' -> readObject()
             '[' -> readArray()
-            '"' -> readString()?.let { JsonScalar }
+            '"' -> readString()?.let { JsonText(it.value, it.range) }
             else -> readPrimitive()
         }
     }
 
     private fun readObject(): JsonObject {
-        cursor++
+        val start = cursor++
         val properties = mutableListOf<JsonProperty>()
         while (cursor < text.length) {
             skipTrivia()
@@ -160,7 +256,7 @@ private class JsonReader(private val text: String) {
                 if (take('}')) break
                 continue
             }
-            val value = readValue() ?: JsonScalar
+            val value = readValue() ?: JsonScalar("", cursor)
             properties.add(JsonProperty(key.value, key.range, value))
             skipTrivia()
             if (take(',')) continue
@@ -169,20 +265,24 @@ private class JsonReader(private val text: String) {
             if (take(',')) continue
             if (take('}')) break
         }
-        return JsonObject(properties)
+        return JsonObject(properties, start)
     }
 
-    private fun readArray(): JsonValue {
-        cursor++
+    private fun readArray(): JsonArray {
+        val start = cursor++
+        val items = mutableListOf<JsonValue>()
         while (cursor < text.length) {
             skipTrivia()
             if (take(']')) break
-            readValue() ?: run { cursor++ }
+            val before = cursor
+            readValue()?.let(items::add)
+            // A stray '}' or an unterminated string reads nothing; step past it.
+            if (cursor == before) cursor++
             skipTrivia()
             if (take(',')) continue
             if (take(']')) break
         }
-        return JsonScalar
+        return JsonArray(items, start)
     }
 
     private data class JsonString(val value: String, val range: SourceRange)
@@ -226,8 +326,9 @@ private class JsonReader(private val text: String) {
     }
 
     private fun readPrimitive(): JsonValue {
+        val start = cursor
         while (cursor < text.length && text[cursor] !in charArrayOf(',', '}', ']') && !text[cursor].isWhitespace()) cursor++
-        return JsonScalar
+        return JsonScalar(text.substring(start, cursor), start)
     }
 
     private fun skipTrivia() {

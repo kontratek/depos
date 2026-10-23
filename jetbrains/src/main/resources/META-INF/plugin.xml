@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin url="https://pacmon.dev">
     <id>dev.pacmon.jetbrains</id>
     <name>Pacmon</name>
     <vendor email="info@pacmon.dev" url="https://pacmon.dev">Kontra</vendor>
@@ -6,14 +6,16 @@
     <!-- The Marketplace listing is built from the plugin zip: the name and the
          description here, META-INF/pluginIcon.svg next to this file, and the change
          notes, which build.gradle.kts renders from this version's CHANGELOG section.
-         None of them can be edited on the site; a change ships as a new version. -->
+         None of them can be edited on the site; a change ships as a new version.
+         The url on <idea-plugin> is the homepage link on the plugin's Marketplace
+         page, which the vendor's url does not fill. -->
     <description><![CDATA[
         <p><b>Your dependency manifest says what you depend on. Pacmon adds why.</b></p>
         <p>Every dependency gets a short note: why it is here, what must not change,
         what to check before an upgrade. The note shows in <code>package.json</code>,
         <code>Cargo.toml</code>, Maven <code>pom.xml</code>, a Gradle build file, <code>mix.exs</code>,
         <code>gleam.toml</code>, <code>build.zig.zon</code>, <code>pyproject.toml</code>, a pip requirements file, a .NET project file,
-        <code>Gemfile</code>, a gemspec, <code>Directory.Packages.props</code>, or <code>go.mod</code> as quick documentation,
+        <code>Gemfile</code>, a gemspec, <code>composer.json</code>, <code>Directory.Packages.props</code>, <code>go.mod</code>, <code>vcpkg.json</code>, <code>conanfile.py</code>, or <code>conanfile.txt</code> as quick documentation,
         and you write it from there.</p>
         <p>Notes are plain Markdown under <code>.pacmon/</code>, separated by ecosystem.
         No database, no service, no account: files that you read, diff and commit like

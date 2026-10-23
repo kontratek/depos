@@ -26,8 +26,13 @@ object AiInstructions {
             "`.pacmon/mix/${NotesCore.NOTES_FILE_NAME}` for Mix, " +
             "`.pacmon/gleam/${NotesCore.NOTES_FILE_NAME}` for Gleam, " +
             "`.pacmon/zig/${NotesCore.NOTES_FILE_NAME}` for Zig, " +
-            "`.pacmon/python/${NotesCore.NOTES_FILE_NAME}` for Python, and " +
-            "`.pacmon/go/${NotesCore.NOTES_FILE_NAME}` for Go; people write below `## <package>`, " +
+            "`.pacmon/python/${NotesCore.NOTES_FILE_NAME}` for Python, " +
+            "`.pacmon/ruby/${NotesCore.NOTES_FILE_NAME}` for Ruby, " +
+            "`.pacmon/go/${NotesCore.NOTES_FILE_NAME}` for Go, " +
+            "`.pacmon/nuget/${NotesCore.NOTES_FILE_NAME}` for .NET/NuGet, " +
+            "`.pacmon/vcpkg/${NotesCore.NOTES_FILE_NAME}` for vcpkg, " +
+            "`.pacmon/conan/${NotesCore.NOTES_FILE_NAME}` for Conan, and " +
+            "`.pacmon/composer/${NotesCore.NOTES_FILE_NAME}` for PHP/Composer; people write below `## <package>`, " +
             "agents under `${NotesCore.AGENT_NOTES_HEADING}`.",
         "Rules and the field list are in `${NotesCore.AGENT_RULES_RELATIVE_PATH}`; read a package's section " +
             "before adding, bumping or removing it.",

@@ -23,11 +23,11 @@ Notes live in Markdown files under `.pacmon/`, next to the manifest they describ
 | Ruby | `Gemfile`, `gems.rb`, `*.gemspec` | `.pacmon/ruby/DEPENDENCY-NOTES.md` | the literal gem name as written: `## rails`, `## rspec` |
 | .NET / NuGet | `*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Packages.props` | `.pacmon/nuget/DEPENDENCY-NOTES.md` | the case-insensitive package ID as written: `## Newtonsoft.Json` |
 | Go | `go.mod` | `.pacmon/go/DEPENDENCY-NOTES.md` | the module path: `## github.com/spf13/cobra`, `## github.com/jackc/pgx/v5` |
-| C/C++ / vcpkg (VS Code) | `vcpkg.json` | `.pacmon/vcpkg/DEPENDENCY-NOTES.md` | the case-insensitive port name: `## fmt`, `## openssl` |
-| C/C++ / Conan (VS Code) | `conanfile.py`, `conanfile.txt` | `.pacmon/conan/DEPENDENCY-NOTES.md` | the case-insensitive package name before `/`: `## zlib`, `## openssl` |
-| PHP / Composer (VS Code) | `composer.json` | `.pacmon/composer/DEPENDENCY-NOTES.md` | the case-insensitive package or platform name: `## monolog/monolog`, `## php`, `## ext-mbstring` |
+| C/C++ / vcpkg | `vcpkg.json` | `.pacmon/vcpkg/DEPENDENCY-NOTES.md` | the case-insensitive port name: `## fmt`, `## openssl` |
+| C/C++ / Conan | `conanfile.py`, `conanfile.txt` | `.pacmon/conan/DEPENDENCY-NOTES.md` | the case-insensitive package name before `/`: `## zlib`, `## openssl` |
+| PHP / Composer | `composer.json` | `.pacmon/composer/DEPENDENCY-NOTES.md` | the case-insensitive package or platform name: `## monolog/monolog`, `## php`, `## ext-mbstring` |
 
-VS Code supports every manifest in the table. JetBrains supports npm, Rust, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, NuGet and Go; the C/C++ and PHP/Composer rows are currently VS Code-only. The Visual Studio 2022+ VSIX currently supports the .NET/NuGet row only and reads the same `.pacmon/nuget/DEPENDENCY-NOTES.md` files, so NuGet notes move between all three IDEs without conversion.
+VS Code supports every manifest in the table. JetBrains supports npm, Rust, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, PHP/Composer, NuGet, Go, vcpkg and Conan. The Visual Studio 2022+ VSIX currently supports the .NET/NuGet row only and reads the same `.pacmon/nuget/DEPENDENCY-NOTES.md` files, so NuGet notes move between all three IDEs without conversion.
 
 Pacmon reads a manifest as text and never runs npm, Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, pip, Poetry, uv, Ruby, Bundler, RubyGems, PHP, Composer, Go, .NET, MSBuild, NuGet, vcpkg, Conan or Python recipe code. It sees the direct dependencies written in the file:
 
@@ -42,9 +42,9 @@ Pacmon reads a manifest as text and never runs npm, Cargo, Maven, Gradle, Mix, G
 - **Ruby:** literal `gem` calls in `Gemfile` or `gems.rb`, with literal group and platform scopes; plus literal `add_dependency`, `add_runtime_dependency` and `add_development_dependency` calls on the active specification receiver in `*.gemspec`. Ruby is never evaluated. Dynamic names, method/class/module bodies, `eval_gemfile`, `Gemfile.lock` and transitive gems are ignored. Gem names are matched exactly.
 - **.NET / NuGet:** literal `PackageReference Include` items in C#, F# and VB project files; and `PackageVersion Include/Update` plus `GlobalPackageReference Include` items in `Directory.Packages.props`. Package IDs are matched case-insensitively. Imports, MSBuild expressions, project/framework references, downloads and transitive packages are not evaluated.
 - **Go:** module paths in `require` directives of `go.mod`, including `// indirect` ones, shown with their own scope. A `tool` directive points at the required module that provides it. `replace`, `exclude`, `retract`, `go.work` and `vendor/` are not read as dependencies.
-- **vcpkg (VS Code):** string and object entries in the root `dependencies` array and in `features.<name>.dependencies`. Host dependencies keep a separate scope. Overrides, baselines, requested dependency features, configuration files, installed trees and transitive packages are not dependencies.
-- **Conan (VS Code):** references in the `requires`, `tool_requires`, `test_requires` and legacy `build_requires` sections of `conanfile.txt`; literal strings, lists or tuples in matching `conanfile.py` class fields; and literal first arguments to matching `self.*` calls. Dynamic expressions, lockfiles and transitive packages are not evaluated.
-- **PHP / Composer (VS Code):** package and platform requirements in the root `require` and `require-dev` objects of `composer.json`, including `php`, `php-*`, `hhvm`, `ext-*`, `lib-*` and Composer API packages. Names are matched case-insensitively. `provide`, `replace`, `conflict`, `suggest`, `composer.lock` and transitive packages are not dependencies.
+- **vcpkg:** string and object entries in the root `dependencies` array and in `features.<name>.dependencies`. Host dependencies keep a separate scope. Overrides, baselines, requested dependency features, configuration files, installed trees and transitive packages are not dependencies.
+- **Conan:** references in the `requires`, `tool_requires`, `test_requires` and legacy `build_requires` sections of `conanfile.txt`; literal strings, lists or tuples in matching `conanfile.py` class fields; and literal first arguments to matching `self.*` calls. Dynamic expressions, lockfiles and transitive packages are not evaluated.
+- **PHP / Composer:** package and platform requirements in the root `require` and `require-dev` objects of `composer.json`, including `php`, `php-*`, `hhvm`, `ext-*`, `lib-*` and Composer API packages. Names are matched case-insensitively. `provide`, `replace`, `conflict`, `suggest`, `composer.lock` and transitive packages are not dependencies.
 
 Each ecosystem keeps its own notes file, even when two manifests share a folder. A manifest without a notes file of its own uses the nearest one above it for the same ecosystem.
 
@@ -140,7 +140,7 @@ VS Code 1.101 or newer, a JetBrains IDE 2025.2 or newer, or Visual Studio 2022 o
 
 ## Format reference
 
-npm notes use the `dependency-notes/1` format. Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan notes use `dependency-notes/2`, whose frontmatter also names the ecosystem. VS Code supports every listed ecosystem; JetBrains does not yet support Composer, vcpkg or Conan, and the Visual Studio VSIX currently supports NuGet. The reference is [`docs/format.md`](docs/format.md).
+npm notes use the `dependency-notes/1` format. Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan notes use `dependency-notes/2`, whose frontmatter also names the ecosystem. VS Code and JetBrains support every listed ecosystem, and the Visual Studio VSIX currently supports NuGet. The reference is [`docs/format.md`](docs/format.md).
 
 ## Contributing and license
 

@@ -34,7 +34,8 @@ object NotesCore {
 
     fun formatCommentLines(ecosystem: ManifestKind?): List<String> = when (ecosystem) {
         ManifestKind.CARGO, ManifestKind.MAVEN, ManifestKind.GRADLE, ManifestKind.MIX, ManifestKind.GLEAM,
-        ManifestKind.ZIG, ManifestKind.PYTHON, ManifestKind.RUBY, ManifestKind.NUGET, ManifestKind.GO -> listOf(
+        ManifestKind.ZIG, ManifestKind.PYTHON, ManifestKind.RUBY, ManifestKind.COMPOSER, ManifestKind.NUGET,
+        ManifestKind.GO, ManifestKind.VCPKG, ManifestKind.CONAN -> listOf(
             "<!-- Each \"## name\" below is a package from the ${ecosystem.id} dependency manifest.",
             "  The text under it is written by people. \"$AGENT_NOTES_HEADING\" and everything below",
             "  it is written by AI agents — rules in $AGENT_RULES_RELATIVE_PATH. -->",

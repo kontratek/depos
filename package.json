@@ -2,7 +2,7 @@
   "name": "pacmon",
   "displayName": "Pacmon — Dependency Notes",
   "description": "Why each dependency exists, as a note next to JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet or C/C++ package manifests. Plain Markdown in your repo; AI agents read and write it too.",
-  "version": "0.7.0",
+  "version": "0.10.0",
   "publisher": "kontra",
   "private": true,
   "license": "Apache-2.0",
