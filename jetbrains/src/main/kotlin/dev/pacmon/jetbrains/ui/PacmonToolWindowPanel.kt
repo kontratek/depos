@@ -39,6 +39,9 @@ import javax.swing.JEditorPane
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 
+/** The header button outside org mode; in org mode it reads [DeposStrings.orgOpenWeb]. */
+private const val OPEN_NOTES_FILE = "Open notes file"
+
 class PacmonToolWindowPanel(
     private val project: Project,
 ) : JPanel(BorderLayout()), Disposable {
@@ -61,7 +64,7 @@ class PacmonToolWindowPanel(
             JBColor(0x6F737A, 0xA0A0A0),
         )
     }
-    private val openFileButton = JButton("Open notes file").apply {
+    private val openFileButton = JButton(OPEN_NOTES_FILE).apply {
         // Matches the VS Code panel's secondary button: modest text, tight
         // padding, no accent color — a quiet affordance, not a call to action.
         font = font.deriveFont(font.size2D - 1f)
@@ -109,10 +112,6 @@ class PacmonToolWindowPanel(
         foreground = mutedColor
         font = font.deriveFont(font.size2D - 1f)
     }
-    private val openWebButton = JButton(DeposStrings.orgOpenWeb).apply {
-        font = font.deriveFont(font.size2D - 1f)
-        margin = JBUI.insets(2, 10)
-    }
     private val orgPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         alignmentX = Component.LEFT_ALIGNMENT
@@ -140,11 +139,6 @@ class PacmonToolWindowPanel(
         add(createFooter(), BorderLayout.SOUTH)
 
         openFileButton.addActionListener { openNotesFile() }
-        // The link is built here from the local copy, not taken from anything shown.
-        openWebButton.addActionListener {
-            val current = target ?: return@addActionListener
-            org.view(current.manifest, current.name)?.let { BrowserUtil.browse(it.link) }
-        }
         agentToggle.addActionListener { setAgentExpanded(!agentExpanded) }
         reloadButton.addActionListener { loadFromDisk(focusEmpty = false) }
         keepButton.addActionListener { saveNow() }
@@ -229,9 +223,6 @@ class PacmonToolWindowPanel(
                 label.alignmentX = Component.LEFT_ALIGNMENT
                 add(label)
             }
-            openWebButton.alignmentX = Component.LEFT_ALIGNMENT
-            add(Box.createVerticalStrut(JBUI.scale(4)))
-            add(openWebButton)
         }
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -339,7 +330,8 @@ class PacmonToolWindowPanel(
 
     /**
      * Org mode: where the note comes from, whether the user may change it, and the
-     * package's allowlist result with a link to its page in Depos.
+     * package's allowlist result. The header button opens the package's page in
+     * Depos instead of the notes file, which org mode does not use.
      */
     private fun refreshOrg() {
         val current = target ?: return
@@ -352,6 +344,7 @@ class PacmonToolWindowPanel(
         readOnlyLabel.isVisible = readOnly
         val view = org.view(current.manifest, current.name)
         orgPanel.isVisible = view != null
+        openFileButton.text = if (view != null) DeposStrings.orgOpenWeb else OPEN_NOTES_FILE
         if (view != null) {
             orgResultLabel.text = DeposStrings.orgAllowlistLine(view.result, view.mode)
             orgResultLabel.foreground = when (view.kind) {
@@ -450,6 +443,12 @@ class PacmonToolWindowPanel(
     private fun openNotesFile() {
         val current = target ?: return
         flushPending()
+        // The link is built here from the local copy, not taken from anything shown.
+        val view = org.view(current.manifest, current.name)
+        if (view != null) {
+            BrowserUtil.browse(view.link)
+            return
+        }
         if (notes.isOrgMode(current.manifest)) {
             PacmonCommands.openOrgNotes(project, current.manifest)
             return

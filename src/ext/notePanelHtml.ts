@@ -174,7 +174,6 @@ export function renderHtml(): string {
   }
   .org-head, .org-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .org-foot { font-size: .9em; color: var(--vscode-descriptionForeground); }
-  .org-foot button { margin-left: auto; }
   .org-detail { font-size: .9em; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
   .pill.denied { background: var(--vscode-inputValidation-errorBackground, var(--vscode-badge-background)); }
   .pill.unlisted { background: var(--vscode-inputValidation-warningBackground, var(--vscode-badge-background)); }
@@ -198,7 +197,6 @@ export function renderHtml(): string {
     <div class="org-detail" id="orgDetail" hidden></div>
     <div class="org-foot">
       <span id="orgReceived"></span>
-      <button type="button" id="openWeb"></button>
     </div>
   </section>
 
@@ -375,13 +373,22 @@ export function renderHtml(): string {
   window.addEventListener('pagehide', save);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   el('humanCaption').parentElement.addEventListener('click', () => edit('human'));
-  el('openFile').addEventListener('click', () => vscode.postMessage({ type: 'openFile' }));
-  el('openWeb').addEventListener('click', () => vscode.postMessage({ type: 'openWeb' }));
+  // In org mode the notes file is not used: the header button opens the package in
+  // Depos instead, where the note and the allowlist decision live.
+  const openFileBtn = el('openFile');
+  const openFileLabel = openFileBtn.textContent;
+  let openInWeb = false;
+  openFileBtn.addEventListener('click', () => {
+    if (openInWeb) vscode.postMessage({ type: 'openWeb' });
+    else vscode.postMessage({ type: 'openFile' });
+  });
 
   // The allowlist result from Depos. Every string is set as text.
   function showOrg(o) {
     const box = el('orgLayer');
     box.hidden = !o;
+    openInWeb = !!o;
+    openFileBtn.textContent = o ? o.openWeb : openFileLabel;
     if (!o) return;
     const result = el('orgResult'), detail = el('orgDetail');
     result.className = 'pill ' + o.tone;
@@ -389,7 +396,6 @@ export function renderHtml(): string {
     detail.hidden = !o.detail;
     detail.textContent = o.detail;
     el('orgReceived').textContent = o.received;
-    el('openWeb').textContent = o.openWeb;
   }
   fixBtn.addEventListener('click', () => post('fixAgent'));
 

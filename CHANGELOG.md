@@ -14,7 +14,9 @@
   your organizations in Depos uses that organization's notes in Depos:
   the hover, the note editor, the end-of-line preview and coverage show them,
   and `DEPENDENCY-NOTES.md` is not read or changed; an error on its first line
-  says it is no longer used and should be deleted. Organization admins edit
+  says it is no longer used and should be deleted. The note editor's
+  **Open notes file** and the hover's link to the notes file become **Open in
+  Depos**, the package's page in Depos. Organization admins edit
   these notes in the note editor and the change goes to Depos; other members
   read them. If someone else changed the note first, the save is refused and
   the editor shows the new version. Pacmon keeps a copy of the notes on
@@ -56,7 +58,8 @@
   notes from Depos: quick documentation, the marks, the end-of-line preview, coverage and
   the note editor show them, **Open DEPENDENCY-NOTES.md** opens them read-only,
   and `DEPENDENCY-NOTES.md` is not read or changed; a red banner at its top
-  says it is no longer used and should be deleted. Organization admins edit these notes in the note editor, which then
+  says it is no longer used and should be deleted, and the note editor's
+  **Open notes file** becomes **Open in Depos**. Organization admins edit these notes in the note editor, which then
   always opens in the tool window; other members read them. Denied and Not
   listed packages are marked at their manifest line, a warning in Audit and an
   error in Enforce, and quick documentation and the note editor show the
