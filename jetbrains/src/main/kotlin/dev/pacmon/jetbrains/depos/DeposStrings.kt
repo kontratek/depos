@@ -64,7 +64,7 @@ object DeposStrings {
     // ── Notes from Depos ─────────────────────────────────────────────────────
     fun orgNotesLabel(org: String): String = "notes of $org in Depos"
     fun orgModeNotesFile(org: String): String =
-        "You are signed in to Depos, so Pacmon shows the notes of $org from Depos. Changes in this file are not used while you are signed in."
+        "You are signed in to Depos, so Pacmon uses the notes of $org from Depos. This file is no longer used: delete it from the repository."
     const val orgOpenOrgNotes = "Open notes from Depos"
     const val orgNoteReadOnly = "Only organization admins can change these notes."
     const val orgNoteNotConnected = "This repository is not added to an organization in Depos."
