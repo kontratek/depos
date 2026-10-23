@@ -11,7 +11,8 @@ import type { OrgContext } from './web/orgContext';
  * - Allowlist results at the manifest line: Denied and Not listed only, a warning in
  *   Audit and an error in Enforce. Allowed and not-audited packages stay quiet. The
  *   result is looked up locally, so an edit that is not pushed yet is judged at once.
- * - In org mode, a notice at the top of a notes file: the editor does not read it.
+ * - In org mode, an error at the top of a notes file: it is no longer used and should
+ *   be deleted.
  *
  * Nothing at all while signed out of Depos.
  */
@@ -52,7 +53,7 @@ export class OrgDiagnostics implements vscode.Disposable {
       this.collection.delete(doc.uri);
       return;
     }
-    const d = new vscode.Diagnostic(doc.lineAt(0).range, S.orgModeNotesFile(orgNotes.copy.orgName), vscode.DiagnosticSeverity.Information);
+    const d = new vscode.Diagnostic(doc.lineAt(0).range, S.orgModeNotesFile(orgNotes.copy.orgName), vscode.DiagnosticSeverity.Error);
     d.source = S.orgDiagSource;
     d.code = 'org-mode-notes-file';
     this.collection.set(doc.uri, [d]);

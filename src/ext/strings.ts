@@ -226,7 +226,7 @@ export const S = {
   orgMcpLabel: (folder: string) => `Depos notes (${folder})`,
   orgNotesGone: 'These notes from Depos are no longer available. Sign in to Depos again, or open the notes file of the repository.',
   orgModeNotesFile: (org: string) =>
-    `You are signed in to Depos, so Pacmon shows the notes of ${org} from Depos. Changes in this file are not used while you are signed in.`,
+    `You are signed in to Depos, so Pacmon uses the notes of ${org} from Depos. This file is no longer used: delete it from the repository.`,
   orgNoteReadOnly: 'Only organization admins can change these notes.',
   orgNoteNotConnected: 'This repository is not added to an organization in Depos.',
   orgNoteSaveFailed: 'Pacmon: the note could not be saved to Depos. Try again.',

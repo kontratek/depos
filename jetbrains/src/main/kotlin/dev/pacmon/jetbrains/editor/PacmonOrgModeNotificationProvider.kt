@@ -16,9 +16,10 @@ import javax.swing.JComponent
 
 /**
  * In org mode a notes file is not read: the organization's org notes are the notes.
- * A banner across the top of `DEPENDENCY-NOTES.md` says so — the notice the VS Code
- * extension puts on the file's first line, in the place a JetBrains IDE shows one —
- * with a link to the org notes that stand in for it.
+ * A red banner across the top of `DEPENDENCY-NOTES.md` says it is no longer used and
+ * should be deleted — the error the VS Code extension puts on the file's first line,
+ * in the place a JetBrains IDE shows one — with a link to the org notes that stand
+ * in for it.
  */
 class PacmonOrgModeNotificationProvider : EditorNotificationProvider, DumbAware {
     override fun collectNotificationData(project: Project, file: VirtualFile): Function<in FileEditor, out JComponent?>? {
@@ -27,7 +28,7 @@ class PacmonOrgModeNotificationProvider : EditorNotificationProvider, DumbAware 
         val service = project.getService(PacmonProjectService::class.java)
         if (service.notesKind(file) == null) return null
         return Function { editor ->
-            EditorNotificationPanel(editor, EditorNotificationPanel.Status.Info).apply {
+            EditorNotificationPanel(editor, EditorNotificationPanel.Status.Error).apply {
                 text = DeposStrings.orgModeNotesFile(state.orgName)
                 createActionLabel(DeposStrings.orgOpenOrgNotes) {
                     service.manifestBesideNotes(file)?.let { PacmonCommands.openOrgNotes(project, it) }

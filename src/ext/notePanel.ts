@@ -341,11 +341,14 @@ export class NotePanel implements vscode.Disposable {
     if (!view) return null;
     return {
       tone: view.allowlist.tone,
-      text: S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode),
-      detail: [view.allowlist.reason && S.orgReason(view.allowlist.reason), view.allowlist.expires && S.orgExpires(view.allowlist.expires)]
+      text: view.allowlist.result,
+      detail: [
+        S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode),
+        view.allowlist.reason && S.orgReason(view.allowlist.reason),
+        view.allowlist.expires && S.orgExpires(view.allowlist.expires),
+      ]
         .filter(Boolean)
         .join(' · '),
-      received: view.received,
       openWeb: S.orgOpenWeb,
     };
   }
@@ -369,8 +372,8 @@ export class NotePanel implements vscode.Disposable {
 interface OrgPayload {
   tone: string;
   text: string;
+  /** The badge's tooltip: the result with its mode, the reason and the expiry. */
   detail: string;
-  received: string;
   openWeb: string;
 }
 

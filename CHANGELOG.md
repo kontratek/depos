@@ -13,7 +13,10 @@
   Signed in, a workspace folder whose GitHub repository is added to one of
   your organizations in Depos uses that organization's notes in Depos:
   the hover, the note editor, the end-of-line preview and coverage show them,
-  and `DEPENDENCY-NOTES.md` is not read or changed. Organization admins edit
+  and `DEPENDENCY-NOTES.md` is not read or changed; an error on its first line
+  says it is no longer used and should be deleted. The note editor's
+  **Open notes file** and the hover's link to the notes file become **Open in
+  Depos**, the package's page in Depos. Organization admins edit
   these notes in the note editor and the change goes to Depos; other members
   read them. If someone else changed the note first, the save is refused and
   the editor shows the new version. Pacmon keeps a copy of the notes on
@@ -30,8 +33,11 @@
   Pacmon shows the allowlist result Depos decides for each package of the
   folder's repository. Denied and Not listed packages are marked at their
   manifest line: a warning when the ecosystem is set to Audit, an error in
-  Enforce. The hover and the note editor show the result, the reason, the
-  expiry, and **Open in Depos** for the package's page. A line you just added
+  Enforce. The hover shows the result, the reason, the expiry, and **Open in
+  Depos** for the package's page; the note editor shows the result as a badge
+  beside the package name, red when denied, yellow when not listed and green
+  when allowed, with the
+  reason and expiry in its tooltip. A line you just added
   is checked at once, before you push it. An ecosystem set to Off shows
   nothing. Pacmon asks Depos again only when the allowlist changed, and uses
   the last copy while Depos cannot be reached.
@@ -54,12 +60,14 @@
   repository is added to one of your organizations use that organization's
   notes from Depos: quick documentation, the marks, the end-of-line preview, coverage and
   the note editor show them, **Open DEPENDENCY-NOTES.md** opens them read-only,
-  and `DEPENDENCY-NOTES.md` is not read or changed, which a notice at its top
-  says. Organization admins edit these notes in the note editor, which then
+  and `DEPENDENCY-NOTES.md` is not read or changed; a red banner at its top
+  says it is no longer used and should be deleted, and the note editor's
+  **Open notes file** becomes **Open in Depos**. Organization admins edit these notes in the note editor, which then
   always opens in the tool window; other members read them. Denied and Not
   listed packages are marked at their manifest line, a warning in Audit and an
-  error in Enforce, and quick documentation and the note editor show the
-  result, its reason, its expiry and **Open in Depos**. The copy on your
+  error in Enforce; quick documentation shows the result, its reason, its
+  expiry and **Open in Depos**, and the note editor shows the result as a
+  badge beside the package name, as in VS Code. The copy on your
   machine is refreshed at start, when the IDE gets focus, every 5 minutes and
   with **Refresh Notes from Depos**. JetBrains IDEs have no way for a
   plugin to add an MCP server, so **Copy Depos MCP Setup** puts an `.mcp.json`

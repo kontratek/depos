@@ -51,9 +51,9 @@ export function registerHover(store: Store, org: OrgContext): vscode.Disposable 
       if (parts.length > 0) md.appendMarkdown(`${parts.map((p) => p.text).join('\n\n---\n\n')}\n\n`);
       if (orgPart) appendOrg(md, orgPart);
       const arg = encodeURIComponent(JSON.stringify([dep.noteKey]));
-      md.appendMarkdown(
-        `---\n\n[${S.hoverEditNote}](command:pacmon.addOrEditNote?${arg}) · [${S.hoverOpenFile(fileLabel)}](command:pacmon.openNotesFile)`,
-      );
+      // In org mode the notes file is not used: the package's page in Depos takes its place.
+      const open = orgPart ? `[${S.orgOpenWeb}](${orgPart.link})` : `[${S.hoverOpenFile(fileLabel)}](command:pacmon.openNotesFile)`;
+      md.appendMarkdown(`---\n\n[${S.hoverEditNote}](command:pacmon.addOrEditNote?${arg}) · ${open}`);
 
       const hit = dep.sourceRanges.find((range) => offset >= range.offset && offset <= range.offset + range.length)
         ?? dep.primaryRange;
@@ -75,7 +75,6 @@ function appendOrg(md: vscode.MarkdownString, view: OrgView): void {
   if (view.allowlist.reason) md.appendText(` — ${S.orgReason(view.allowlist.reason)}`);
   if (view.allowlist.expires) md.appendText(` · ${S.orgExpires(view.allowlist.expires)}`);
   md.appendMarkdown('\n\n');
-  md.appendMarkdown(`[${S.orgOpenWeb}](${view.link}) · `);
   md.appendText(view.received);
   md.appendMarkdown('\n\n');
 }
