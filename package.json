@@ -296,9 +296,9 @@
       "properties": {
         "depos.url": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "https://depos.dev",
           "scope": "application",
-          "markdownDescription": "Address of Depos, for the optional organization connection (`Depos: Sign In`, or the Depos view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of its notes files. Depos makes network requests only while you are signed in: for the commands, and to fetch the notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is a local Depos until there is a public one."
+          "markdownDescription": "Address of Depos, for the optional organization connection (`Depos: Sign In`, or the Depos view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of its notes files. Depos makes network requests only while you are signed in: for the commands, and to fetch the notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is the public Depos; a local one is `http://localhost:3000`."
         },
         "depos.decorations": {
           "type": "string",
@@ -383,7 +383,7 @@
         },
         "pacmon.depos.url": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "https://depos.dev",
           "scope": "application",
           "markdownDeprecationMessage": "Renamed to `#depos.url#` when Pacmon became Depos. Still read when `#depos.url#` is not set."
         },

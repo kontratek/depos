@@ -9,8 +9,8 @@ import java.net.URISyntaxException
  * only for this machine.
  */
 object DeposServerUrl {
-    /** A local Depos, until there is a public one. The same default as the VS Code setting. */
-    const val DEFAULT = "http://localhost:3000"
+    /** The public Depos. The same default as the VS Code setting. */
+    const val DEFAULT = "https://depos.dev"
 
     enum class Problem { EMPTY, INVALID, INSECURE }
 

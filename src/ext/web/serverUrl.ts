@@ -4,8 +4,8 @@
  */
 export type ServerUrlResult = { ok: true; origin: string } | { ok: false; reason: 'empty' | 'invalid' | 'insecure' };
 
-/** Until there is a public Depos, the default is a local one (`pnpm dev` in depos-web). */
-export const DEFAULT_WEB_URL = 'http://localhost:3000';
+/** The public Depos. A local one (`pnpm dev` in depos-web) is `http://localhost:3000`. */
+export const DEFAULT_WEB_URL = 'https://depos.dev';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 

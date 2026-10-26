@@ -66,9 +66,8 @@
   uses the copy while Depos cannot be reached. **Show connection** tells which
   organization each folder belongs to; **Sign out** ends the sign-in in Depos
   too and removes the copy. The extension makes network requests only while you are
-  signed in. The address is `depos.url` (default
-  `http://localhost:3000` until there is a public Depos); it must use `https`,
-  except for `localhost`, and a workspace cannot set it.
+  signed in. The address is `depos.url` (default https://depos.dev); it must
+  use `https`, except for `localhost`, and a workspace cannot set it.
 
 - **The organization's allowlist in the editor (preview).** In org mode,
   the extension shows the allowlist result Depos decides for each package of the

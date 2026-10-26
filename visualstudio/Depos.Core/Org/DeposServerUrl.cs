@@ -21,8 +21,8 @@ public readonly record struct DeposUrl(string? Origin, DeposUrlProblem Problem)
 /// </summary>
 public static class DeposServerUrl
 {
-    /// <summary>A local Depos, until there is a public one. The same default as the other editors.</summary>
-    public const string Default = "http://localhost:3000";
+    /// <summary>The public Depos. The same default as the other editors.</summary>
+    public const string Default = "https://depos.dev";
 
     private static readonly HashSet<string> LocalHosts = new(StringComparer.Ordinal) { "localhost", "127.0.0.1", "[::1]" };
 
