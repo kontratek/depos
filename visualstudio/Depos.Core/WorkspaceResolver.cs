@@ -1,4 +1,4 @@
-namespace Pacmon.Core;
+namespace Depos.Core;
 
 public interface IWorkspaceFileSystem
 {

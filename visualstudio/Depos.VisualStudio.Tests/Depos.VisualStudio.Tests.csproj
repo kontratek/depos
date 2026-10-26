@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Pacmon.VisualStudio\Pacmon.VisualStudio.csproj"
+    <ProjectReference Include="..\Depos.VisualStudio\Depos.VisualStudio.csproj"
                       AdditionalProperties="CreateVsixContainer=false;DeployExtension=false" />
   </ItemGroup>
 </Project>

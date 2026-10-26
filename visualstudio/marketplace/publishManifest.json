@@ -1,7 +1,7 @@
 {
   "categories": ["coding", "documentation", "security"],
   "identity": {
-    "internalName": "pacmon-visualstudio"
+    "internalName": "depos-visualstudio"
   },
   "overview": "overview.md",
   "priceCategory": "free",

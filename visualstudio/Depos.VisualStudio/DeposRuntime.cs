@@ -11,9 +11,9 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 internal sealed class DependencyContext
 {
@@ -38,7 +38,7 @@ internal sealed class CoverageContext
         NotesPath = notesPath;
         Dependencies = dependencies;
         Notes = notes;
-        Analysis = Pacmon.Core.Notes.Analyze(dependencies, notes);
+        Analysis = Depos.Core.Notes.Analyze(dependencies, notes);
     }
 
     public string ManifestPath { get; }
@@ -49,9 +49,9 @@ internal sealed class CoverageContext
     public NotesAnalysis Analysis { get; }
 }
 
-internal sealed class PacmonRuntime : IDisposable
+internal sealed class DeposRuntime : IDisposable
 {
-    private readonly PacmonPackage package;
+    private readonly DeposPackage package;
     private readonly DTE2 dte;
     private readonly IVsEditorAdaptersFactoryService adapters;
     private readonly ITextDocumentFactoryService documents;
@@ -64,8 +64,8 @@ internal sealed class PacmonRuntime : IDisposable
     private System.Threading.Timer? changeTimer;
     private bool disposed;
 
-    private PacmonRuntime(
-        PacmonPackage package,
+    private DeposRuntime(
+        DeposPackage package,
         DTE2 dte,
         IVsEditorAdaptersFactoryService adapters,
         ITextDocumentFactoryService documents,
@@ -81,11 +81,11 @@ internal sealed class PacmonRuntime : IDisposable
         documents.TextDocumentDisposed += OnTextDocumentDisposed;
     }
 
-    public static PacmonRuntime? Current { get; set; }
+    public static DeposRuntime? Current { get; set; }
 
     public event EventHandler? Changed;
 
-    public PacmonOptionsPage Options => package.Options;
+    public DeposOptionsPage Options => package.Options;
 
     public string? ActiveDocumentPath
     {
@@ -97,7 +97,7 @@ internal sealed class PacmonRuntime : IDisposable
         }
     }
 
-    public static async Task<PacmonRuntime> CreateAsync(PacmonPackage package, CancellationToken cancellationToken)
+    public static async Task<DeposRuntime> CreateAsync(DeposPackage package, CancellationToken cancellationToken)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
         var dte = await package.GetServiceAsync(typeof(SDTE)) as DTE2
@@ -106,7 +106,7 @@ internal sealed class PacmonRuntime : IDisposable
             ?? throw new InvalidOperationException("Visual Studio component model is unavailable.");
         var textManager = await package.GetServiceAsync(typeof(SVsTextManager)) as IVsTextManager
             ?? throw new InvalidOperationException("Visual Studio text manager is unavailable.");
-        var runtime = new PacmonRuntime(
+        var runtime = new DeposRuntime(
             package,
             dte,
             componentModel.GetService<IVsEditorAdaptersFactoryService>(),
@@ -599,7 +599,7 @@ internal sealed class PacmonRuntime : IDisposable
         VsShellUtilities.ShowMessageBox(
             package,
             message,
-            "Pacmon",
+            "Depos",
             OLEMSGICON.OLEMSGICON_INFO,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
@@ -612,8 +612,8 @@ internal sealed class PacmonRuntime : IDisposable
             ".git", ".vs", "bin", "obj", "dist", "build",
         };
 
-        private readonly PacmonRuntime runtime;
-        public RuntimeFileSystem(PacmonRuntime runtime) => this.runtime = runtime;
+        private readonly DeposRuntime runtime;
+        public RuntimeFileSystem(DeposRuntime runtime) => this.runtime = runtime;
         public bool FileExists(string path) => runtime.FileExists(path);
         public string ReadAllText(string path) => runtime.ReadDocument(path);
         public IEnumerable<string> EnumerateFiles(string root) => Enumerate(root);

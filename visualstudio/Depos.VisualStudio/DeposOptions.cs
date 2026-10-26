@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using Microsoft.VisualStudio.Shell;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 public enum DecorationMode
 {
@@ -18,7 +18,7 @@ public enum NoteEntryMode
     OpenBeside,
 }
 
-public sealed class PacmonOptionsPage : DialogPage
+public sealed class DeposOptionsPage : DialogPage
 {
     [Category("Display")]
     [DisplayName("Decorations")]
@@ -40,7 +40,7 @@ public sealed class PacmonOptionsPage : DialogPage
 
     [Category("Editor")]
     [DisplayName("Package icon")]
-    [Description("Show a clickable Pacmon icon beside each supported package ID.")]
+    [Description("Show a clickable Depos icon beside each supported package ID.")]
     [DefaultValue(true)]
     public bool MarginIcon { get; set; } = true;
 

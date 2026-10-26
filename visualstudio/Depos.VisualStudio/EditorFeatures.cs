@@ -15,15 +15,15 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 internal static class EditorFeatureHelpers
 {
-    public static bool IsManifest(ITextBuffer buffer, out PacmonRuntime runtime, out string path)
+    public static bool IsManifest(ITextBuffer buffer, out DeposRuntime runtime, out string path)
     {
-        runtime = PacmonRuntime.Current!;
+        runtime = DeposRuntime.Current!;
         path = string.Empty;
         if (runtime is null) return false;
         runtime.RegisterBuffer(buffer);
@@ -32,7 +32,7 @@ internal static class EditorFeatureHelpers
     }
 
     public static DependencyEntry? DependencyAt(ITextBuffer buffer, int position) =>
-        PacmonRuntime.Current is { } runtime
+        DeposRuntime.Current is { } runtime
             ? NugetManifest.AtOffset(runtime.Dependencies(buffer), position)
             : null;
 
@@ -67,22 +67,22 @@ internal static class EditorFeatureHelpers
 }
 
 [Export(typeof(IAsyncQuickInfoSourceProvider))]
-[Name("Pacmon NuGet Quick Info")]
+[Name("Depos NuGet Quick Info")]
 [ContentType("text")]
 [Order(Before = "Default Quick Info Presenter")]
-internal sealed class PacmonQuickInfoProvider : IAsyncQuickInfoSourceProvider
+internal sealed class DeposQuickInfoProvider : IAsyncQuickInfoSourceProvider
 {
     public IAsyncQuickInfoSource TryCreateQuickInfoSource(ITextBuffer textBuffer)
     {
-        PacmonRuntime.Current?.RegisterBuffer(textBuffer);
-        return new PacmonQuickInfoSource(textBuffer);
+        DeposRuntime.Current?.RegisterBuffer(textBuffer);
+        return new DeposQuickInfoSource(textBuffer);
     }
 }
 
-internal sealed class PacmonQuickInfoSource : IAsyncQuickInfoSource
+internal sealed class DeposQuickInfoSource : IAsyncQuickInfoSource
 {
     private readonly ITextBuffer buffer;
-    public PacmonQuickInfoSource(ITextBuffer buffer) => this.buffer = buffer;
+    public DeposQuickInfoSource(ITextBuffer buffer) => this.buffer = buffer;
 
     public void Dispose()
     {
@@ -185,28 +185,28 @@ internal sealed class PacmonQuickInfoSource : IAsyncQuickInfoSource
     }
 }
 
-internal sealed class PacmonOrphanTag : IGlyphTag
+internal sealed class DeposOrphanTag : IGlyphTag
 {
-    public PacmonOrphanTag(string packageName) => PackageName = packageName;
+    public DeposOrphanTag(string packageName) => PackageName = packageName;
     public string PackageName { get; }
 }
 
 [Export(typeof(ITaggerProvider))]
 [ContentType("text")]
-[TagType(typeof(PacmonOrphanTag))]
-internal sealed class PacmonOrphanTaggerProvider : ITaggerProvider
+[TagType(typeof(DeposOrphanTag))]
+internal sealed class DeposOrphanTaggerProvider : ITaggerProvider
 {
-    public ITagger<T>? CreateTagger<T>(ITextBuffer buffer) where T : ITag => new PacmonOrphanTagger(buffer) as ITagger<T>;
+    public ITagger<T>? CreateTagger<T>(ITextBuffer buffer) where T : ITag => new DeposOrphanTagger(buffer) as ITagger<T>;
 }
 
-internal sealed class PacmonOrphanTagger : ITagger<PacmonOrphanTag>, IDisposable
+internal sealed class DeposOrphanTagger : ITagger<DeposOrphanTag>, IDisposable
 {
     private readonly ITextBuffer buffer;
-    private readonly PacmonRuntime? runtime;
-    public PacmonOrphanTagger(ITextBuffer buffer)
+    private readonly DeposRuntime? runtime;
+    public DeposOrphanTagger(ITextBuffer buffer)
     {
         this.buffer = buffer;
-        runtime = PacmonRuntime.Current;
+        runtime = DeposRuntime.Current;
         runtime?.RegisterBuffer(buffer);
         buffer.Changed += OnChanged;
         if (runtime is not null) runtime.Changed += OnRuntimeChanged;
@@ -214,7 +214,7 @@ internal sealed class PacmonOrphanTagger : ITagger<PacmonOrphanTag>, IDisposable
 
     public event EventHandler<SnapshotSpanEventArgs>? TagsChanged;
 
-    public IEnumerable<ITagSpan<PacmonOrphanTag>> GetTags(NormalizedSnapshotSpanCollection spans)
+    public IEnumerable<ITagSpan<DeposOrphanTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
         if (spans.Count == 0 || runtime is null) yield break;
         var snapshot = spans[0].Snapshot;
@@ -223,7 +223,7 @@ internal sealed class PacmonOrphanTagger : ITagger<PacmonOrphanTag>, IDisposable
             if (orphan.HeadingLine < 0 || orphan.HeadingLine >= snapshot.LineCount) continue;
             var line = snapshot.GetLineFromLineNumber(orphan.HeadingLine);
             var span = line.Length > 0 ? new SnapshotSpan(line.Start, 1) : new SnapshotSpan(line.Start, 0);
-            if (spans.IntersectsWith(span)) yield return new TagSpan<PacmonOrphanTag>(span, new PacmonOrphanTag(orphan.Name));
+            if (spans.IntersectsWith(span)) yield return new TagSpan<DeposOrphanTag>(span, new DeposOrphanTag(orphan.Name));
         }
     }
 
@@ -243,19 +243,19 @@ internal sealed class PacmonOrphanTagger : ITagger<PacmonOrphanTag>, IDisposable
 }
 
 [Export(typeof(IGlyphFactoryProvider))]
-[Name("Pacmon orphan note glyph")]
+[Name("Depos orphan note glyph")]
 [ContentType("text")]
-[TagType(typeof(PacmonOrphanTag))]
-internal sealed class PacmonOrphanGlyphFactoryProvider : IGlyphFactoryProvider
+[TagType(typeof(DeposOrphanTag))]
+internal sealed class DeposOrphanGlyphFactoryProvider : IGlyphFactoryProvider
 {
-    public IGlyphFactory GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) => new PacmonOrphanGlyphFactory();
+    public IGlyphFactory GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) => new DeposOrphanGlyphFactory();
 }
 
-internal sealed class PacmonOrphanGlyphFactory : IGlyphFactory
+internal sealed class DeposOrphanGlyphFactory : IGlyphFactory
 {
     public UIElement? GenerateGlyph(IWpfTextViewLine line, IGlyphTag tag)
     {
-        if (tag is not PacmonOrphanTag orphan) return null;
+        if (tag is not DeposOrphanTag orphan) return null;
         var glyph = new TextBlock
         {
             Text = "?",
@@ -269,31 +269,31 @@ internal sealed class PacmonOrphanGlyphFactory : IGlyphFactory
 }
 
 [Export(typeof(IViewTaggerProvider))]
-[Name("Pacmon inline dependency notes")]
+[Name("Depos inline dependency notes")]
 [ContentType("text")]
 [TextViewRole(PredefinedTextViewRoles.Document)]
 [TagType(typeof(IntraTextAdornmentTag))]
-internal sealed class PacmonInlineAdornmentProvider : IViewTaggerProvider
+internal sealed class DeposInlineAdornmentProvider : IViewTaggerProvider
 {
     public ITagger<T>? CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag
     {
         if (textView is not IWpfTextView wpfTextView || textView.TextBuffer != buffer) return null;
         return wpfTextView.Properties.GetOrCreateSingletonProperty(
-            () => new PacmonInlineAdornmentTagger(wpfTextView, buffer)) as ITagger<T>;
+            () => new DeposInlineAdornmentTagger(wpfTextView, buffer)) as ITagger<T>;
     }
 }
 
-internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTag>, IDisposable
+internal sealed class DeposInlineAdornmentTagger : ITagger<IntraTextAdornmentTag>, IDisposable
 {
     private readonly IWpfTextView view;
     private readonly ITextBuffer buffer;
-    private readonly PacmonRuntime? runtime;
+    private readonly DeposRuntime? runtime;
 
-    public PacmonInlineAdornmentTagger(IWpfTextView view, ITextBuffer buffer)
+    public DeposInlineAdornmentTagger(IWpfTextView view, ITextBuffer buffer)
     {
         this.view = view;
         this.buffer = buffer;
-        runtime = PacmonRuntime.Current;
+        runtime = DeposRuntime.Current;
         runtime?.RegisterBuffer(buffer);
         buffer.Changed += OnBufferChanged;
         view.Closed += OnClosed;
@@ -330,7 +330,7 @@ internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTa
                     yield return new TagSpan<IntraTextAdornmentTag>(
                         span,
                         new IntraTextAdornmentTag(
-                            CreatePacmonIcon(path, dependency, documented),
+                            CreateDeposIcon(path, dependency, documented),
                             null,
                             PositionAffinity.Predecessor));
                 }
@@ -372,12 +372,12 @@ internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTa
         return preview;
     }
 
-    private static FrameworkElement CreatePacmonIcon(
+    private static FrameworkElement CreateDeposIcon(
         string manifestPath,
         DependencyEntry dependency,
         bool documented)
     {
-        var mark = new PacmonMarkControl
+        var mark = new DeposMarkControl
         {
             Documented = documented,
             Width = 14,
@@ -391,7 +391,7 @@ internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTa
         {
             args.Handled = true;
             ThreadHelper.JoinableTaskFactory.Run(() =>
-                PacmonRuntime.Current!.AddOrEditAsync(manifestPath, dependency.NoteKey));
+                DeposRuntime.Current!.AddOrEditAsync(manifestPath, dependency.NoteKey));
         };
         return mark;
     }
@@ -401,7 +401,7 @@ internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTa
     private void OnClosed(object sender, EventArgs args)
     {
         Detach();
-        view.Properties.RemoveProperty(typeof(PacmonInlineAdornmentTagger));
+        view.Properties.RemoveProperty(typeof(DeposInlineAdornmentTagger));
     }
 
     private void Detach()
@@ -419,22 +419,22 @@ internal sealed class PacmonInlineAdornmentTagger : ITagger<IntraTextAdornmentTa
 }
 
 [Export(typeof(IMouseProcessorProvider))]
-[Name("Pacmon dependency navigation")]
+[Name("Depos dependency navigation")]
 [ContentType("text")]
 [TextViewRole(PredefinedTextViewRoles.Interactive)]
-internal sealed class PacmonMouseProcessorProvider : IMouseProcessorProvider
+internal sealed class DeposMouseProcessorProvider : IMouseProcessorProvider
 {
-    public IMouseProcessor GetAssociatedProcessor(IWpfTextView wpfTextView) => new PacmonMouseProcessor(wpfTextView);
+    public IMouseProcessor GetAssociatedProcessor(IWpfTextView wpfTextView) => new DeposMouseProcessor(wpfTextView);
 }
 
-internal sealed class PacmonMouseProcessor : MouseProcessorBase
+internal sealed class DeposMouseProcessor : MouseProcessorBase
 {
     private readonly IWpfTextView view;
-    public PacmonMouseProcessor(IWpfTextView view) => this.view = view;
+    public DeposMouseProcessor(IWpfTextView view) => this.view = view;
 
     public override void PreprocessMouseLeftButtonDown(MouseButtonEventArgs args)
     {
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null || !runtime.Options.Navigation || Keyboard.Modifiers != ModifierKeys.Control) return;
         var point = args.GetPosition(view.VisualElement);
         var line = view.TextViewLines.GetTextViewLineContainingYCoordinate(point.Y + view.ViewportTop);
@@ -451,19 +451,19 @@ internal sealed class PacmonMouseProcessor : MouseProcessorBase
 [Export(typeof(ITaggerProvider))]
 [ContentType("text")]
 [TagType(typeof(IErrorTag))]
-internal sealed class PacmonErrorTaggerProvider : ITaggerProvider
+internal sealed class DeposErrorTaggerProvider : ITaggerProvider
 {
-    public ITagger<T>? CreateTagger<T>(ITextBuffer buffer) where T : ITag => new PacmonErrorTagger(buffer) as ITagger<T>;
+    public ITagger<T>? CreateTagger<T>(ITextBuffer buffer) where T : ITag => new DeposErrorTagger(buffer) as ITagger<T>;
 }
 
-internal sealed class PacmonErrorTagger : ITagger<IErrorTag>, IDisposable
+internal sealed class DeposErrorTagger : ITagger<IErrorTag>, IDisposable
 {
     private readonly ITextBuffer buffer;
-    private readonly PacmonRuntime? runtime;
-    public PacmonErrorTagger(ITextBuffer buffer)
+    private readonly DeposRuntime? runtime;
+    public DeposErrorTagger(ITextBuffer buffer)
     {
         this.buffer = buffer;
-        runtime = PacmonRuntime.Current;
+        runtime = DeposRuntime.Current;
         runtime?.RegisterBuffer(buffer);
         buffer.Changed += OnChanged;
         if (runtime is not null) runtime.Changed += OnRuntimeChanged;
@@ -508,19 +508,19 @@ internal sealed class PacmonErrorTagger : ITagger<IErrorTag>, IDisposable
 }
 
 [Export(typeof(ISuggestedActionsSourceProvider))]
-[Name("Pacmon dependency note actions")]
+[Name("Depos dependency note actions")]
 [ContentType("text")]
-internal sealed class PacmonSuggestedActionsProvider : ISuggestedActionsSourceProvider
+internal sealed class DeposSuggestedActionsProvider : ISuggestedActionsSourceProvider
 {
     public ISuggestedActionsSource CreateSuggestedActionsSource(ITextView textView, ITextBuffer textBuffer) =>
-        new PacmonSuggestedActionsSource(textView, textBuffer);
+        new DeposSuggestedActionsSource(textView, textBuffer);
 }
 
-internal sealed class PacmonSuggestedActionsSource : ISuggestedActionsSource
+internal sealed class DeposSuggestedActionsSource : ISuggestedActionsSource
 {
     private readonly ITextView view;
     private readonly ITextBuffer buffer;
-    public PacmonSuggestedActionsSource(ITextView view, ITextBuffer buffer)
+    public DeposSuggestedActionsSource(ITextView view, ITextBuffer buffer)
     {
         this.view = view;
         this.buffer = buffer;
@@ -566,28 +566,28 @@ internal sealed class PacmonSuggestedActionsSource : ISuggestedActionsSource
 
     private ISuggestedAction? ActionAt(int position)
     {
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null || !runtime.Options.QuickAction) return null;
         runtime.RegisterBuffer(buffer);
         var documentPath = runtime.PathFor(buffer);
-        if (documentPath is not null && PacmonRuntime.IsNotesPath(documentPath))
+        if (documentPath is not null && DeposRuntime.IsNotesPath(documentPath))
         {
             var line = buffer.CurrentSnapshot.GetLineFromPosition(Math.Min(position, buffer.CurrentSnapshot.Length));
             return runtime.LintNotesBuffer(buffer).Any(finding => finding.Line == line.LineNumber)
-                ? new PacmonNormalizeSuggestedAction(documentPath)
+                ? new DeposNormalizeSuggestedAction(documentPath)
                 : null;
         }
         if (!EditorFeatureHelpers.IsManifest(buffer, out _, out var path)) return null;
         var dependency = EditorFeatureHelpers.DependencyAt(buffer, position);
-        return dependency is null ? null : new PacmonSuggestedAction(path, dependency);
+        return dependency is null ? null : new DeposSuggestedAction(path, dependency);
     }
 }
 
-internal sealed class PacmonSuggestedAction : ISuggestedAction
+internal sealed class DeposSuggestedAction : ISuggestedAction
 {
     private readonly string path;
     private readonly DependencyEntry dependency;
-    public PacmonSuggestedAction(string path, DependencyEntry dependency)
+    public DeposSuggestedAction(string path, DependencyEntry dependency)
     {
         this.path = path;
         this.dependency = dependency;
@@ -595,7 +595,7 @@ internal sealed class PacmonSuggestedAction : ISuggestedAction
 
     public string DisplayText => $"Add/Edit dependency note for {dependency.DisplayName}";
     public ImageMoniker IconMoniker => KnownMonikers.Note;
-    public string IconAutomationText => "Pacmon dependency note";
+    public string IconAutomationText => "Depos dependency note";
     public string InputGestureText => string.Empty;
     public bool HasActionSets => false;
     public bool HasPreview => false;
@@ -603,7 +603,7 @@ internal sealed class PacmonSuggestedAction : ISuggestedAction
         Task.FromResult<IEnumerable<SuggestedActionSet>?>(null);
     public Task<object?> GetPreviewAsync(CancellationToken cancellationToken) => Task.FromResult<object?>(null);
     public void Invoke(CancellationToken cancellationToken) =>
-        ThreadHelper.JoinableTaskFactory.Run(() => PacmonRuntime.Current!.AddOrEditAsync(path, dependency.NoteKey));
+        ThreadHelper.JoinableTaskFactory.Run(() => DeposRuntime.Current!.AddOrEditAsync(path, dependency.NoteKey));
     public bool TryGetTelemetryId(out Guid telemetryId)
     {
         telemetryId = Guid.Empty;
@@ -614,10 +614,10 @@ internal sealed class PacmonSuggestedAction : ISuggestedAction
     }
 }
 
-internal sealed class PacmonNormalizeSuggestedAction : ISuggestedAction
+internal sealed class DeposNormalizeSuggestedAction : ISuggestedAction
 {
     private readonly string path;
-    public PacmonNormalizeSuggestedAction(string path) => this.path = path;
+    public DeposNormalizeSuggestedAction(string path) => this.path = path;
     public string DisplayText => "Format NuGet dependency notes";
     public ImageMoniker IconMoniker => KnownMonikers.FormatDocument;
     public string IconAutomationText => "Format dependency notes";
@@ -628,7 +628,7 @@ internal sealed class PacmonNormalizeSuggestedAction : ISuggestedAction
         Task.FromResult<IEnumerable<SuggestedActionSet>?>(null);
     public Task<object?> GetPreviewAsync(CancellationToken cancellationToken) => Task.FromResult<object?>(null);
     public void Invoke(CancellationToken cancellationToken) =>
-        ThreadHelper.JoinableTaskFactory.Run(() => PacmonRuntime.Current!.NormalizeNotesAsync(path));
+        ThreadHelper.JoinableTaskFactory.Run(() => DeposRuntime.Current!.NormalizeNotesAsync(path));
     public bool TryGetTelemetryId(out Guid telemetryId)
     {
         telemetryId = Guid.Empty;

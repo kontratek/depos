@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio.Tests;
+namespace Depos.VisualStudio.Tests;
 
 [TestClass]
 public sealed class VisualStudioModelTests
@@ -46,11 +46,11 @@ public sealed class VisualStudioModelTests
     [DataTestMethod]
     [DataRow("C:\\repo\\.pacmon\\nuget\\DEPENDENCY-NOTES.md")]
     [DataRow("C:/repo/.pacmon/nuget/DEPENDENCY-NOTES.md")]
-    public void RecognizesOnlyNugetNotesPath(string path) => Assert.IsTrue(PacmonRuntime.IsNotesPath(path));
+    public void RecognizesOnlyNugetNotesPath(string path) => Assert.IsTrue(DeposRuntime.IsNotesPath(path));
 
     [TestMethod]
     public void RejectsOtherEcosystemNotesPath() =>
-        Assert.IsFalse(PacmonRuntime.IsNotesPath("C:/repo/.pacmon/cargo/DEPENDENCY-NOTES.md"));
+        Assert.IsFalse(DeposRuntime.IsNotesPath("C:/repo/.pacmon/cargo/DEPENDENCY-NOTES.md"));
 
     [TestMethod]
     public void InlineAdornmentAnchorsPreviewAtTheOpeningTagsLineEnd()
@@ -86,14 +86,14 @@ public sealed class VisualStudioModelTests
     }
 
     [TestMethod]
-    public void PacmonMarkPaletteMatchesVsCodeColors()
+    public void DeposMarkPaletteMatchesVsCodeColors()
     {
-        Assert.AreEqual(0x00ff66, PacmonMarkPalette.Rgb(true, true));
-        Assert.AreEqual(0x00662f, PacmonMarkPalette.Rgb(true, false));
-        Assert.AreEqual(0x9d9d9d, PacmonMarkPalette.Rgb(false, true));
-        Assert.AreEqual(0x8c8c8c, PacmonMarkPalette.Rgb(false, false));
-        Assert.IsTrue(PacmonMarkPalette.IsDark(30, 30, 30));
-        Assert.IsFalse(PacmonMarkPalette.IsDark(245, 245, 245));
+        Assert.AreEqual(0x00ff66, DeposMarkPalette.Rgb(true, true));
+        Assert.AreEqual(0x00662f, DeposMarkPalette.Rgb(true, false));
+        Assert.AreEqual(0x9d9d9d, DeposMarkPalette.Rgb(false, true));
+        Assert.AreEqual(0x8c8c8c, DeposMarkPalette.Rgb(false, false));
+        Assert.IsTrue(DeposMarkPalette.IsDark(30, 30, 30));
+        Assert.IsFalse(DeposMarkPalette.IsDark(245, 245, 245));
     }
 
     [TestMethod]

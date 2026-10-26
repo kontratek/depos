@@ -14,18 +14,18 @@
     <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
     <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <PacmonVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\package.json')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</PacmonVersion>
-    <VsixId>dev.pacmon.visualstudio</VsixId>
-    <VsixVersion>$(PacmonVersion)</VsixVersion>
+    <DeposVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\package.json')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</DeposVersion>
+    <VsixId>dev.depos.visualstudio</VsixId>
+    <VsixVersion>$(DeposVersion)</VsixVersion>
     <VsixPublisher>Kontra</VsixPublisher>
-    <VsixDisplayName>Pacmon — Dependency Notes</VsixDisplayName>
+    <VsixDisplayName>Depos — Dependency Notes</VsixDisplayName>
     <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository.</VsixDescription>
-    <AssemblyName>Pacmon.VisualStudio</AssemblyName>
-    <RootNamespace>Pacmon.VisualStudio</RootNamespace>
+    <AssemblyName>Depos.VisualStudio</AssemblyName>
+    <RootNamespace>Depos.VisualStudio</RootNamespace>
     <IntermediateOutputPath>obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
     <OutputPath>bin\$(Configuration)\$(TargetFramework)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <TargetVsixContainerName>pacmon-visualstudio.vsix</TargetVsixContainerName>
+    <TargetVsixContainerName>depos-visualstudio.vsix</TargetVsixContainerName>
     <TargetVsixContainer>$(OutputPath)$(TargetVsixContainerName)</TargetVsixContainer>
   </PropertyGroup>
   <ItemGroup>
@@ -36,7 +36,7 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Pacmon.Core\Pacmon.Core.csproj" />
+    <ProjectReference Include="..\Depos.Core\Depos.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="source.extension.vsixmanifest" />
@@ -48,16 +48,16 @@
     <Content Include="..\..\LICENSE" Link="LICENSE">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <VSCTCompile Include="Pacmon.vsct" />
+    <VSCTCompile Include="Depos.vsct" />
   </ItemGroup>
-  <Target Name="GeneratePacmonVsixManifest" BeforeTargets="DetokenizeVsixManifestFile">
+  <Target Name="GenerateDeposVsixManifest" BeforeTargets="DetokenizeVsixManifestFile">
     <PropertyGroup>
       <GeneratedVsixManifest>$(IntermediateOutputPath)source.extension.vsixmanifest</GeneratedVsixManifest>
     </PropertyGroup>
     <Copy SourceFiles="source.extension.vsixmanifest" DestinationFiles="$(GeneratedVsixManifest)" />
     <XmlPoke XmlInputPath="$(GeneratedVsixManifest)"
              Query="/*[local-name()='PackageManifest']/*[local-name()='Metadata']/*[local-name()='Identity']/@Version"
-             Value="$(PacmonVersion)" />
+             Value="$(DeposVersion)" />
     <ItemGroup><FileWrites Include="$(GeneratedVsixManifest)" /></ItemGroup>
   </Target>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

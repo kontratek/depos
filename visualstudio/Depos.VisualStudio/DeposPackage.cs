@@ -2,50 +2,50 @@ using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-[InstalledProductRegistration("Pacmon — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", "0.4.0")]
+[InstalledProductRegistration("Depos — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", "0.4.0")]
 [ProvideMenuResource("Menus.ctmenu", 1)]
 [ProvideToolWindow(
-    typeof(PacmonToolWindow),
+    typeof(DeposToolWindow),
     Style = VsDockStyle.Tabbed,
     Window = "3ae79031-e1bc-11d0-8f78-00a0c9110057")]
-[ProvideOptionPage(typeof(PacmonOptionsPage), "Pacmon", "General", 0, 0, true)]
+[ProvideOptionPage(typeof(DeposOptionsPage), "Depos", "General", 0, 0, true)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
 [Guid(PackageGuid)]
-public sealed class PacmonPackage : AsyncPackage
+public sealed class DeposPackage : AsyncPackage
 {
-    public const string PackageGuid = "0D148B7E-B648-46AA-92EF-E401D72AE221";
-    public static readonly Guid CommandSet = new("A6EEA79E-0D28-481F-B55F-32E34EC61796");
+    public const string PackageGuid = "F797BD3C-55F1-4225-8D64-BC10034919EC";
+    public static readonly Guid CommandSet = new("9C0D68A1-5643-4FBD-A674-D9171E992BB0");
 
-    internal PacmonRuntime Runtime { get; private set; } = null!;
-    internal PacmonOptionsPage Options => (PacmonOptionsPage)GetDialogPage(typeof(PacmonOptionsPage));
+    internal DeposRuntime Runtime { get; private set; } = null!;
+    internal DeposOptionsPage Options => (DeposOptionsPage)GetDialogPage(typeof(DeposOptionsPage));
 
     protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
     {
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
-        Runtime = await PacmonRuntime.CreateAsync(this, cancellationToken);
-        PacmonRuntime.Current = Runtime;
+        Runtime = await DeposRuntime.CreateAsync(this, cancellationToken);
+        DeposRuntime.Current = Runtime;
         await RegisterCommandsAsync(cancellationToken);
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing) Runtime?.Dispose();
-        if (ReferenceEquals(PacmonRuntime.Current, Runtime)) PacmonRuntime.Current = null;
+        if (ReferenceEquals(DeposRuntime.Current, Runtime)) DeposRuntime.Current = null;
         base.Dispose(disposing);
     }
 
     internal async Task ShowToolWindowAsync(string? manifestPath = null, string? packageName = null)
     {
         await JoinableTaskFactory.SwitchToMainThreadAsync();
-        var window = await ShowToolWindowAsync(typeof(PacmonToolWindow), 0, true, DisposalToken);
-        if (window is null) throw new InvalidOperationException("Pacmon tool window could not be created.");
-        if (window.Content is PacmonToolWindowControl control)
+        var window = await ShowToolWindowAsync(typeof(DeposToolWindow), 0, true, DisposalToken);
+        if (window is null) throw new InvalidOperationException("Depos tool window could not be created.");
+        if (window.Content is DeposToolWindowControl control)
         {
             if (string.IsNullOrWhiteSpace(manifestPath) && string.IsNullOrWhiteSpace(packageName))
                 await control.ShowSettingsAsync();
@@ -79,14 +79,14 @@ public sealed class PacmonPackage : AsyncPackage
     private void AddCommand(OleMenuCommandService service, int id, Func<Task> execute)
     {
         var command = new OleMenuCommand(
-            (_, _) => JoinableTaskFactory.RunAsync(execute).FileAndForget("Pacmon/Command"),
+            (_, _) => JoinableTaskFactory.RunAsync(execute).FileAndForget("Depos/Command"),
             new CommandID(CommandSet, id));
         command.BeforeQueryStatus += (_, _) =>
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var active = Runtime?.ActiveDocumentPath;
             command.Visible = id == 0x0100 || id == 0x0103 || id == 0x0105
-                || (active is not null && (NugetManifest.MatchesPath(active) || PacmonRuntime.IsNotesPath(active)));
+                || (active is not null && (NugetManifest.MatchesPath(active) || DeposRuntime.IsNotesPath(active)));
         };
         service.AddCommand(command);
     }

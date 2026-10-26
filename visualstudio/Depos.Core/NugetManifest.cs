@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Pacmon.Core;
+namespace Depos.Core;
 
 public static class NugetManifest
 {

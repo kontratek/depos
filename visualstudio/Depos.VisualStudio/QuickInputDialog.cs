@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.VisualStudio.PlatformUI;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 internal sealed class QuickInputDialog : DialogWindow
 {
@@ -32,7 +32,7 @@ internal sealed class QuickInputDialog : DialogWindow
         panel.Children.Add(new TextBlock { Text = "Why is this dependency here?", FontWeight = FontWeights.SemiBold });
         panel.Children.Add(input);
         panel.Children.Add(buttons);
-        PacmonVisuals.ApplyNativeControlStyles(panel);
+        DeposVisuals.ApplyNativeControlStyles(panel);
         Content = panel;
         Loaded += (_, _) => { input.Focus(); input.SelectAll(); };
     }

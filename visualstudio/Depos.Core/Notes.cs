@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Pacmon.Core;
+namespace Depos.Core;
 
 public static class Notes
 {
@@ -202,7 +202,7 @@ public static class Notes
 
     public static IReadOnlyList<LintFinding> LintAgentText(string agent)
     {
-        const string packageName = "pacmon-preview";
+        const string packageName = "depos-preview";
         var model = Parse(NewFile(packageName, string.Empty, agent));
         return Lint(model, new[] { packageName }).Where(IsAgentFinding).ToArray();
     }

@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Pacmon.Core.Tests;
+namespace Depos.Core.Tests;
 
 [TestClass]
 public sealed class NotesTests

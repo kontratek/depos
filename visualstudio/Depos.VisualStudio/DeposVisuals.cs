@@ -8,19 +8,19 @@ using System.Windows.Shapes;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
-internal sealed class PacmonMarkControl : Canvas
+internal sealed class DeposMarkControl : Canvas
 {
     private bool themeSubscribed;
 
     public static readonly DependencyProperty DocumentedProperty = DependencyProperty.Register(
         nameof(Documented),
         typeof(bool),
-        typeof(PacmonMarkControl),
-        new FrameworkPropertyMetadata(false, (source, _) => ((PacmonMarkControl)source).Draw()));
+        typeof(DeposMarkControl),
+        new FrameworkPropertyMetadata(false, (source, _) => ((DeposMarkControl)source).Draw()));
 
-    public PacmonMarkControl()
+    public DeposMarkControl()
     {
         Width = 14;
         Height = 14;
@@ -39,7 +39,7 @@ internal sealed class PacmonMarkControl : Canvas
     {
         Children.Clear();
         Opacity = Documented ? 1 : 0.68;
-        var brush = PacmonMarkPalette.Brush(Documented, PacmonMarkPalette.IsDarkTheme());
+        var brush = DeposMarkPalette.Brush(Documented, DeposMarkPalette.IsDarkTheme());
         AddBar(3.5, 0, 10.5, 3.2, brush);
         AddBar(0, 5.4, 10.5, 3.2, brush);
         AddBar(0, 10.8, 10.5, 3.2, brush);
@@ -81,7 +81,7 @@ internal sealed class PacmonMarkControl : Canvas
     private void OnThemeChanged(ThemeChangedEventArgs args) => Draw();
 }
 
-internal static class PacmonMarkPalette
+internal static class DeposMarkPalette
 {
     private const int DocumentedDarkRgb = 0x00ff66;
     private const int DocumentedLightRgb = 0x00662f;
@@ -144,7 +144,7 @@ internal sealed class MarkdownPresenter : StackPanel
                 TextWrapping = TextWrapping.Wrap,
                 FontStyle = FontStyles.Italic,
             };
-            PacmonVisuals.ApplySecondaryTextTheme(empty);
+            DeposVisuals.ApplySecondaryTextTheme(empty);
             Children.Add(empty);
             return;
         }
@@ -159,7 +159,7 @@ internal sealed class MarkdownPresenter : StackPanel
             }
 
             var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1) };
-            PacmonVisuals.ApplyPrimaryTextTheme(text);
+            DeposVisuals.ApplyPrimaryTextTheme(text);
             var heading = Regex.Match(line, "^(#{1,3})\\s+(.+)$");
             if (heading.Success)
             {
@@ -212,7 +212,7 @@ internal sealed class MarkdownPresenter : StackPanel
     }
 }
 
-internal static class PacmonVisuals
+internal static class DeposVisuals
 {
     public static void ApplyToolWindowTheme(FrameworkElement element)
     {

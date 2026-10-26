@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Pacmon.Core;
+namespace Depos.Core;
 
 public static class TolerantXml
 {

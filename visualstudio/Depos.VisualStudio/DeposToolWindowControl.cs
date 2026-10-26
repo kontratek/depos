@@ -3,9 +3,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Shell;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
 internal sealed class DependencyRow
 {
@@ -55,8 +55,8 @@ internal sealed class NoteLayerControl : StackPanel
         }
         Children.Add(titleRow);
 
-        PacmonVisuals.ApplyBorderTheme(preview);
-        PacmonVisuals.ApplyPrimaryTextTheme(preview);
+        DeposVisuals.ApplyBorderTheme(preview);
+        DeposVisuals.ApplyPrimaryTextTheme(preview);
         preview.BorderThickness = new Thickness(1);
         preview.Child = markdown;
         preview.MouseLeftButtonDown += (_, _) => BeginEdit();
@@ -68,7 +68,7 @@ internal sealed class NoteLayerControl : StackPanel
         editor.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         editor.MinHeight = 95;
         editor.Visibility = Visibility.Collapsed;
-        PacmonVisuals.ApplyPrimaryTextTheme(editor);
+        DeposVisuals.ApplyPrimaryTextTheme(editor);
         editor.TextChanged += (_, _) =>
         {
             if (!loading) Changed?.Invoke(this, EventArgs.Empty);
@@ -128,7 +128,7 @@ internal sealed class NoteLayerControl : StackPanel
     private void PreviewClick(object sender, RoutedEventArgs args) => EndEdit();
 }
 
-public sealed class PacmonToolWindowControl : UserControl
+public sealed class DeposToolWindowControl : UserControl
 {
     private readonly ContentControl viewHost = new();
     private readonly Button settingsButton = new() { Content = "Settings", Padding = new Thickness(9, 3, 9, 3), Margin = new Thickness(0, 0, 6, 0) };
@@ -148,7 +148,7 @@ public sealed class PacmonToolWindowControl : UserControl
     private readonly Button openNotes = new() { Content = "Open notes file", Padding = new Thickness(8, 3, 8, 3) };
     private readonly Button save = new() { Content = "Save", Padding = new Thickness(12, 3, 12, 3), Margin = new Thickness(6, 0, 0, 0) };
     private readonly DispatcherTimer saveTimer;
-    private PacmonSettingsControl settingsView = null!;
+    private DeposSettingsControl settingsView = null!;
     private FrameworkElement detailView = null!;
     private CoverageContext? context;
     private DependencyRow? selected;
@@ -159,17 +159,17 @@ public sealed class PacmonToolWindowControl : UserControl
     private bool initialized;
     private DateTime suppressReloadUntil;
 
-    public PacmonToolWindowControl()
+    public DeposToolWindowControl()
     {
         saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
         saveTimer.Tick += (_, _) => Run(SaveCurrentAsync);
         var ui = BuildUi();
-        PacmonVisuals.ApplyNativeControlStyles(ui);
+        DeposVisuals.ApplyNativeControlStyles(ui);
         Content = ui;
         Loaded += (_, _) => Run(OnLoadedAsync);
         Unloaded += (_, _) =>
         {
-            if (subscribed && PacmonRuntime.Current is { } runtime) runtime.Changed -= RuntimeChanged;
+            if (subscribed && DeposRuntime.Current is { } runtime) runtime.Changed -= RuntimeChanged;
             subscribed = false;
             Run(SaveCurrentAsync);
         };
@@ -181,7 +181,7 @@ public sealed class PacmonToolWindowControl : UserControl
     {
         initialized = true;
         await SaveCurrentAsync();
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
 
         if (string.IsNullOrWhiteSpace(manifestPath) || string.IsNullOrWhiteSpace(packageName))
@@ -226,7 +226,7 @@ public sealed class PacmonToolWindowControl : UserControl
     {
         initialized = true;
         await SaveCurrentAsync();
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
         context = await runtime.CoverageAsync(context?.ManifestPath);
         RenderCoverage();
@@ -237,7 +237,7 @@ public sealed class PacmonToolWindowControl : UserControl
     private Grid BuildUi()
     {
         var root = new Grid { Margin = new Thickness(10) };
-        PacmonVisuals.ApplyToolWindowTheme(root);
+        DeposVisuals.ApplyToolWindowTheme(root);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -248,8 +248,8 @@ public sealed class PacmonToolWindowControl : UserControl
 
         detailView = BuildDetail();
         settingsView = BuildSettings();
-        PacmonVisuals.ApplyToolWindowViewTheme(detailView);
-        PacmonVisuals.ApplyToolWindowViewTheme(settingsView);
+        DeposVisuals.ApplyToolWindowViewTheme(detailView);
+        DeposVisuals.ApplyToolWindowViewTheme(settingsView);
         viewHost.Content = settingsView;
         Grid.SetRow(viewHost, 1);
         root.Children.Add(viewHost);
@@ -275,35 +275,35 @@ public sealed class PacmonToolWindowControl : UserControl
         titleRow.Children.Add(refreshButton);
         titleRow.Children.Add(settingsButton);
         var title = new StackPanel { Orientation = Orientation.Horizontal };
-        title.Children.Add(new PacmonMarkControl { Documented = true, Width = 16, Height = 16, Margin = new Thickness(0, 2, 7, 0) });
-        title.Children.Add(new TextBlock { Text = "Pacmon", FontSize = 18, FontWeight = FontWeights.SemiBold });
+        title.Children.Add(new DeposMarkControl { Documented = true, Width = 16, Height = 16, Margin = new Thickness(0, 2, 7, 0) });
+        title.Children.Add(new TextBlock { Text = "Depos", FontSize = 18, FontWeight = FontWeights.SemiBold });
         titleRow.Children.Add(title);
         header.Children.Add(titleRow);
         return header;
     }
 
-    private PacmonSettingsControl BuildSettings() => new(
+    private DeposSettingsControl BuildSettings() => new(
         async () =>
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is not null && context is not null) await runtime.OpenNotesAsync(context.ManifestPath);
         },
         async () =>
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is not null && context is not null) await runtime.OpenFileAsync(context.ManifestPath);
         },
         ShowDependencyPickerAsync,
         async () =>
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is null || context?.Notes is null) return;
             await runtime.NormalizeNotesAsync(context.NotesPath);
             saveStatus.Text = "Notes file formatted";
         },
         async () =>
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is not null) await runtime.SetupAiInstructionsAsync();
         },
         status => saveStatus.Text = status);
@@ -313,10 +313,10 @@ public sealed class PacmonToolWindowControl : UserControl
         var body = new StackPanel();
         packageTitle.FontSize = 16;
         packageTitle.FontWeight = FontWeights.SemiBold;
-        PacmonVisuals.ApplyPrimaryTextTheme(packageTitle);
-        PacmonVisuals.ApplySecondaryTextTheme(packageScope);
-        PacmonVisuals.ApplySecondaryTextTheme(notesPath);
-        PacmonVisuals.ApplySecondaryTextTheme(saveStatus);
+        DeposVisuals.ApplyPrimaryTextTheme(packageTitle);
+        DeposVisuals.ApplySecondaryTextTheme(packageScope);
+        DeposVisuals.ApplySecondaryTextTheme(notesPath);
+        DeposVisuals.ApplySecondaryTextTheme(saveStatus);
         body.Children.Add(packageTitle);
         body.Children.Add(packageScope);
         notesPath.Margin = new Thickness(0, 2, 0, 12);
@@ -337,20 +337,20 @@ public sealed class PacmonToolWindowControl : UserControl
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 7),
         };
-        PacmonVisuals.ApplySecondaryTextTheme(agentHelp);
+        DeposVisuals.ApplySecondaryTextTheme(agentHelp);
         agentContent.Children.Add(agentHelp);
         agent.Changed += LayerChanged;
         agent.CommitRequested += (_, _) => Run(SaveCurrentAsync);
         agentContent.Children.Add(agent);
-        PacmonVisuals.ApplyBorderTheme(agentProblems);
+        DeposVisuals.ApplyBorderTheme(agentProblems);
         agentProblems.BorderThickness = new Thickness(1);
         var problemRow = new DockPanel();
         DockPanel.SetDock(fixAgent, Dock.Right);
         problemRow.Children.Add(fixAgent);
         problemRow.Children.Add(agentProblemsText);
         agentProblems.Child = problemRow;
-        PacmonVisuals.ApplyPrimaryTextTheme(agentHeader);
-        PacmonVisuals.ApplyPrimaryTextTheme(agentProblemsText);
+        DeposVisuals.ApplyPrimaryTextTheme(agentHeader);
+        DeposVisuals.ApplyPrimaryTextTheme(agentProblemsText);
         agentContent.Children.Add(agentProblems);
         agentBox.Content = agentContent;
         fixAgent.Click += (_, _) =>
@@ -373,7 +373,7 @@ public sealed class PacmonToolWindowControl : UserControl
             if (context is not null && selected is not null)
             {
                 await SaveCurrentAsync();
-                await PacmonRuntime.Current!.EnsureSectionAndOpenAsync(context.ManifestPath, selected.Dependency.NoteKey);
+                await DeposRuntime.Current!.EnsureSectionAndOpenAsync(context.ManifestPath, selected.Dependency.NoteKey);
             }
         });
         save.Click += (_, _) => Run(SaveCurrentAsync);
@@ -391,7 +391,7 @@ public sealed class PacmonToolWindowControl : UserControl
 
     private async Task OnLoadedAsync()
     {
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
         if (!subscribed)
         {
@@ -410,7 +410,7 @@ public sealed class PacmonToolWindowControl : UserControl
         if (DateTime.UtcNow < suppressReloadUntil) return;
         if (showingSettings)
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is null) return;
             context = await runtime.CoverageAsync(context?.ManifestPath);
             RenderCoverage();
@@ -476,7 +476,7 @@ public sealed class PacmonToolWindowControl : UserControl
     private async Task SaveCurrentAsync()
     {
         saveTimer.Stop();
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         var currentContext = context;
         var current = selected;
         if (loading || !dirty || runtime is null || currentContext is null || current is null) return;
@@ -533,24 +533,24 @@ public sealed class PacmonToolWindowControl : UserControl
         var lintCount = context.Notes is null ? 0 : Notes.Lint(context.Notes, context.Dependencies.Select(item => item.NoteKey)).Count;
         var problemCount = lintCount + context.Analysis.Orphans.Count;
         CaptionChanged?.Invoke(problemCount == 0
-            ? $"Pacmon — {documented.Count}/{context.Dependencies.Count}"
-            : $"Pacmon — {documented.Count}/{context.Dependencies.Count}, {problemCount} problems");
+            ? $"Depos — {documented.Count}/{context.Dependencies.Count}"
+            : $"Depos — {documented.Count}/{context.Dependencies.Count}, {problemCount} problems");
     }
 
     private void ShowSettingsView()
     {
         showingSettings = true;
-        PacmonVisuals.ApplyToolWindowViewTheme(settingsView);
+        DeposVisuals.ApplyToolWindowViewTheme(settingsView);
         viewHost.Content = settingsView;
         settingsButton.Visibility = Visibility.Collapsed;
         saveStatus.Text = string.Empty;
-        CaptionChanged?.Invoke("Pacmon — Settings");
+        CaptionChanged?.Invoke("Depos — Settings");
     }
 
     private void ShowDetailView()
     {
         showingSettings = false;
-        PacmonVisuals.ApplyToolWindowViewTheme(detailView);
+        DeposVisuals.ApplyToolWindowViewTheme(detailView);
         viewHost.Content = detailView;
         settingsButton.Visibility = Visibility.Visible;
         RenderCoverage();
@@ -558,7 +558,7 @@ public sealed class PacmonToolWindowControl : UserControl
 
     private async Task ShowDependencyPickerAsync()
     {
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
         context ??= await runtime.CoverageAsync();
         if (context is null || context.Dependencies.Count == 0) return;
@@ -575,7 +575,7 @@ public sealed class PacmonToolWindowControl : UserControl
         if (!enabled)
         {
             packageTitle.Text = "Select a dependency in a supported NuGet manifest.";
-            packageScope.Text = "Use the Pacmon mark or Add/Edit Dependency Note command.";
+            packageScope.Text = "Use the Depos mark or Add/Edit Dependency Note command.";
             notesPath.Text = string.Empty;
             human.Visibility = Visibility.Collapsed;
             agentBox.Visibility = Visibility.Collapsed;

@@ -11,22 +11,22 @@ the same Marketplace, and attaches all three to a GitHub Release.
 
 The JetBrains plugin takes its version from `package.json` and its change notes
 from the CHANGELOG section of that version (`jetbrains/build.gradle.kts`); the
-Visual Studio extension takes the same version (`Pacmon.VisualStudio.csproj`)
+Visual Studio extension takes the same version (`Depos.VisualStudio.csproj`)
 and links to the CHANGELOG. One version number and one set of notes serve every
 registry. The JetBrains Marketplace lists a version only after its own review,
 normally within two business days; the run does not wait for that.
 
-The Visual Studio VSIX, `pacmon-visualstudio.vsix` for Visual Studio 2022 and
+The Visual Studio VSIX, `depos-visualstudio.vsix` for Visual Studio 2022 and
 newer, builds and publishes only on Windows, so the workflow is four jobs:
 `version` decides the version and the notes; `visualstudio` builds and tests the
 Visual Studio VSIX from them and checks it with `visualstudio/verify-vsix.ps1`;
 `release` tests and builds the rest, pushes the commit and the tag and publishes;
 `visualstudio-publish` then sends the VSIX with VsixPublisher. Its listing,
-`kontra.pacmon-visualstudio`, is an item of its own under the same publisher as
+`kontra.depos-visualstudio`, is an item of its own under the same publisher as
 the VS Code extension, `kontra.pacmon`; the listing page and its categories are
 in `visualstudio/marketplace/`. The workflow publishes every version, the first
 included: unlike JetBrains, the Visual Studio Marketplace creates the listing on
-the first upload. The VSIX identity is `dev.pacmon.visualstudio`, and its
+the first upload. The VSIX identity is `dev.depos.visualstudio`, and its
 publisher must stay `Kontra`, the display name of the Marketplace publisher —
 VsixPublisher refuses anything else, and `verify-vsix.ps1` checks it on every
 CI run.
@@ -123,6 +123,6 @@ replaces a version it already has instead of refusing it, so check the listing
 first.
 
 ```sh
-msbuild visualstudio/Pacmon.VisualStudio/Pacmon.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true
-VsixPublisher.exe publish -payload visualstudio/Pacmon.VisualStudio/bin/Release/net472/pacmon-visualstudio.vsix -publishManifest visualstudio/marketplace/publishManifest.json -personalAccessToken <token>
+msbuild visualstudio/Depos.VisualStudio/Depos.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true
+VsixPublisher.exe publish -payload visualstudio/Depos.VisualStudio/bin/Release/net472/depos-visualstudio.vsix -publishManifest visualstudio/marketplace/publishManifest.json -personalAccessToken <token>
 ```

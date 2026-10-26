@@ -4,11 +4,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
-using Pacmon.Core;
+using Depos.Core;
 
-namespace Pacmon.VisualStudio;
+namespace Depos.VisualStudio;
 
-internal sealed class PacmonSettingsControl : ScrollViewer
+internal sealed class DeposSettingsControl : ScrollViewer
 {
     private readonly TextBlock coverageRatio = new();
     private readonly TextBlock coveragePath = new() { Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
@@ -29,7 +29,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
     private readonly Action<string> statusChanged;
     private bool syncing;
 
-    public PacmonSettingsControl(
+    public DeposSettingsControl(
         Func<Task> openNotesAction,
         Func<Task> openManifestAction,
         Func<Task> searchDependenciesAction,
@@ -50,7 +50,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
             noteEntries,
             new[]
             {
-                Choice(NoteEntryMode.ToolWindow, "Tool window", "A multi-line Markdown editor in the Pacmon tool window."),
+                Choice(NoteEntryMode.ToolWindow, "Tool window", "A multi-line Markdown editor in the Depos tool window."),
                 Choice(NoteEntryMode.QuickInput, "Quick input", "A one-line input box for fast human notes."),
                 Choice(NoteEntryMode.OpenBeside, "Open beside", "Create the section and open the Markdown notes file beside the manifest."),
             },
@@ -100,7 +100,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         actions.Children.Add(normalizeNotes);
         actions.Children.Add(ActionButton(
             "Set up AI instructions",
-            "Write Pacmon’s agent rules and connect the workspace instruction files.",
+            "Write Depos’s agent rules and connect the workspace instruction files.",
             setupAiAction));
         content.Children.Add(Section("Actions", null, actions));
 
@@ -112,7 +112,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         };
         reset.Click += (_, _) =>
         {
-            var runtime = PacmonRuntime.Current;
+            var runtime = DeposRuntime.Current;
             if (runtime is null) return;
             var options = runtime.Options;
             options.Decorations = DecorationMode.Preview;
@@ -129,14 +129,14 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         };
         content.Children.Add(Section("Reset", "Restore every setting shown in this panel.", reset));
 
-        PacmonVisuals.ApplyNativeControlStyles(content);
+        DeposVisuals.ApplyNativeControlStyles(content);
         Content = content;
         SyncFromOptions();
     }
 
     public void SyncFromOptions()
     {
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
         syncing = true;
         try
@@ -209,7 +209,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         packageIcon.Content = ToggleBody(
             "Icon before the dependency",
             "click",
-            "The Pacmon mark is filled when a note exists and hollow when it does not.",
+            "The Depos mark is filled when a note exists and hollow when it does not.",
             PreviewWithMark());
         navigation.Content = ToggleBody(
             "The package name",
@@ -283,7 +283,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
     private static FrameworkElement PreviewWithMark()
     {
         var line = PreviewLine();
-        line.Children.Add(new PacmonMarkControl { Documented = true, Width = 12, Height = 12, Margin = new Thickness(0, 2, 5, 0) });
+        line.Children.Add(new DeposMarkControl { Documented = true, Width = 12, Height = 12, Margin = new Thickness(0, 2, 5, 0) });
         line.Children.Add(Code("<PackageReference Include=\"Newtonsoft.Json\" />"));
         return PreviewBorder(line);
     }
@@ -332,7 +332,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
             Margin = new Thickness(0, 5, 0, 0),
             BorderThickness = new Thickness(1),
         };
-        PacmonVisuals.ApplyBorderTheme(border);
+        DeposVisuals.ApplyBorderTheme(border);
         border.SetResourceReference(Border.BackgroundProperty, EnvironmentColors.ToolWindowCodeBlockBackgroundBrushKey);
         return border;
     }
@@ -347,7 +347,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         var body = new StackPanel();
         body.Children.Add(Heading(title));
         body.Children.Add(Lede(help));
-        var group = $"pacmon-{typeof(T).Name}-{Guid.NewGuid():N}";
+        var group = $"depos-{typeof(T).Name}-{Guid.NewGuid():N}";
         foreach (var choice in choices)
         {
             var radio = new RadioButton
@@ -421,10 +421,10 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         if (controls.TryGetValue(value, out var control)) control.IsChecked = true;
     }
 
-    private void Update(Action<PacmonOptionsPage> change, Action<string> statusChanged)
+    private void Update(Action<DeposOptionsPage> change, Action<string> statusChanged)
     {
         if (syncing) return;
-        var runtime = PacmonRuntime.Current;
+        var runtime = DeposRuntime.Current;
         if (runtime is null) return;
         change(runtime.Options);
         runtime.Options.SaveSettingsToStorage();
@@ -452,7 +452,7 @@ internal sealed class DependencyPickerDialog : DialogWindow
 
     public DependencyPickerDialog(CoverageContext context)
     {
-        Title = "Pacmon — Search dependencies";
+        Title = "Depos — Search dependencies";
         Width = 540;
         Height = 460;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -488,7 +488,7 @@ internal sealed class DependencyPickerDialog : DialogWindow
         panel.Children.Add(search);
         panel.Children.Add(results);
         panel.Children.Add(buttons);
-        PacmonVisuals.ApplyNativeControlStyles(panel);
+        DeposVisuals.ApplyNativeControlStyles(panel);
         Content = panel;
         Loaded += (_, _) =>
         {
@@ -509,7 +509,7 @@ internal sealed class DependencyPickerDialog : DialogWindow
             var scope = new TextBlock { Text = row.Scope, Opacity = 0.68, Margin = new Thickness(10, 0, 0, 0) };
             DockPanel.SetDock(scope, Dock.Right);
             content.Children.Add(scope);
-            content.Children.Add(new PacmonMarkControl
+            content.Children.Add(new DeposMarkControl
             {
                 Documented = row.Documented,
                 Width = 13,
