@@ -7,6 +7,8 @@
 
 ## Unreleased
 
+## 0.11.0 — 2026-10-26
+
 - **Pacmon is now Depos.** The extension, its commands, views and settings
   are called Depos, and its site is https://depos.dev (https://pacmon.dev
   redirects there). The marketplace listings are titled "Depos (formerly
