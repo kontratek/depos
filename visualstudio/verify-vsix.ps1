@@ -52,6 +52,19 @@ try {
       throw "VSIX tag '$($tag.Trim())' is over 50 characters; tags are separated by semicolons, 50 characters each."
     }
   }
+  # The command table is found by the name ProvideMenuResource gives; under any other name no command shows.
+  $entry = $archive.GetEntry('Depos.VisualStudio.dll')
+  $memory = [System.IO.MemoryStream]::new()
+  $stream = $entry.Open()
+  try { $stream.CopyTo($memory) } finally { $stream.Dispose() }
+  $assembly = [System.Reflection.Assembly]::Load($memory.ToArray())
+  $menus = $false
+  foreach ($name in $assembly.GetManifestResourceNames()) {
+    if ($name -notlike '*.resources') { continue }
+    $reader = [System.Resources.ResourceReader]::new($assembly.GetManifestResourceStream($name))
+    try { foreach ($item in $reader) { if ($item.Key -eq 'Menus.ctmenu') { $menus = $true } } } finally { $reader.Close() }
+  }
+  if (-not $menus) { throw 'Depos.VisualStudio.dll has no Menus.ctmenu resource, so Visual Studio would show none of its commands.' }
   $entry = $archive.GetEntry('Depos.VisualStudio.pkgdef')
   $reader = [System.IO.StreamReader]::new($entry.Open())
   try { $pkgdef = $reader.ReadToEnd() } finally { $reader.Dispose() }

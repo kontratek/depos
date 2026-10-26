@@ -117,6 +117,11 @@
   others besides `.pacmon/AGENT-RULES.md`. Problems in a notes file are also
   listed in the Error List, and Extensions → Installed shows the right version.
 
+- **Visual Studio shows its commands.** The extension's commands were missing
+  from the Tools menu and the editor's context menu: the command table was
+  built under a name Visual Studio did not look for. **Depos Dependency
+  Notes**, **Add/Edit Dependency Note** and the other commands are there now.
+
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing
   and shared coverage backed by `.pacmon/ruby/DEPENDENCY-NOTES.md`. Groups,

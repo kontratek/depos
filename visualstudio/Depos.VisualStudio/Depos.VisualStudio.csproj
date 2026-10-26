@@ -50,7 +50,10 @@
     <Content Include="..\..\LICENSE" Link="LICENSE">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <VSCTCompile Include="Depos.vsct" />
+    <!-- The name ProvideMenuResource("Menus.ctmenu", 1) looks up; the default would be Depos.CTMENU and no command would show. -->
+    <VSCTCompile Include="Depos.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
   </ItemGroup>
   <Target Name="GenerateDeposVsixManifest" BeforeTargets="DetokenizeVsixManifestFile">
     <PropertyGroup>
