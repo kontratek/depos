@@ -4,7 +4,7 @@ package dev.pacmon.jetbrains.core
 object ConanManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.CONAN
     override val fileNames = listOf("conanfile.py", "conanfile.txt")
-    override val notesRelativePath = ".pacmon/conan/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/conan/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
 
     private val scopes = setOf("requires", "tool_requires", "test_requires", "build_requires")

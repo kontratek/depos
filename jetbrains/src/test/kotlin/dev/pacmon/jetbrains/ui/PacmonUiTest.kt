@@ -79,7 +79,7 @@ class PacmonUiTest : BasePlatformTestCase() {
         myFixture.configureFromExistingVirtualFile(packageJson)
         val psi = myFixture.file
         myFixture.tempDirFixture.createFile(
-            ".pacmon/DEPENDENCY-NOTES.md",
+            ".depos/DEPENDENCY-NOTES.md",
             "## vue\n\nFrontend framework\n",
         )
         val dependencies = DependencyPsi.all(psi).associateBy { it.name }
@@ -121,7 +121,7 @@ class PacmonUiTest : BasePlatformTestCase() {
             """{ "dependencies": { "vue": "^3", "react": "^19" } }""",
         )
         myFixture.tempDirFixture.createFile(
-            "packages/app/.pacmon/DEPENDENCY-NOTES.md",
+            "packages/app/.depos/DEPENDENCY-NOTES.md",
             "## vue\n\nFrontend framework\n",
         )
         myFixture.configureFromExistingVirtualFile(packageJson)
@@ -146,7 +146,7 @@ class PacmonUiTest : BasePlatformTestCase() {
             ".{ .dependencies = .{ .known_folders = .{}, .ziglyph = .{ .lazy = true } } }",
         )
         myFixture.tempDirFixture.createFile(
-            "apps/zig/.pacmon/zig/DEPENDENCY-NOTES.md",
+            "apps/zig/.depos/zig/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: zig\nlang: en\n---\n# Dependency Notes\n\n## known_folders\n\nPaths\n",
         )
         myFixture.configureFromExistingVirtualFile(manifest)
@@ -166,7 +166,7 @@ class PacmonUiTest : BasePlatformTestCase() {
             "[dependencies]\ngleam_stdlib = \"1\"\ngleam_http = { version = \"4\" }",
         )
         myFixture.tempDirFixture.createFile(
-            "apps/gleam/.pacmon/gleam/DEPENDENCY-NOTES.md",
+            "apps/gleam/.depos/gleam/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: gleam\nlang: en\n---\n# Dependency Notes\n\n## gleam_stdlib\n\nStandard library\n",
         )
         myFixture.configureFromExistingVirtualFile(manifest)
@@ -200,7 +200,7 @@ class PacmonUiTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/nuget/DEPENDENCY-NOTES.md",
+            ".depos/nuget/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: nuget\nlang: en\n---\n# Dependency Notes\n\n## NEWTONSOFT.JSON\n\nJSON\n",
         )
         myFixture.configureFromExistingVirtualFile(manifest)
@@ -282,7 +282,7 @@ class PacmonUiTest : BasePlatformTestCase() {
 
             assertEquals("Frontend framework", note?.layers?.human)
             assertEquals("- purpose: UI\n- runtime: client", note?.layers?.agent)
-            val rulesPath = project.basePath?.replace('\\', '/') + "/.pacmon/AGENT-RULES.md"
+            val rulesPath = project.basePath?.replace('\\', '/') + "/.depos/AGENT-RULES.md"
             assertNotNull(com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(rulesPath))
         } finally {
             panel.dispose()
@@ -295,7 +295,7 @@ class PacmonUiTest : BasePlatformTestCase() {
             """{ "dependencies": { "vue": "^3" } }""",
         )
         val notesFile = myFixture.tempDirFixture.createFile(
-            ".pacmon/DEPENDENCY-NOTES.md",
+            ".depos/DEPENDENCY-NOTES.md",
             "---\r\nformat: dependency-notes/1\r\nlang: en\r\n---\r\n\r\n" +
                 "# Dependency Notes\r\n\r\n## vue\r\n\r\nold note\r\n",
         )
@@ -318,7 +318,7 @@ class PacmonUiTest : BasePlatformTestCase() {
         try {
             panel.showTarget(PacmonTarget(packageJson, "vue", "dependencies"))
             panel.setLayersForTest("local edit", "")
-            val notesPath = "${packageJson.parent.path}/.pacmon/DEPENDENCY-NOTES.md"
+            val notesPath = "${packageJson.parent.path}/.depos/DEPENDENCY-NOTES.md"
             panel.externalNotesChanged(setOf(notesPath))
             UIUtil.dispatchAllInvocationEvents()
             assertTrue(panel.hasConflictForTest())

@@ -8,9 +8,13 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
  * daemon: `doHighlighting()` sees exactly what the editor shows.
  */
 class PacmonNotesAnnotatorTest : BasePlatformTestCase() {
-    private fun highlight(notes: String, packageJson: String? = null): List<Pair<String, String>> {
+    private fun highlight(
+        notes: String,
+        packageJson: String? = null,
+        path: String = ".depos/DEPENDENCY-NOTES.md",
+    ): List<Pair<String, String>> {
         if (packageJson != null) myFixture.addFileToProject("package.json", packageJson)
-        val file = myFixture.addFileToProject(".pacmon/DEPENDENCY-NOTES.md", notes)
+        val file = myFixture.addFileToProject(path, notes)
         myFixture.configureFromExistingVirtualFile(file.virtualFile)
         return myFixture.doHighlighting(HighlightSeverity.WARNING)
             .map { myFixture.editor.document.text.substring(it.startOffset, it.endOffset) to it.description.orEmpty() }
@@ -30,7 +34,7 @@ class PacmonNotesAnnotatorTest : BasePlatformTestCase() {
     fun testEveryWarningCarriesItsMessageAsATooltip() {
         myFixture.addFileToProject("package.json", deps)
         val file = myFixture.addFileToProject(
-            ".pacmon/DEPENDENCY-NOTES.md",
+            ".depos/DEPENDENCY-NOTES.md",
             "# Dependency Notes\n\n##express\n\nWhy we use it.\n",
         )
         myFixture.configureFromExistingVirtualFile(file.virtualFile)
@@ -121,7 +125,7 @@ class PacmonNotesAnnotatorTest : BasePlatformTestCase() {
 
             <!-- Each "## name" below is a package from package.json. The text right under the
               heading is written by people. "### Agent notes" and everything below it is written
-              by AI agents — rules in .pacmon/AGENT-RULES.md. -->
+              by AI agents — rules in .depos/AGENT-RULES.md. -->
 
             # Dependency Notes
 
@@ -137,5 +141,54 @@ class PacmonNotesAnnotatorTest : BasePlatformTestCase() {
             deps,
         )
         assertEmpty(warnings)
+    }
+
+    /** From before Pacmon became Depos: still read, and linted like any other, with nothing said about where it is. */
+    fun testACanonicalFileUnderPacmonGetsNoWarnings() {
+        val warnings = highlight(
+            """
+            ---
+            format: dependency-notes/1
+            lang: en
+            ---
+
+            <!-- Each "## name" below is a package from package.json. The text right under the
+              heading is written by people. "### Agent notes" and everything below it is written
+              by AI agents — rules in .pacmon/AGENT-RULES.md. -->
+
+            # Dependency Notes
+
+            ## express
+
+            Why we use it.
+            """.trimIndent() + "\n",
+            deps,
+            path = ".pacmon/DEPENDENCY-NOTES.md",
+        )
+        assertEmpty(warnings)
+    }
+
+    /** A .pacmon/ file with a .depos/ one beside it is never read: its first line with text says so. */
+    fun testAPacmonFileWithADeposFileBesideItIsMarkedAsIgnored() {
+        myFixture.addFileToProject(".depos/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nRead.\n")
+        val warnings = highlight(
+            "\n# Dependency Notes\n\n## express\n\nNot read.\n",
+            deps,
+            path = ".pacmon/DEPENDENCY-NOTES.md",
+        )
+        val found = warnings.firstOrNull { it.second.startsWith("Ignored:") }
+        assertNotNull(warnings.toString(), found)
+        assertEquals(
+            "Ignored: .depos/DEPENDENCY-NOTES.md is read instead of this file. Move what is still needed there, " +
+                "then delete this file.",
+            found?.second,
+        )
+        assertEquals("# Dependency Notes", found?.first)
+    }
+
+    fun testTheDeposFileItselfIsNotMarkedAsIgnored() {
+        myFixture.addFileToProject(".pacmon/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nNot read.\n")
+        val warnings = highlight("# Dependency Notes\n\n## express\n\nRead.\n", deps)
+        assertFalse(warnings.toString(), warnings.any { it.second.startsWith("Ignored:") })
     }
 }

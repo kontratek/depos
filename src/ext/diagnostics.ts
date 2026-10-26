@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import { lintNotes } from '../core/lint';
 import { parseNotes } from '../core/parseNotes';
 import { isNotesFile } from './config';
-import { dependenciesForNotes, notesKind } from './resolveNotesFile';
+import { suggestMoveNotes } from './commands/moveNotes';
+import { dependenciesForNotes, notesKind, shadowingNotesFile } from './resolveNotesFile';
 import type { Store } from './state';
 import { S } from './strings';
 
-export const DIAG_SOURCE = 'pacmon';
+export const DIAG_SOURCE = 'depos';
 export type DiagCode =
   | 'duplicate-section'
   | 'wrong-heading-level'
@@ -22,7 +23,8 @@ export type DiagCode =
   | 'unknown-agent-key'
   | 'empty-agent-value'
   | 'bad-agent-value'
-  | 'removed-but-present';
+  | 'removed-but-present'
+  | 'shadowed-notes-file';
 
 /**
  * Guidance, only while a notes file is open — and every item a Warning: one
@@ -40,7 +42,7 @@ export type DiagCode =
  * package.json itself never gets diagnostics.
  */
 export class NotesDiagnostics implements vscode.Disposable {
-  private readonly collection = vscode.languages.createDiagnosticCollection('pacmon');
+  private readonly collection = vscode.languages.createDiagnosticCollection('depos');
   private readonly disposables: vscode.Disposable[] = [];
   /** The newest refresh started for each open notes file, by URI. */
   private readonly latestRefresh = new Map<string, number>();
@@ -96,11 +98,17 @@ export class NotesDiagnostics implements vscode.Disposable {
       push(lineRange(p.line), S.duplicateSection(p.name, p.firstLine + 1), 'duplicate-section');
     }
 
+    const shadowing = shadowingNotesFile(doc.uri);
     const deps = await dependenciesForNotes(this.store, doc.uri);
+    const shadow = await shadowing;
     // Refreshes of one file can wait on the same dependency discovery and finish
     // in any order. One that started later saw newer text; this result would
     // overwrite its diagnostics, and no event would come to correct them.
     if (this.latestRefresh.get(key) !== refreshId) return;
+
+    // A .pacmon/ file with a .depos/ one beside it is never read.
+    if (shadow) push(lineRange(0), S.shadowedNotesFile(vscode.workspace.asRelativePath(shadow, false)), 'shadowed-notes-file');
+    suggestMoveNotes(doc.uri);
 
     for (const f of lintNotes(model, deps.map((d) => d.noteKey), notesKind(doc.uri))) {
       switch (f.kind) {

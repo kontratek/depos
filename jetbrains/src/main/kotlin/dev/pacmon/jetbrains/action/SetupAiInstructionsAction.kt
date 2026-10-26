@@ -5,10 +5,10 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 
 /**
- * Writes `.pacmon/AGENT-RULES.md` and, into whichever instruction files the
+ * Writes `.depos/AGENT-RULES.md` and, into whichever instruction files the
  * user picks (`AGENTS.md`, `CLAUDE.md`, …), the three-line pointer to it —
  * the JetBrains counterpart of the VS Code extension's
- * "Pacmon: Set Up AI Instructions" command.
+ * "Depos: Set Up AI Instructions" command.
  */
 class SetupAiInstructionsAction : AnAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT

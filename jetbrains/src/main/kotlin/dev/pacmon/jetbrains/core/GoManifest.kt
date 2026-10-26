@@ -1,10 +1,10 @@
 package dev.pacmon.jetbrains.core
 
-/** Static go.mod parser. Pacmon never invokes Go. */
+/** Static go.mod parser. Depos never invokes Go. */
 object GoManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.GO
     override val fileNames = listOf("go.mod")
-    override val notesRelativePath = ".pacmon/go/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/go/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     /** [range] covers the token's content, without surrounding quotes. */

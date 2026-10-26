@@ -18,13 +18,13 @@ private data class ParsedGradleDependency(
 
 /**
  * Static Groovy/Kotlin DSL reader. Gradle scripts are executable programs, so
- * Pacmon deliberately reads only source-visible dependency declarations and
+ * Depos deliberately reads only source-visible dependency declarations and
  * never evaluates a script or invokes Gradle.
  */
 object GradleManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.GRADLE
     override val fileNames = listOf("build.gradle.kts", "build.gradle")
-    override val notesRelativePath = ".pacmon/gradle/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/gradle/DEPENDENCY-NOTES.md"
 
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 

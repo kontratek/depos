@@ -25,7 +25,7 @@ const NON_MODULE_FACTORIES = new Set(['project', 'files', 'fileTree', 'gradleApi
 
 /**
  * A deliberately small Groovy/Kotlin lexer. Gradle build scripts are programs,
- * so Pacmon only reads statically visible declarations and never evaluates the
+ * so Depos only reads statically visible declarations and never evaluates the
  * script. Keeping comments, strings and balanced delimiters distinct avoids the
  * false positives a regular-expression parser would produce.
  */

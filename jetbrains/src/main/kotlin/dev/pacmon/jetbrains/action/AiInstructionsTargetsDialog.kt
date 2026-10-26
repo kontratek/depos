@@ -13,7 +13,7 @@ import javax.swing.JPanel
 
 /**
  * Which instruction files get the three-line pointer to
- * `.pacmon/AGENT-RULES.md`. The same list, in the same order, as the VS Code
+ * `.depos/AGENT-RULES.md`. The same list, in the same order, as the VS Code
  * extension's quick pick, and like it, a file that already exists is ticked so
  * its block is refreshed rather than left stale.
  */

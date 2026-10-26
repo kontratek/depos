@@ -10,7 +10,7 @@ import com.intellij.util.Alarm
 import com.intellij.util.ui.JBUI
 import dev.pacmon.jetbrains.core.AgentNotes
 import dev.pacmon.jetbrains.core.AgentProblem
-import dev.pacmon.jetbrains.core.ManifestRegistry
+import dev.pacmon.jetbrains.core.NotesCore
 import dev.pacmon.jetbrains.action.PacmonCommands
 import dev.pacmon.jetbrains.depos.DeposConnection
 import dev.pacmon.jetbrains.depos.DeposException
@@ -59,7 +59,7 @@ class PacmonToolWindowPanel(
     private val sectionLabel = Badge()
     /** The allowlist result from Depos beside the name: red when denied, yellow when not listed, green when allowed. */
     private val orgBadge = Badge().apply { isVisible = false }
-    private val notesPathLabel = JBLabel("->  .pacmon/DEPENDENCY-NOTES.md").apply {
+    private val notesPathLabel = JBLabel("->  ${NotesCore.NOTES_RELATIVE_PATH}").apply {
         // Matches `.meta`: smaller and muted, secondary to the title above it.
         font = font.deriveFont(font.size2D - 1f)
         foreground = JBColor.namedColor(
@@ -199,7 +199,7 @@ class PacmonToolWindowPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
             alignmentX = Component.LEFT_ALIGNMENT
-            add(JBLabel("<html>Written by AI agents as \"- key: value\" lines (rules in .pacmon/AGENT-RULES.md).<br>Edit if you must; agents revise these as they work.</html>").apply {
+            add(JBLabel("<html>Written by AI agents as \"- key: value\" lines (rules in ${NotesCore.AGENT_RULES_RELATIVE_PATH}).<br>Edit if you must; agents revise these as they work.</html>").apply {
                 alignmentX = Component.LEFT_ALIGNMENT
                 border = JBUI.Borders.empty(5, 12, 0, 0)
             })
@@ -264,10 +264,10 @@ class PacmonToolWindowPanel(
             }
             return
         }
-        val relativePath = dev.pacmon.jetbrains.core.ManifestRegistry.forPath(current.manifest.path)
-            ?.notesRelativePath ?: dev.pacmon.jetbrains.core.NotesCore.NOTES_RELATIVE_PATH
-        val relevantPath = notes.resolveNotesFile(current.manifest)?.path?.replace('\\', '/')
-            ?: "${current.manifest.parent.path.replace('\\', '/')}/$relativePath"
+        // The notes file, or where the first note will be created: in .depos/, or in
+        // .pacmon/ in a repository that still keeps its notes there.
+        val relevantPath = (notes.resolveNotesFile(current.manifest)?.path ?: notes.creationTargetPath(current.manifest))
+            .replace('\\', '/')
         if (relevantPath !in paths) return
         SwingUtilities.invokeLater {
             if (disposed || writing || target == null) return@invokeLater
@@ -325,7 +325,7 @@ class PacmonToolWindowPanel(
         val current = target ?: return
         val state = org.notesFor(current.manifest)
         notesPathLabel.text = "->  " + (state?.orgName?.let(DeposStrings::orgNotesLabel)
-            ?: ManifestRegistry.forPath(current.manifest.path)?.notesRelativePath.orEmpty())
+            ?: notes.notesRelativePathFor(current.manifest))
         readOnly = state != null && !state.canEdit
         humanLayer.setReadOnly(readOnly)
         agentLayer.setReadOnly(readOnly)
@@ -501,7 +501,7 @@ class PacmonToolWindowPanel(
         saveAlarm.cancelAllRequests()
     }
 
-    /** A small rounded badge, Pacmon green (the mark's colors) unless given another [Tone]. */
+    /** A small rounded badge, Depos green (the mark's colors) unless given another [Tone]. */
     private class Badge : JBLabel("") {
         enum class Tone(val background: Color, val foreground: Color) {
             GREEN(JBColor(0x00662F, 0x00FF66), JBColor(0xFFFFFF, 0x0A0A0A)),

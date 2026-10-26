@@ -1,7 +1,18 @@
 package dev.pacmon.jetbrains.core
 
 object NotesCore {
-    const val NOTES_DIRECTORY = ".pacmon"
+    /** Everything Depos owns lives beside the dependency manifest under this directory. */
+    const val NOTES_DIRECTORY = ".depos"
+
+    /**
+     * The directory's name from before Pacmon became Depos. Still read, and still
+     * written in a repository that keeps its notes there: the whole repository
+     * moves at once, with the move action, never one file at a time.
+     */
+    const val LEGACY_NOTES_DIRECTORY = ".pacmon"
+
+    /** Where notes may live, in the order they are looked for at each directory level. */
+    val NOTES_DIRECTORIES = listOf(NOTES_DIRECTORY, LEGACY_NOTES_DIRECTORY)
     const val NOTES_FILE_NAME = "DEPENDENCY-NOTES.md"
     const val NOTES_RELATIVE_PATH = "$NOTES_DIRECTORY/$NOTES_FILE_NAME"
     const val AGENT_RULES_FILE_NAME = "AGENT-RULES.md"
@@ -20,6 +31,7 @@ object NotesCore {
     private val agentField = Regex("^\\s*[-*]\\s+([a-z][a-z0-9_-]*)\\s*:\\s*(.*)$", RegexOption.IGNORE_CASE)
     private val frontmatterKv = Regex("^([A-Za-z][\\w-]*):\\s*(.*?)\\s*$")
     private val titlePattern = Regex("^#(?!#)\\s+")
+    private val legacyDirectoryInPath = Regex("(^|/)\\.pacmon/")
 
     val AI_FORMAT_COMMENT_LINES = listOf(
         "<!-- Each \"## name\" below is a package from package.json. The text right under the",
@@ -27,20 +39,53 @@ object NotesCore {
         "  by AI agents — rules in $AGENT_RULES_RELATIVE_PATH. -->",
     )
 
+    fun agentRulesRelativePath(dir: String = NOTES_DIRECTORY): String = "$dir/$AGENT_RULES_FILE_NAME"
+
+    /** The notes directory a path sits in: the legacy name under `.pacmon/`, the current one otherwise. */
+    fun notesDirOf(path: String): String =
+        if (legacyDirectoryInPath.containsMatchIn(path.replace('\\', '/'))) LEGACY_NOTES_DIRECTORY else NOTES_DIRECTORY
+
+    /**
+     * Text written for the current directory (AGENT-RULES.md, the pointer block),
+     * as it reads in a repository that keeps its notes under [dir].
+     */
+    fun inNotesDir(text: String, dir: String): String =
+        if (dir == NOTES_DIRECTORY) text else text.replace("$NOTES_DIRECTORY/", "$dir/")
+
+    /**
+     * The same path in the current notes directory, for anything under `.pacmon/`:
+     * `apps/web/.pacmon/cargo/DEPENDENCY-NOTES.md` → `apps/web/.depos/cargo/…`. Null
+     * for a path outside `.pacmon/`.
+     */
+    fun inCurrentNotesDir(path: String): String? {
+        val normalized = path.replace('\\', '/')
+        val at = normalized.lastIndexOf("/$LEGACY_NOTES_DIRECTORY/")
+        if (at == -1) return null
+        return normalized.substring(0, at) + "/$NOTES_DIRECTORY/" +
+            normalized.substring(at + LEGACY_NOTES_DIRECTORY.length + 2)
+    }
+
     fun normalizeName(raw: String, ecosystem: ManifestKind? = null): String =
         ManifestRegistry.normalizeName(raw, ecosystem)
 
-    fun notesRelativePath(ecosystem: ManifestKind): String = ManifestRegistry.forKind(ecosystem).notesRelativePath
+    fun notesRelativePath(ecosystem: ManifestKind, dir: String = NOTES_DIRECTORY): String =
+        ManifestRegistry.notesRelativePathIn(ManifestRegistry.forKind(ecosystem), dir)
 
-    fun formatCommentLines(ecosystem: ManifestKind?): List<String> = when (ecosystem) {
+    /**
+     * [dir] is the directory the notes file sits in, so that the comment names the
+     * AGENT-RULES.md beside it. Derived from the file's path, never from a setting:
+     * the normalizer rewrites this comment on every format, and two versions of the
+     * plugin in one team must not take turns changing it.
+     */
+    fun formatCommentLines(ecosystem: ManifestKind?, dir: String = NOTES_DIRECTORY): List<String> = when (ecosystem) {
         ManifestKind.CARGO, ManifestKind.MAVEN, ManifestKind.GRADLE, ManifestKind.MIX, ManifestKind.GLEAM,
         ManifestKind.ZIG, ManifestKind.PYTHON, ManifestKind.RUBY, ManifestKind.COMPOSER, ManifestKind.NUGET,
         ManifestKind.GO, ManifestKind.VCPKG, ManifestKind.CONAN -> listOf(
             "<!-- Each \"## name\" below is a package from the ${ecosystem.id} dependency manifest.",
             "  The text under it is written by people. \"$AGENT_NOTES_HEADING\" and everything below",
-            "  it is written by AI agents — rules in $AGENT_RULES_RELATIVE_PATH. -->",
+            "  it is written by AI agents — rules in ${agentRulesRelativePath(dir)}. -->",
         )
-        else -> AI_FORMAT_COMMENT_LINES
+        else -> AI_FORMAT_COMMENT_LINES.map { inNotesDir(it, dir) }
     }
 
     fun parse(textValue: String): NotesFileModel {
@@ -212,11 +257,13 @@ object NotesCore {
         return if (value.length > maxLength) value.take(maxLength - 1) + "…" else value
     }
 
+    /** A fresh notes file with its first section. [dir] is the notes directory it goes to. */
     fun newNotesFile(
         name: String,
         human: String,
         agent: String = "",
         ecosystem: ManifestKind = ManifestKind.NPM,
+        dir: String = NOTES_DIRECTORY,
     ): String {
         val body = composeLayers(human, agent)
         return buildString {
@@ -225,14 +272,7 @@ object NotesCore {
             } else {
                 append("---\nformat: dependency-notes/2\necosystem: ${ecosystem.id}\nlang: en\n---\n\n")
             }
-            if (ecosystem == ManifestKind.NPM) {
-                append("<!-- Each \"## name\" below is a package from package.json. The text right under the\n")
-                append("  heading is written by people. \"### Agent notes\" and everything below it is written\n")
-                append("  by AI agents — rules in .pacmon/AGENT-RULES.md. -->\n\n")
-            }
-            if (ecosystem != ManifestKind.NPM) {
-                append(formatCommentLines(ecosystem).joinToString("\n")).append("\n\n")
-            }
+            append(formatCommentLines(ecosystem, dir).joinToString("\n")).append("\n\n")
             append("# Dependency Notes\n\n## ").append(name.trim()).append("\n\n")
             if (body.isNotEmpty()) append(body).append('\n')
         }
@@ -333,13 +373,16 @@ object NotesCore {
      * canonical `## name` headings, one blank line between blocks, a single
      * trailing newline. Section bodies are kept verbatim (outer blank lines
      * trimmed). Duplicate sections are kept, in their relative order.
+     *
+     * [dir] is the notes directory the file sits in ([notesDirOf] its path); the
+     * header comment names the AGENT-RULES.md there.
      */
-    fun serialize(model: NotesFileModel, expectedEcosystem: ManifestKind? = null): String {
+    fun serialize(model: NotesFileModel, expectedEcosystem: ManifestKind? = null, dir: String = NOTES_DIRECTORY): String {
         val out = mutableListOf<String>()
         val ecosystem = model.frontmatter?.ecosystem ?: expectedEcosystem.takeIf { model.frontmatter == null }
         out.addAll(frontmatterLines(model, expectedEcosystem))
         out.add("")
-        out.addAll(formatCommentLines(ecosystem))
+        out.addAll(formatCommentLines(ecosystem, dir))
         out.add("")
         out.add(DEFAULT_TITLE)
 
@@ -367,8 +410,8 @@ object NotesCore {
     }
 
     /** Parse + serialize convenience: rewrites [text] into canonical form. */
-    fun normalizeText(text: String, expectedEcosystem: ManifestKind? = null): String =
-        serialize(parse(text), expectedEcosystem)
+    fun normalizeText(text: String, expectedEcosystem: ManifestKind? = null, dir: String = NOTES_DIRECTORY): String =
+        serialize(parse(text), expectedEcosystem, dir)
 
     private fun frontmatterLines(model: NotesFileModel, expectedEcosystem: ManifestKind?): List<String> {
         val desired = when {

@@ -6,7 +6,7 @@
  */
 
 /** The client id Depos accepts for this editor. */
-export const CLIENT_ID = 'pacmon-vscode';
+export const CLIENT_ID = 'depos-vscode';
 const GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
 
 export interface HttpResponse {

@@ -1,10 +1,10 @@
 package dev.pacmon.jetbrains.settings
 
 /**
- * The values the Pacmon tool window and the Settings page may write, and the
+ * The values the Depos tool window and the Settings page may write, and the
  * words next to them. The VS Code extension keeps the same vocabulary in
- * dependency manifests (`pacmon.noteButtons`, `pacmon.decorations`,
- * `pacmon.noteEntry`, `pacmon.inlineSource`) and the same help text in
+ * its settings (`depos.noteButtons`, `depos.decorations`,
+ * `depos.noteEntry`, `depos.inlineSource`) and the same help text in
  * `src/ext/strings.ts`; both editors are meant to offer the same choices under
  * the same names, so a note written in one reads the same in the other.
  *
@@ -40,7 +40,7 @@ object NoteButtons {
 
     fun help(id: String): String = when (id) {
         ICON_LEFT ->
-            "The Pacmon mark before the dependency — filled when it has a note, " +
+            "The Depos mark before the dependency — filled when it has a note, " +
                 "hollow when it does not. The mouse turns into a hand over it."
         LINK -> "The package name itself opens its note. Adds nothing to the file."
         CODE_LENS -> "Unmissable — and it roughly doubles the apparent height of the manifest."
@@ -72,7 +72,7 @@ object NoteEntries {
     val ALL = listOf(PANEL, PEEK)
 
     fun help(value: String): String = when (value) {
-        PANEL -> "The note editor in the Pacmon tool window (default)."
+        PANEL -> "The note editor in the Depos tool window (default)."
         PEEK -> "A popup editor over the dependency line."
         else -> ""
     }

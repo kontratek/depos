@@ -32,7 +32,7 @@ sealed class LintFinding(val line: Int) {
 
     class UnknownFormat(line: Int, val version: String) : LintFinding(line) {
         override fun message(): String =
-            "Unknown format \"$version\" — this Pacmon reads ${NotesCore.SUPPORTED_FORMAT_VERSIONS.joinToString(" and ")}."
+            "Unknown format \"$version\" — this version of Depos reads ${NotesCore.SUPPORTED_FORMAT_VERSIONS.joinToString(" and ")}."
     }
 
     class MissingEcosystem(line: Int) : LintFinding(line) {

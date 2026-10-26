@@ -10,6 +10,8 @@ import {
   FORMAT_VERSION_V2,
   formatCommentLines,
   frontmatterLinesFor,
+  NOTES_DIR,
+  type NotesDir,
 } from './template';
 
 function trimmedBodyLines(model: NotesFileModel, s: NoteSection): string[] {
@@ -55,15 +57,17 @@ function frontmatterLines(model: NotesFileModel): string[] {
  * Duplicate sections are kept (flagged elsewhere).
  *
  * The header comment is regenerated, not copied: it belongs to the format.
- * A file's own commentary belongs in the intro, below the title.
+ * A file's own commentary belongs in the intro, below the title. `dir` is the
+ * notes directory the file sits in (`notesDirOf` its path); the comment names
+ * the AGENT-RULES.md there.
  */
-export function serialize(model: NotesFileModel): string {
+export function serialize(model: NotesFileModel, dir: NotesDir = NOTES_DIR): string {
   const out: string[] = [];
 
   out.push(...frontmatterLines(model));
 
   out.push('');
-  out.push(...formatCommentLines(model.frontmatter?.ecosystem));
+  out.push(...formatCommentLines(model.frontmatter?.ecosystem, dir));
 
   out.push('');
   // The title is the format's, like the header comment: always `# Dependency Notes`.
@@ -99,8 +103,8 @@ export function serialize(model: NotesFileModel): string {
 }
 
 /** Parse + serialize convenience. */
-export function normalizeText(text: string): string {
-  return serialize(parseNotes(text));
+export function normalizeText(text: string, dir: NotesDir = NOTES_DIR): string {
+  return serialize(parseNotes(text), dir);
 }
 
 /**

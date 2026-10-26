@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { normalizeText } from '../../core/serialize';
+import { notesDirOf } from '../../core/template';
 import { isManifest, isNotesFile, notesFileLabel, toggleDecorationsState } from '../config';
 import { defaultManifest, manifestsForNotes, notesUriIn, resolveNotesFileFor } from '../resolveNotesFile';
 import type { Store } from '../state';
@@ -72,7 +73,7 @@ export async function normalizeNotesFile(store: Store): Promise<void> {
   }
   const doc = await vscode.workspace.openTextDocument(uri);
   const original = doc.getText();
-  const canonical = normalizeText(original);
+  const canonical = normalizeText(original, notesDirOf(uri.path));
   if (canonical === original) {
     vscode.window.setStatusBarMessage(S.alreadyCanonical(notesFileLabel()), 3000);
     return;

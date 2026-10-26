@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { affectsSetting } from './settings';
 import { analyze } from '../core/analyze';
 import { normalizeNameForEcosystem } from '../core/match';
 import { notePreview, sectionLayers } from '../core/layers';
@@ -31,7 +32,7 @@ export class DecorationController implements vscode.Disposable {
       vscode.window.onDidChangeVisibleTextEditors(() => this.refreshVisible()),
       store.onDidChange(() => this.refreshVisible()),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('pacmon')) this.refreshVisible();
+        if (affectsSetting(e)) this.refreshVisible();
       }),
     );
     this.refreshVisible();

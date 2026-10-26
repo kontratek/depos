@@ -1,27 +1,29 @@
 # The dependency notes formats
 
-Pacmon stores dependency notes as Markdown. npm files use `dependency-notes/1`; the ecosystem-scoped Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan files use `dependency-notes/2`. VS Code and JetBrains support every listed ecosystem. Visual Studio 2022+ currently supports NuGet and reads and writes the identical `dependency-notes/2` file. See [Versioning](#versioning).
+Depos stores dependency notes as Markdown. npm files use `dependency-notes/1`; the ecosystem-scoped Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan files use `dependency-notes/2`. VS Code and JetBrains support every listed ecosystem. Visual Studio 2022+ currently supports NuGet and reads and writes the identical `dependency-notes/2` file. See [Versioning](#versioning).
 
 ## The notes file
 
 The path identifies the ecosystem:
 
-- npm: `.pacmon/DEPENDENCY-NOTES.md`, beside `package.json`;
-- Cargo: `.pacmon/cargo/DEPENDENCY-NOTES.md`, beside `Cargo.toml`;
-- Maven: `.pacmon/maven/DEPENDENCY-NOTES.md`, beside `pom.xml`;
-- Gradle: `.pacmon/gradle/DEPENDENCY-NOTES.md`, beside `build.gradle` or `build.gradle.kts`.
-- Mix: `.pacmon/mix/DEPENDENCY-NOTES.md`, beside `mix.exs`.
-- Gleam: `.pacmon/gleam/DEPENDENCY-NOTES.md`, beside `gleam.toml`.
-- Zig: `.pacmon/zig/DEPENDENCY-NOTES.md`, beside `build.zig.zon`.
-- Python: `.pacmon/python/DEPENDENCY-NOTES.md`, beside `pyproject.toml` or a requirements manifest. Files below `requirements/` are owned by the directory above it.
-- Ruby: `.pacmon/ruby/DEPENDENCY-NOTES.md`, beside `Gemfile`, `gems.rb` or a `*.gemspec` file.
-- NuGet: `.pacmon/nuget/DEPENDENCY-NOTES.md`, beside `Directory.Packages.props` or a .NET project file. A project owned by central package management uses the closest `Directory.Packages.props` directory.
-- Go: `.pacmon/go/DEPENDENCY-NOTES.md`, beside `go.mod`.
-- vcpkg: `.pacmon/vcpkg/DEPENDENCY-NOTES.md`, beside `vcpkg.json`.
-- Conan: `.pacmon/conan/DEPENDENCY-NOTES.md`, beside `conanfile.py` or `conanfile.txt`.
-- Composer: `.pacmon/composer/DEPENDENCY-NOTES.md`, beside `composer.json`.
+- npm: `.depos/DEPENDENCY-NOTES.md`, beside `package.json`;
+- Cargo: `.depos/cargo/DEPENDENCY-NOTES.md`, beside `Cargo.toml`;
+- Maven: `.depos/maven/DEPENDENCY-NOTES.md`, beside `pom.xml`;
+- Gradle: `.depos/gradle/DEPENDENCY-NOTES.md`, beside `build.gradle` or `build.gradle.kts`.
+- Mix: `.depos/mix/DEPENDENCY-NOTES.md`, beside `mix.exs`.
+- Gleam: `.depos/gleam/DEPENDENCY-NOTES.md`, beside `gleam.toml`.
+- Zig: `.depos/zig/DEPENDENCY-NOTES.md`, beside `build.zig.zon`.
+- Python: `.depos/python/DEPENDENCY-NOTES.md`, beside `pyproject.toml` or a requirements manifest. Files below `requirements/` are owned by the directory above it.
+- Ruby: `.depos/ruby/DEPENDENCY-NOTES.md`, beside `Gemfile`, `gems.rb` or a `*.gemspec` file.
+- NuGet: `.depos/nuget/DEPENDENCY-NOTES.md`, beside `Directory.Packages.props` or a .NET project file. A project owned by central package management uses the closest `Directory.Packages.props` directory.
+- Go: `.depos/go/DEPENDENCY-NOTES.md`, beside `go.mod`.
+- vcpkg: `.depos/vcpkg/DEPENDENCY-NOTES.md`, beside `vcpkg.json`.
+- Conan: `.depos/conan/DEPENDENCY-NOTES.md`, beside `conanfile.py` or `conanfile.txt`.
+- Composer: `.depos/composer/DEPENDENCY-NOTES.md`, beside `composer.json`.
 
 A manifest without its own notes file uses the closest ancestor notes file for the same ecosystem, up to the workspace root. Different ecosystems never share notes.
+
+A repository that started before Pacmon became Depos keeps these files under `.pacmon/` instead of `.depos/`, in the same layout. A reader looks in `.depos/` first, then in `.pacmon/`, at each directory level; where both hold a file for the same ecosystem at one level, the `.pacmon/` file is ignored. A repository keeps its notes in one of the two: a new file goes to `.depos/` when the repository has anything under `.depos/` (a notes file or `AGENT-RULES.md`), else to `.pacmon/` when it has anything there, else to `.depos/`. A repository moves from `.pacmon/` to `.depos/` all at once, after everyone working in it reads `.depos/`.
 
 The file is UTF-8. Its line ending is CRLF if the file contains one CRLF, otherwise LF. A byte order mark at the start is accepted; a tool that rewrites the file drops it.
 
@@ -35,7 +37,7 @@ lang: en
 
 <!-- Each "## name" below is a package from package.json. The text right under the
   heading is written by people. "### Agent notes" and everything below it is written
-  by AI agents — rules in .pacmon/AGENT-RULES.md. -->
+  by AI agents — rules in .depos/AGENT-RULES.md. -->
 
 # Dependency Notes
 
@@ -80,7 +82,7 @@ Any other key is kept where it is and is not read.
 
 ## Header comment
 
-The header comment is the first HTML comment at the top of the file, after the frontmatter if there is one. Its text is fixed: v1 names `package.json`; v2 names the ecosystem dependency manifest selected by `ecosystem`. It says who writes where and points AI agents to `.pacmon/AGENT-RULES.md`. A file's own commentary goes in the introduction, not in the header comment.
+The header comment is the first HTML comment at the top of the file, after the frontmatter if there is one. Its text is fixed: v1 names `package.json`; v2 names the ecosystem dependency manifest selected by `ecosystem`. It says who writes where and points AI agents to the `AGENT-RULES.md` of the file's own notes directory: `.depos/AGENT-RULES.md`, or `.pacmon/AGENT-RULES.md` for a file under `.pacmon/`. A file's own commentary goes in the introduction, not in the header comment.
 
 ## Title
 
@@ -198,9 +200,9 @@ A tool that adds a section puts it at its sorted position when the file is sorte
 
 ## The organization layer
 
-Status: proposal. VS Code and JetBrains implement it as a preview. Visual Studio does not yet.
+Status: proposal. VS Code, JetBrains and Visual Studio implement it as a preview.
 
-A web app for Pacmon, such as Depos, can hold two kinds of data for an organization: notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
+A web app such as Depos (depos.dev) can hold two kinds of data for an organization: notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
 
 ### Two modes
 
@@ -249,7 +251,7 @@ A tool keeps a copy of the notes and the allowlist results on the user's machine
 
 ### Agents
 
-In org mode, a tool can give AI agents the notes of the web app through an MCP server. The web app serves one MCP server per repository. Where the editor has a way to add MCP servers, the tool registers it for the editor's agents, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write. A tool whose editor has no way to add an MCP server can give the user the setup for the key instead: the server's address, with the key read from the environment, never the key itself.
+In org mode, a tool can give AI agents the notes of the web app through an MCP server. The web app serves one MCP server per repository. Where the editor has a way to add MCP servers, the tool registers it for the editor's agents, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write. A tool whose editor has no way to add an MCP server can give the user the setup for the key instead: the server's address, with the key read from the environment or asked for by the editor, never the key itself.
 
 - An agent that has these tools reads notes through them. It does not read or write the notes files of the folder.
 - An agent acts with the rights of the signed-in user, or of the admin who added the key. Only an admin's agent can write, and with a key only when the key can write.
@@ -277,7 +279,7 @@ The tools:
 
 ## Example
 
-A complete repository is in [`example-repo`](example-repo/): a `package.json` and the `.pacmon/DEPENDENCY-NOTES.md` that documents it. Other ecosystem files differ in their frontmatter, header comments, and note keys. One section:
+A complete repository is in [`example-repo`](example-repo/): a `package.json` and the `.depos/DEPENDENCY-NOTES.md` that documents it. Other ecosystem files differ in their frontmatter, header comments, and note keys. One section:
 
 ```md
 ## express

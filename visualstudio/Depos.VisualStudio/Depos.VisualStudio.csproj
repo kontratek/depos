@@ -1,0 +1,85 @@
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <GeneratePkgDefFile>true</GeneratePkgDefFile>
+    <UseCodebase>true</UseCodebase>
+    <DeployExtension>false</DeployExtension>
+    <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
+    <IncludeDebugSymbolsInVSIXContainer>false</IncludeDebugSymbolsInVSIXContainer>
+    <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DeposVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\package.json')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</DeposVersion>
+    <!-- The identity from before Pacmon became Depos (source.extension.vsixmanifest): installed copies update to this one. -->
+    <VsixId>dev.pacmon.visualstudio</VsixId>
+    <VsixVersion>$(DeposVersion)</VsixVersion>
+    <VsixPublisher>Kontra</VsixPublisher>
+    <VsixDisplayName>Depos — Dependency Notes</VsixDisplayName>
+    <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository. Formerly Pacmon.</VsixDescription>
+    <AssemblyName>Depos.VisualStudio</AssemblyName>
+    <RootNamespace>Depos.VisualStudio</RootNamespace>
+    <IntermediateOutputPath>obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <OutputPath>bin\$(Configuration)\$(TargetFramework)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <TargetVsixContainerName>depos-visualstudio.vsix</TargetVsixContainerName>
+    <TargetVsixContainer>$(OutputPath)$(TargetVsixContainerName)</TargetVsixContainer>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Design" />
+    <Reference Include="System.ComponentModel.Composition" />
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.2142" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <!-- Depos.Core's JSON library: Visual Studio loads its own copy, so the VSIX does not carry one. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Depos.Core\Depos.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="source.extension.vsixmanifest" />
+    <Content Include="source.extension.vsixmanifest" />
+    <SourceVsixManifest Include="$(IntermediateOutputPath)source.extension.vsixmanifest" />
+    <Content Include="..\..\media\icon.png" Link="Assets\icon.png">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="..\..\LICENSE" Link="LICENSE">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <!-- The name ProvideMenuResource("Menus.ctmenu", 1) looks up; the default would be Depos.CTMENU and no command would show. -->
+    <VSCTCompile Include="Depos.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+  </ItemGroup>
+  <Target Name="GenerateDeposVsixManifest" BeforeTargets="DetokenizeVsixManifestFile">
+    <PropertyGroup>
+      <GeneratedVsixManifest>$(IntermediateOutputPath)source.extension.vsixmanifest</GeneratedVsixManifest>
+    </PropertyGroup>
+    <Copy SourceFiles="source.extension.vsixmanifest" DestinationFiles="$(GeneratedVsixManifest)" />
+    <XmlPoke XmlInputPath="$(GeneratedVsixManifest)"
+             Query="/*[local-name()='PackageManifest']/*[local-name()='Metadata']/*[local-name()='Identity']/@Version"
+             Value="$(DeposVersion)" />
+    <ItemGroup><FileWrites Include="$(GeneratedVsixManifest)" /></ItemGroup>
+  </Target>
+  <!-- The version as a constant, for attributes such as InstalledProductRegistration. -->
+  <Target Name="GenerateDeposBuildInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <DeposBuildInfoFile>$(IntermediateOutputPath)DeposBuild.g.cs</DeposBuildInfoFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(DeposBuildInfoFile)"
+                      Lines="namespace Depos.VisualStudio%3B;internal static class DeposBuild { public const string Version = &quot;$(DeposVersion)&quot;%3B }"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(DeposBuildInfoFile)" />
+      <FileWrites Include="$(DeposBuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
+</Project>

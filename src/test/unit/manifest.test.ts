@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { extractCargoDependencies } from '../../core/cargoManifest';
-import { dependencyAtOffset, manifestAdapterForFileName } from '../../core/manifest';
+import {
+  dependencyAtOffset,
+  manifestAdapterForFileName,
+  manifestAdapterForKind,
+  MANIFEST_ADAPTERS,
+  notesKindOfPath,
+  notesRelativePathIn,
+} from '../../core/manifest';
 import { extractMavenDependencies } from '../../core/mavenManifest';
 import { extractGradleDependencies } from '../../core/gradleManifest';
 import { extractMixDependencies } from '../../core/mixManifest';
@@ -28,6 +35,26 @@ describe('manifest adapters', () => {
     expect(manifestAdapterForFileName('composer.json')?.kind).toBe('composer');
     expect(manifestAdapterForFileName('settings.gradle')).toBeUndefined();
     expect(manifestAdapterForFileName('Gemfile.lock')).toBeUndefined();
+  });
+});
+
+describe('notes paths under .depos/ and .pacmon/', () => {
+  it('names the current directory, and the legacy one on request', () => {
+    for (const adapter of MANIFEST_ADAPTERS) expect(adapter.notesRelativePath.startsWith('.depos/'), adapter.kind).toBe(true);
+    const cargo = manifestAdapterForKind('cargo');
+    expect(notesRelativePathIn(cargo, '.depos')).toBe('.depos/cargo/DEPENDENCY-NOTES.md');
+    expect(notesRelativePathIn(cargo, '.pacmon')).toBe('.pacmon/cargo/DEPENDENCY-NOTES.md');
+    expect(notesRelativePathIn(manifestAdapterForKind('npm'), '.pacmon')).toBe('.pacmon/DEPENDENCY-NOTES.md');
+  });
+
+  it('knows a notes file under either directory, and nothing else', () => {
+    expect(notesKindOfPath('/repo/.depos/DEPENDENCY-NOTES.md')).toBe('npm');
+    expect(notesKindOfPath('/repo/.pacmon/DEPENDENCY-NOTES.md')).toBe('npm');
+    expect(notesKindOfPath('/repo/apps/api/.pacmon/cargo/DEPENDENCY-NOTES.md')).toBe('cargo');
+    expect(notesKindOfPath('C:\\repo\\.depos\\nuget\\DEPENDENCY-NOTES.md')).toBe('nuget');
+    expect(notesKindOfPath('/repo/DEPENDENCY-NOTES.md')).toBeUndefined();
+    expect(notesKindOfPath('/repo/.depos/AGENT-RULES.md')).toBeUndefined();
+    expect(notesKindOfPath('/repo/.other/cargo/DEPENDENCY-NOTES.md')).toBeUndefined();
   });
 });
 

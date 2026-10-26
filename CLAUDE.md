@@ -1,11 +1,11 @@
-# Pacmon — working rules
+# Depos — working rules
 
 `docs/format.md` is the authority on the notes format. Nothing is derived from it mechanically; these follow it by hand, in the same commit as any format change:
 
 - `src/core/vocabulary.ts` — the field keys and enumerated values the lint checks
 - `src/core/template.ts` — file names, headings, frontmatter defaults, the header comment, the pointer block
 - `src/core/lint.ts`, `src/core/parseNotes.ts`, `src/core/serialize.ts` — the rules themselves
-- `jetbrains/src/main/kotlin/dev/pacmon/jetbrains/core/` and `visualstudio/Pacmon.Core/` — the same rules, ported to Kotlin and C#
+- `jetbrains/src/main/kotlin/dev/pacmon/jetbrains/core/` and `visualstudio/Depos.Core/` — the same rules, ported to Kotlin and C#
 - `assets/AGENT-RULES.md` — what agents are told; written for agents, not a copy of the reference
 - `docs/example-repo/` — a complete, lint-clean example
 

@@ -4,7 +4,7 @@ import { mcpServersFor } from './orgMcpServers';
 import type { WebConnection } from './webConnection';
 
 /** `contributes.mcpServerDefinitionProviders` in package.json. */
-export const ORG_MCP_PROVIDER_ID = 'pacmon.orgNotes';
+export const ORG_MCP_PROVIDER_ID = 'depos.orgNotes';
 
 /**
  * Gives the agents of VS Code the org notes of each folder in org mode, through the

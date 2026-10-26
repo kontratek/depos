@@ -27,7 +27,7 @@ async function readText(uri: vscode.Uri): Promise<string> {
   return new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
 }
 
-suite('pacmon integration', () => {
+suite('depos integration', () => {
   suiteSetup(async function () {
     this.timeout(30000);
     const ext = vscode.extensions.getExtension('kontra.pacmon');
@@ -37,7 +37,7 @@ suite('pacmon integration', () => {
     // reach; pin the deterministic input mode for the note-writing tests
     // (isolated test profile — no user impact). The panel gets its own test.
     await vscode.workspace
-      .getConfiguration('pacmon')
+      .getConfiguration('depos')
       .update('noteEntry', 'input', vscode.ConfigurationTarget.Global);
   });
 
@@ -92,7 +92,7 @@ suite('pacmon integration', () => {
       .map((c) => (typeof c === 'string' ? c : c.value))
       .join('\n');
     assert.ok(
-      !ours.includes('command:pacmon.') && !ours.includes('Edit note'),
+      !ours.includes('command:depos.') && !ours.includes('Edit note'),
       `expected silence, got: ${ours}`,
     );
   });
@@ -123,14 +123,14 @@ suite('pacmon integration', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(line).range, 'ecosystem: maven'));
     try {
       const diagnostics = await poll(() => {
-        const mine = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const mine = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return mine.some((item) => item.code === 'wrong-ecosystem') ? mine : undefined;
       });
       assert.ok(diagnostics.some((item) => item.code === 'wrong-ecosystem'));
     } finally {
       await vscode.commands.executeCommand('workbench.action.files.revert');
     }
-    await vscode.commands.executeCommand('pacmon.openManifest');
+    await vscode.commands.executeCommand('depos.openManifest');
     await poll(() => vscode.window.activeTextEditor?.document.uri.path.endsWith('/Cargo.toml') ? true : undefined);
   });
 
@@ -264,7 +264,7 @@ suite('pacmon integration', () => {
 
     const notes = fixtureUri('.pacmon', 'python', 'DEPENDENCY-NOTES.md');
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(notes));
-    await vscode.commands.executeCommand('pacmon.openManifest');
+    await vscode.commands.executeCommand('depos.openManifest');
     await poll(() => vscode.window.activeTextEditor?.document.uri.path.endsWith('/pyproject.toml') ? true : undefined);
   });
 
@@ -301,14 +301,14 @@ suite('pacmon integration', () => {
       '\n\n### Agent notes\n\n- status: removed 2026-09 - test'));
     try {
       const diagnostics = await poll(() => {
-        const mine = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const mine = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return mine.some((item) => item.code === 'removed-but-present') ? mine : undefined;
       });
       assert.ok(diagnostics.some((item) => item.code === 'removed-but-present'));
     } finally {
       await vscode.commands.executeCommand('workbench.action.files.revert');
     }
-    await vscode.commands.executeCommand('pacmon.openManifest');
+    await vscode.commands.executeCommand('depos.openManifest');
     await poll(() => vscode.window.activeTextEditor?.document.uri.path.endsWith('/Gemfile') ? true : undefined);
   });
 
@@ -343,7 +343,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('Pacmon.DotNet.csproj');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'Serilog.AspNetCore', 'Structured request logging.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'Serilog.AspNetCore', 'Structured request logging.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -368,7 +368,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('mix.exs');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'wallaby', 'Browser integration tests.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'wallaby', 'Browser integration tests.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -393,7 +393,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('gleam.toml');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'gleeunit', 'Gleam test framework.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'gleeunit', 'Gleam test framework.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -418,7 +418,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('build.zig.zon');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'local_utils', 'Local Zig utilities.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'local_utils', 'Local Zig utilities.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -443,7 +443,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('go.mod');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'github.com/jackc/pgx/v5', 'PostgreSQL driver.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'github.com/jackc/pgx/v5', 'PostgreSQL driver.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -468,7 +468,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('composer.json');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'phpunit/phpunit', 'PHP test framework.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'phpunit/phpunit', 'PHP test framework.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -515,7 +515,7 @@ suite('pacmon integration', () => {
       await sleep(500);
       const manifest = fixtureUri('vcpkg.json');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'openssl', 'TLS implementation for native code.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'openssl', 'TLS implementation for native code.');
       const text = await poll(async () => {
         try {
           const value = await readText(notes);
@@ -534,7 +534,7 @@ suite('pacmon integration', () => {
   test('Conan notes open conanfile.py before conanfile.txt', async () => {
     const notes = fixtureUri('.pacmon', 'conan', 'DEPENDENCY-NOTES.md');
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(notes));
-    await vscode.commands.executeCommand('pacmon.openManifest');
+    await vscode.commands.executeCommand('depos.openManifest');
     await poll(() => vscode.window.activeTextEditor?.document.uri.path.endsWith('/conanfile.py') ? true : undefined);
   });
 
@@ -554,7 +554,7 @@ suite('pacmon integration', () => {
     try {
       const cargo = fixtureUri('Cargo.toml');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(cargo));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'anyhow', 'Application error context.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'anyhow', 'Application error context.');
       const updated = await poll(async () => {
         const text = await readText(cargoNotes);
         return text.includes('## anyhow') ? text : undefined;
@@ -575,7 +575,7 @@ suite('pacmon integration', () => {
     }
   });
 
-  test('sections not in package.json get no diagnostic, and everything Pacmon reports is a warning', async function () {
+  test('sections not in package.json get no diagnostic, and everything Depos reports is a warning', async function () {
     this.timeout(15000);
     const notes = fixtureUri('.pacmon', 'DEPENDENCY-NOTES.md');
     const doc = await vscode.workspace.openTextDocument(notes);
@@ -592,7 +592,7 @@ suite('pacmon integration', () => {
     });
     try {
       const mine = await poll(() => {
-        const d = vscode.languages.getDiagnostics(notes).filter((x) => x.source === 'pacmon');
+        const d = vscode.languages.getDiagnostics(notes).filter((x) => x.source === 'depos');
         return d.some((x) => x.code === 'unknown-agent-key') ? d : undefined;
       });
       // ghost-package (a real orphan) and moment (marked removed) are markers, not problems.
@@ -623,7 +623,7 @@ suite('pacmon integration', () => {
       b.insert(doc.lineAt(doc.lineCount - 1).range.end, '\n# Second title\n');
     });
     try {
-      const mine = (): vscode.Diagnostic[] => vscode.languages.getDiagnostics(notes).filter((d) => d.source === 'pacmon');
+      const mine = (): vscode.Diagnostic[] => vscode.languages.getDiagnostics(notes).filter((d) => d.source === 'depos');
       const found = await poll(() => {
         const d = mine();
         const stray = d.find((x) => x.code === 'stray-heading');
@@ -671,7 +671,7 @@ suite('pacmon integration', () => {
       const { gibberish, typo } = await poll(() => {
         const d = vscode.languages
           .getDiagnostics(notes)
-          .filter((x) => x.source === 'pacmon' && x.code === 'unknown-agent-key');
+          .filter((x) => x.source === 'depos' && x.code === 'unknown-agent-key');
         const g = d.find((x) => x.range.start.line === line);
         const t = d.find((x) => x.range.start.line === line + 1);
         return g && t ? { gibberish: g, typo: t } : undefined;
@@ -706,21 +706,28 @@ suite('pacmon integration', () => {
       );
       assert.ok((forCaret ?? []).some((a) => a.title.includes('constraint')), 'fix offered at the end of the line too');
 
-      // Fix All exists — the on-save path.
-      const all = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-        'vscode.executeCodeActionProvider',
-        notes,
-        new vscode.Range(0, 0, doc.lineCount, 0),
-        'source.fixAll.pacmon',
-      );
-      assert.ok(
-        (all ?? []).some((a) => a.kind?.value === 'source.fixAll.pacmon' && a.edit),
-        `no fix-all among: ${(all ?? []).map((a) => `${a.kind?.value ?? '?'}:${a.title}`).join(', ')}`,
-      );
+      // Fix All exists — the on-save path — under its kind, and under the kind
+      // from before Pacmon became Depos that settings may still name. One
+      // action either way, so a fix never runs twice.
+      for (const kind of ['source.fixAll.depos', 'source.fixAll.pacmon', 'source.fixAll']) {
+        const all = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          'vscode.executeCodeActionProvider',
+          notes,
+          new vscode.Range(0, 0, doc.lineCount, 0),
+          kind,
+        );
+        const fixAll = (all ?? []).filter((a) => a.kind?.value.startsWith('source.fixAll') && a.edit);
+        const expected = kind === 'source.fixAll.pacmon' ? 'source.fixAll.pacmon' : 'source.fixAll.depos';
+        assert.deepStrictEqual(
+          fixAll.map((a) => a.kind?.value),
+          [expected],
+          `asked for ${kind}, got: ${(all ?? []).map((a) => `${a.kind?.value ?? '?'}:${a.title}`).join(', ')}`,
+        );
+      }
 
       // The code lens above the block names the count and fixes both lines in one click.
       const lenses = await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', notes);
-      const lens = (lenses ?? []).find((l) => l.command?.command === 'pacmon.fixAgentNotes');
+      const lens = (lenses ?? []).find((l) => l.command?.command === 'depos.fixAgentNotes');
       assert.ok(lens?.command, `no fix lens among: ${(lenses ?? []).map((l) => l.command?.title ?? '?').join(', ')}`);
       const fileLines = doc.getText().split(/\r?\n/);
       // The block we edited, not the first one in the file: the fixture is a
@@ -731,7 +738,7 @@ suite('pacmon integration', () => {
       // The count is whatever the block holds right now — at least our two.
       const inBlock = vscode.languages
         .getDiagnostics(notes)
-        .filter((d) => d.source === 'pacmon' && d.severity === vscode.DiagnosticSeverity.Warning)
+        .filter((d) => d.source === 'depos' && d.severity === vscode.DiagnosticSeverity.Warning)
         .filter((d) => d.range.start.line > headingLine && d.range.start.line < blockEnd).length;
       assert.ok(inBlock >= 2, `expected at least the two inserted problems, got ${inBlock}`);
       assert.ok(lens.command.title.includes(`${inBlock} problem`), `${lens.command.title} (block has ${inBlock})`);
@@ -751,7 +758,7 @@ suite('pacmon integration', () => {
     await editor.edit((b) => {
       b.insert(doc.lineAt(doc.lineCount - 1).range.end, '\n##   zzz-messy  \nbody text\n');
     });
-    await vscode.commands.executeCommand('pacmon.normalizeNotesFile');
+    await vscode.commands.executeCommand('depos.normalizeNotesFile');
     await poll(() => (doc.getText().includes('## zzz-messy') ? true : undefined));
     const text = doc.getText();
     assert.ok(text.includes('## zzz-messy'), 'heading not canonicalized');
@@ -768,7 +775,7 @@ suite('pacmon integration', () => {
       const pdoc = await vscode.workspace.openTextDocument(pkg);
       await vscode.window.showTextDocument(pdoc);
 
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'helmet', 'why: security headers');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'helmet', 'why: security headers');
 
       const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(notes));
       assert.ok(text.includes('## helmet'), 'section missing on disk');
@@ -808,7 +815,7 @@ suite('pacmon integration', () => {
       const pos = doc.positionAt(off);
       ed.selection = new vscode.Selection(pos, pos);
       // Editor context menus pass the resource Uri as the first argument.
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', pkg, 'ctx-menu body');
+      await vscode.commands.executeCommand('depos.addOrEditNote', pkg, 'ctx-menu body');
       // The write lands either straight on disk or through the open document's
       // save, depending on whether the previous test's restore has settled —
       // so wait for the content rather than reading once.
@@ -824,7 +831,7 @@ suite('pacmon integration', () => {
 
   test('editing an existing note opens the file at the section', async function () {
     this.timeout(15000);
-    await vscode.commands.executeCommand('pacmon.addOrEditNote', 'express');
+    await vscode.commands.executeCommand('depos.addOrEditNote', 'express');
     await poll(() => {
       const uri = vscode.window.activeTextEditor?.document.uri;
       return uri && uri.path.endsWith('.pacmon/DEPENDENCY-NOTES.md') ? true : undefined;
@@ -836,7 +843,7 @@ suite('pacmon integration', () => {
 
   test('note markers: the setting wins, and the toggle writes it', async function () {
     this.timeout(20000);
-    const cfg = (): vscode.WorkspaceConfiguration => vscode.workspace.getConfiguration('pacmon');
+    const cfg = (): vscode.WorkspaceConfiguration => vscode.workspace.getConfiguration('depos');
     const read = (): string => cfg().get<string>('decorations', 'preview');
     const saved = cfg().inspect('decorations');
     try {
@@ -849,11 +856,11 @@ suite('pacmon integration', () => {
 
       // The toggle used to write a hidden per-workspace flag that outranked
       // the setting, so choosing "off" in the view could do nothing at all.
-      await vscode.commands.executeCommand('pacmon.toggleDecorations');
+      await vscode.commands.executeCommand('depos.toggleDecorations');
       await sleep(400);
       assert.strictEqual(read(), 'off', `toggle should have written the setting, got "${read()}"`);
 
-      await vscode.commands.executeCommand('pacmon.toggleDecorations');
+      await vscode.commands.executeCommand('depos.toggleDecorations');
       await sleep(400);
       assert.strictEqual(read(), 'preview', `toggling back should restore, got "${read()}"`);
 
@@ -874,7 +881,7 @@ suite('pacmon integration', () => {
     this.timeout(15000);
     const notes = fixtureUri('.pacmon', 'DEPENDENCY-NOTES.md');
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(notes));
-    await vscode.commands.executeCommand('pacmon.openPackageJson');
+    await vscode.commands.executeCommand('depos.openPackageJson');
     const uri = await poll(() => {
       const u = vscode.window.activeTextEditor?.document.uri;
       return u && u.path.endsWith('package.json') ? u : undefined;
@@ -888,19 +895,19 @@ suite('pacmon integration', () => {
   // calls it needs a human.
   test('the manifest can be surfaced with no editor open', async function () {
     this.timeout(20000);
-    const cfg = vscode.workspace.getConfiguration('pacmon');
+    const cfg = vscode.workspace.getConfiguration('depos');
     const saved = cfg.inspect('noteButtons')?.globalValue;
     try {
-      // Close everything, then focus the Pacmon view as a user would.
+      // Close everything, then focus the Depos view as a user would.
       await vscode.commands.executeCommand('workbench.action.closeAllEditors');
       await poll(() => (vscode.window.visibleTextEditors.length === 0 ? true : undefined));
-      await vscode.commands.executeCommand('pacmon.settings.focus');
+      await vscode.commands.executeCommand('depos.settings.focus');
 
       // A setting change of the kind the view writes...
       await vscode.workspace
-        .getConfiguration('pacmon')
+        .getConfiguration('depos')
         .update('noteButtons', ['codelens'], vscode.ConfigurationTarget.Global);
-      await vscode.commands.executeCommand('pacmon.openPackageJson');
+      await vscode.commands.executeCommand('depos.openPackageJson');
 
       const shown = await poll(() =>
         vscode.window.visibleTextEditors.find((e) => e.document.uri.path.endsWith('package.json')),
@@ -908,12 +915,12 @@ suite('pacmon integration', () => {
       assert.ok(shown, 'package.json should be on screen');
     } finally {
       await vscode.workspace
-        .getConfiguration('pacmon')
+        .getConfiguration('depos')
         .update('noteButtons', saved, vscode.ConfigurationTarget.Global);
     }
   });
 
-  test('the Pacmon view is contributed and its rows toggle the setting', async function () {
+  test('the Depos view is contributed and its rows toggle the setting', async function () {
     this.timeout(20000);
     const ext = vscode.extensions.getExtension('kontra.pacmon')!;
     const contributes = ext.packageJSON.contributes as {
@@ -921,22 +928,22 @@ suite('pacmon integration', () => {
       views: Record<string, { id: string; type?: string }[]>;
     };
     assert.ok(
-      contributes.viewsContainers.activitybar.some((c) => c.id === 'pacmon'),
+      contributes.viewsContainers.activitybar.some((c) => c.id === 'depos'),
       'no activity bar container',
     );
-    const view = contributes.views['pacmon']?.find((v) => v.id === 'pacmon.settings');
+    const view = contributes.views['depos']?.find((v) => v.id === 'depos.settings');
     assert.ok(view, 'no settings view');
     assert.strictEqual(view.type, 'webview', 'the settings view should be a webview');
 
     // Focusing the view is what a user clicking the activity bar icon does.
-    await vscode.commands.executeCommand('pacmon.settings.focus');
+    await vscode.commands.executeCommand('depos.settings.focus');
 
     const cfg = (): string[] =>
-      vscode.workspace.getConfiguration('pacmon').get<string[]>('noteButtons', []);
+      vscode.workspace.getConfiguration('depos').get<string[]>('noteButtons', []);
     const before = cfg();
     try {
       await vscode.workspace
-        .getConfiguration('pacmon')
+        .getConfiguration('depos')
         .update('noteButtons', ['codelens'], vscode.ConfigurationTarget.Global);
       await poll(() => (cfg().includes('codelens') ? true : undefined));
       // The opt-in arm must actually come back when it is selected.
@@ -945,7 +952,7 @@ suite('pacmon integration', () => {
           'vscode.executeCodeLensProvider',
           fixtureUri('package.json'),
         );
-        const mine = (all ?? []).filter((l) => l.command?.command === 'pacmon.addOrEditNote');
+        const mine = (all ?? []).filter((l) => l.command?.command === 'depos.addOrEditNote');
         return mine.length > 0 ? mine : undefined;
       });
       assert.ok(lenses.length > 0, 'codelens should be available when selected');
@@ -961,7 +968,7 @@ suite('pacmon integration', () => {
       };
       assert.strictEqual(await commandLinks(), 0, 'link is off, so no command links');
       await vscode.workspace
-        .getConfiguration('pacmon')
+        .getConfiguration('depos')
         .update('noteButtons', ['codelens', 'link'], vscode.ConfigurationTarget.Global);
       const withLink = await poll(async () => {
         const n = await commandLinks();
@@ -970,16 +977,16 @@ suite('pacmon integration', () => {
       assert.ok(withLink > 0, 'turning link on must take effect without editing the file');
     } finally {
       await vscode.workspace
-        .getConfiguration('pacmon')
+        .getConfiguration('depos')
         .update('noteButtons', before.length > 0 ? before : undefined, vscode.ConfigurationTarget.Global);
     }
   });
 
-  suite('note affordances (pacmon.noteButtons)', () => {
-    const OURS = 'pacmon.addOrEditNote';
+  suite('note affordances (depos.noteButtons)', () => {
+    const OURS = 'depos.addOrEditNote';
 
     async function withButtons<T>(buttons: string[], fn: () => Promise<T>): Promise<T> {
-      const cfg = vscode.workspace.getConfiguration('pacmon');
+      const cfg = vscode.workspace.getConfiguration('depos');
       await cfg.update('noteButtons', buttons, vscode.ConfigurationTarget.Global);
       try {
         return await fn();
@@ -1031,7 +1038,7 @@ suite('pacmon integration', () => {
 
     test('the icon click path ignores non-mouse caret moves', async function () {
       this.timeout(20000);
-      const cfg = vscode.workspace.getConfiguration('pacmon');
+      const cfg = vscode.workspace.getConfiguration('depos');
       await cfg.update('noteEntry', 'panel', vscode.ConfigurationTarget.Global);
       try {
         await withButtons(['iconLeft'], async () => {
@@ -1077,7 +1084,7 @@ suite('pacmon integration', () => {
         const notes = fixtureUri('.pacmon', 'DEPENDENCY-NOTES.md');
         const original = await vscode.workspace.fs.readFile(notes);
         try {
-          await vscode.commands.executeCommand('pacmon.addOrEditNote', 'vitest', 'still reachable');
+          await vscode.commands.executeCommand('depos.addOrEditNote', 'vitest', 'still reachable');
           const text = await poll(async () => {
             const t = new TextDecoder().decode(await vscode.workspace.fs.readFile(notes));
             return t.includes('still reachable') ? t : undefined;
@@ -1092,14 +1099,14 @@ suite('pacmon integration', () => {
 
   test('panel mode opens the note editor beside package.json', async function () {
     this.timeout(15000);
-    const cfg = vscode.workspace.getConfiguration('pacmon');
+    const cfg = vscode.workspace.getConfiguration('depos');
     await cfg.update('noteEntry', 'panel', vscode.ConfigurationTarget.Global);
     try {
       const pkg = fixtureUri('package.json');
       const doc = await vscode.workspace.openTextDocument(pkg);
       await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
 
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'express');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'express');
 
       const tab = await poll(() =>
         vscode.window.tabGroups.all
@@ -1121,21 +1128,24 @@ suite('pacmon integration', () => {
     }
   });
 
-  test('the first note creates .pacmon/, the notes file and AGENT-RULES.md', async function () {
+  test('the first note of a repository without notes creates .depos/, the notes file and AGENT-RULES.md', async function () {
     this.timeout(30000);
-    const dir = fixtureUri('.pacmon');
-    const notes = fixtureUri('.pacmon', 'DEPENDENCY-NOTES.md');
-    const agents = fixtureUri('.pacmon', 'AGENT-RULES.md');
-    const original = await vscode.workspace.fs.readFile(notes);
+    // The fixture's notes (.pacmon/, from before Pacmon became Depos) are set
+    // aside, so the repository has none; they come back afterwards.
+    const legacyDir = fixtureUri('.pacmon');
+    const aside = fixtureUri('.pacmon-aside');
+    const dir = fixtureUri('.depos');
+    const notes = fixtureUri('.depos', 'DEPENDENCY-NOTES.md');
+    const agents = fixtureUri('.depos', 'AGENT-RULES.md');
     try {
       await vscode.commands.executeCommand('workbench.action.closeAllEditors');
-      await vscode.workspace.fs.delete(dir, { recursive: true, useTrash: false });
+      await vscode.workspace.fs.rename(legacyDir, aside);
       // Give the watcher a moment to see the deletion.
       await sleep(800);
 
       const pkg = fixtureUri('package.json');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(pkg));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'lodash', 'fresh start');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'lodash', 'fresh start');
 
       const text = await poll(async () => {
         try {
@@ -1150,6 +1160,7 @@ suite('pacmon integration', () => {
         `template missing, got: ${text.slice(0, 120)}`,
       );
       assert.ok(text.includes('## lodash\n\nfresh start'), 'section missing');
+      assert.ok(text.includes('rules in .depos/AGENT-RULES.md'), 'the header names the rules beside it');
       const rules = await poll(async () => {
         try {
           return await readText(agents);
@@ -1161,36 +1172,50 @@ suite('pacmon integration', () => {
         rules.includes('### Agent notes') && rules.includes('| `purpose:` |'),
         'AGENT-RULES.md should carry the rules and the field table',
       );
+      assert.ok(rules.includes('.depos/DEPENDENCY-NOTES.md') && !rules.includes('.pacmon/'), 'the rules name .depos/');
     } finally {
-      await vscode.workspace.fs.createDirectory(dir);
-      await vscode.workspace.fs.writeFile(notes, original);
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
       try {
-        await vscode.workspace.fs.delete(agents);
+        await vscode.workspace.fs.delete(dir, { recursive: true, useTrash: false });
       } catch {
         // never created
       }
+      await vscode.workspace.fs.rename(aside, legacyDir);
+      // The watcher clears the resolver's cache: the repository is on .pacmon/ again.
+      await sleep(800);
     }
   });
 
   test('Set Up AI Instructions rewrites .pacmon/AGENT-RULES.md and leaves a three-line pointer', async function () {
+    // The fixture keeps its notes in .pacmon/, the directory from before Pacmon
+    // became Depos: the rules and the pointer stay there, with the new markers.
     this.timeout(15000);
     const rootAgents = fixtureUri('AGENTS.md');
     const rules = fixtureUri('.pacmon', 'AGENT-RULES.md');
     try {
-      await vscode.commands.executeCommand('pacmon.setupAiInstructions', ['AGENTS.md']);
+      // A block an older version left behind is replaced, not added to.
+      await vscode.workspace.fs.writeFile(
+        rootAgents,
+        new TextEncoder().encode('# Agents\n\n<!-- pacmon:start -->\nold pointer\n<!-- pacmon:end -->\n'),
+      );
+      await vscode.commands.executeCommand('depos.setupAiInstructions', ['AGENTS.md']);
       const pointer = await poll(async () => {
         try {
-          return await readText(rootAgents);
+          const text = await readText(rootAgents);
+          return text.includes('depos:start') ? text : undefined;
         } catch {
           return undefined;
         }
       });
-      const m = /<!-- pacmon:start -->\n([\s\S]*?)<!-- pacmon:end -->/.exec(pointer);
+      const m = /<!-- depos:start -->\n([\s\S]*?)<!-- depos:end -->/.exec(pointer);
       assert.ok(m, `no marker block in AGENTS.md, got: ${pointer}`);
       assert.strictEqual(m[1]!.trim().split('\n').length, 3, 'the pointer is exactly three lines');
       assert.ok(pointer.includes('.pacmon/AGENT-RULES.md'), 'the pointer names the rules file');
+      assert.ok(!pointer.includes('.depos/'), 'the pointer names the repository’s own directory');
+      assert.ok(!pointer.includes('pacmon:start') && !pointer.includes('old pointer'), 'the old block is gone');
       const generated = await readText(rules);
       assert.ok(generated.includes('| `verified:` |'), '.pacmon/AGENT-RULES.md should be the rules file');
+      assert.ok(generated.includes('.pacmon/DEPENDENCY-NOTES.md') && !generated.includes('.depos/'), 'the rules name .pacmon/');
     } finally {
       for (const u of [rootAgents, rules]) {
         try {
@@ -1215,7 +1240,7 @@ suite('pacmon integration', () => {
       }
       const pkg = fixtureUri('package.json');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(pkg));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'express', 'new human line');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'express', 'new human line');
       const text = await poll(async () => {
         const t = await readText(notes);
         return t.includes('new human line') ? t : undefined;
@@ -1249,5 +1274,95 @@ suite('pacmon integration', () => {
         // never created
       }
     }
+  });
+
+  test('a .depos/ notes file beside .pacmon/ is read instead, and the .pacmon/ one is flagged', async function () {
+    this.timeout(20000);
+    const legacy = fixtureUri('.pacmon', 'DEPENDENCY-NOTES.md');
+    const currentDir = fixtureUri('.depos');
+    const current = fixtureUri('.depos', 'DEPENDENCY-NOTES.md');
+    const pkg = fixtureUri('package.json');
+    const hoverText = async (): Promise<string> => {
+      const doc = await vscode.workspace.openTextDocument(pkg);
+      const offset = doc.getText().indexOf('"express"');
+      const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+        'vscode.executeHoverProvider',
+        pkg,
+        doc.positionAt(offset + 2),
+      );
+      return (hovers ?? []).flatMap((hover) => hover.contents)
+        .map((content) => typeof content === 'string' ? content : content.value).join('\n');
+    };
+    try {
+      await vscode.workspace.fs.createDirectory(currentDir);
+      await vscode.workspace.fs.writeFile(current, new TextEncoder().encode([
+        '---', 'format: dependency-notes/1', 'lang: en', '---', '',
+        '# Dependency Notes', '', '## express', '', 'Read from the .depos/ file.', '',
+      ].join('\n')));
+      const text = await poll(async () => {
+        const t = await hoverText();
+        return t.includes('Read from the .depos/ file.') ? t : undefined;
+      }, 10000);
+      assert.ok(text.includes('.depos/DEPENDENCY-NOTES.md'), `the hover names the file it read: ${text}`);
+      await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(legacy));
+      const flagged = await poll(
+        () => vscode.languages.getDiagnostics(legacy).find((d) => d.code === 'shadowed-notes-file'),
+        10000,
+      );
+      assert.ok(flagged.message.includes('.depos/DEPENDENCY-NOTES.md'), flagged.message);
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+      try {
+        await vscode.workspace.fs.delete(currentDir, { recursive: true });
+      } catch {
+        // never created
+      }
+    }
+  });
+
+  // A suite of its own, defined last: Mocha runs a suite's own tests before its
+  // child suites, and this one moves the fixture's notes for good.
+  suite('moving the notes to .depos/', () => {
+    test('Move Notes to .depos/ moves .pacmon/ whole, and what points into it', async function () {
+      this.timeout(30000);
+      const agents = fixtureUri('AGENTS.md');
+      await vscode.workspace.fs.writeFile(
+        agents,
+        new TextEncoder().encode('# Agents\n\n<!-- pacmon:start -->\nold\n<!-- pacmon:end -->\n'),
+      );
+      // AGENT-RULES.md at the root of .pacmon/, as any write leaves it.
+      await vscode.commands.executeCommand('depos.setupAiInstructions', ['AGENTS.md']);
+      await poll(async () => {
+        try {
+          await vscode.workspace.fs.stat(fixtureUri('.pacmon', 'AGENT-RULES.md'));
+          return true;
+        } catch {
+          return undefined;
+        }
+      });
+      await vscode.commands.executeCommand('depos.moveNotes', { confirmed: true });
+      const moved = await poll(async () => {
+        try {
+          return await readText(fixtureUri('.depos', 'DEPENDENCY-NOTES.md'));
+        } catch {
+          return undefined;
+        }
+      }, 10000);
+      const header = /<!--[\s\S]*?-->/.exec(moved)?.[0] ?? '';
+      assert.ok(header.includes('rules in .depos/AGENT-RULES.md'), `the header names .depos/AGENT-RULES.md: ${header}`);
+      assert.ok(!header.includes('.pacmon/'), 'no header left pointing into .pacmon/');
+      // What people wrote is theirs: the intro still says what it said.
+      assert.ok(moved.includes('Agents: read `.pacmon/AGENT-RULES.md`'), 'the intro is left alone');
+      await assert.rejects(async () => {
+        await vscode.workspace.fs.stat(fixtureUri('.pacmon'));
+      }, '.pacmon/ should be gone');
+      const cargo = await readText(fixtureUri('.depos', 'cargo', 'DEPENDENCY-NOTES.md'));
+      assert.ok(cargo.includes('rules in .depos/AGENT-RULES.md'), 'every notes file moved, header and all');
+      const rules = await readText(fixtureUri('.depos', 'AGENT-RULES.md'));
+      assert.ok(rules.includes('.depos/DEPENDENCY-NOTES.md') && !rules.includes('.pacmon/'), 'the rules name .depos/');
+      const pointer = await readText(agents);
+      assert.ok(pointer.includes('.depos/AGENT-RULES.md') && !pointer.includes('.pacmon/'), `the pointer names .depos/: ${pointer}`);
+      assert.strictEqual(pointer.match(/depos:start/g)?.length, 1, 'one block');
+    });
   });
 });

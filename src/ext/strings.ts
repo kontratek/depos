@@ -6,15 +6,15 @@ export const S = {
   hoverEditNote: 'Edit note',
   hoverOpenFile: (fileName: string) => `Open ${fileName}`,
   pickDepPlaceholder: 'Select a dependency',
-  noWorkspace: 'Pacmon: open a folder first.',
-  noPackageJson: 'Pacmon: no package.json found in this workspace folder.',
-  noManifest: 'Pacmon: no supported dependency manifest found in this workspace folder.',
-  noNotesFile: (fileName: string) => `Pacmon: no ${fileName} found. Use "Add/Edit Dependency Note" to create one.`,
-  formatted: (fileName: string) => `Pacmon: ${fileName} formatted.`,
-  alreadyCanonical: (fileName: string) => `Pacmon: ${fileName} is already in canonical form.`,
-  decorationsOn: 'Pacmon: note markers on.',
-  decorationsOff: 'Pacmon: note markers off.',
-  aiSetupDone: (files: string) => `Pacmon: AI instructions written to ${files}.`,
+  noWorkspace: 'Depos: open a folder first.',
+  noPackageJson: 'Depos: no package.json found in this workspace folder.',
+  noManifest: 'Depos: no supported dependency manifest found in this workspace folder.',
+  noNotesFile: (fileName: string) => `Depos: no ${fileName} found. Use "Add/Edit Dependency Note" to create one.`,
+  formatted: (fileName: string) => `Depos: ${fileName} formatted.`,
+  alreadyCanonical: (fileName: string) => `Depos: ${fileName} is already in canonical form.`,
+  decorationsOn: 'Depos: note markers on.',
+  decorationsOff: 'Depos: note markers off.',
+  aiSetupDone: (files: string) => `Depos: AI instructions written to ${files}.`,
   aiSetupPickPlaceholder: 'Write dependency-notes format instructions into…',
   coveragePlaceholder: (documented: number, total: number) =>
     `Documentation coverage: ${documented}/${total} dependencies documented`,
@@ -22,6 +22,18 @@ export const S = {
   coverageUndocumented: 'Undocumented — pick to add a note',
   duplicateSection: (name: string, firstLine: number) =>
     `"${name}" is already defined at line ${firstLine} — only the first section is read.`,
+  // The notes directory from before Pacmon became Depos: .pacmon/.
+  shadowedNotesFile: (current: string) =>
+    `Ignored: ${current} is read instead of this file. Move what is still needed there, then delete this file.`,
+  moveNotesSuggest:
+    'Depos: this repository keeps its notes in .pacmon/, their directory from before Pacmon became Depos. Move them to .depos/ once everyone working in it has updated.',
+  moveNotesAction: 'Move Notes to .depos/',
+  moveNotesNone: 'Depos: no .pacmon/ directory in this workspace — the notes are already in .depos/.',
+  moveNotesConflict: (paths: string) =>
+    `Depos: a .depos/ directory already exists beside ${paths}. Merge the two by hand, then run Move Notes to .depos/ again.`,
+  moveNotesConfirm: (count: number) =>
+    `Move ${count === 1 ? 'the .pacmon/ directory' : `${count} .pacmon/ directories`} to .depos/? Versions from before Depos read .pacmon/ only: move once everyone working here has updated.`,
+  moveNotesDone: (count: number) => `Depos: moved ${count === 1 ? '1 directory' : `${count} directories`} to .depos/.`,
   // Sections whose package is not in package.json: a marker before the heading, not a diagnostic.
   orphanGlyph: '⚠︎',
   orphanHover: (name: string) =>
@@ -37,9 +49,9 @@ export const S = {
   addNotePrompt: (fileName: string) =>
     `Saved to ${fileName} — you stay right here. Leave empty + Enter to open the file for a longer note.`,
   addNotePlaceholder: 'Why this package is here — one line is enough',
-  noteSaved: (name: string, fileName: string) => `Pacmon: note for ${name} saved to ${fileName}.`,
-  peekHint: (fileName: string) => `Pacmon: editing ${fileName} in place — Esc closes, Ctrl+S saves.`,
-  // Side panel (pacmon.noteEntry = "panel")
+  noteSaved: (name: string, fileName: string) => `Depos: note for ${name} saved to ${fileName}.`,
+  peekHint: (fileName: string) => `Depos: editing ${fileName} in place — Esc closes, Ctrl+S saves.`,
+  // Side panel (depos.noteEntry = "panel")
   panelTitle: (name: string) => (name ? `Note — ${name}` : 'Dependency Note'),
   panelPlaceholder:
     'Why is this package here, and what must the next person know? Plain text — the first line shows next to the dependency.',
@@ -55,26 +67,26 @@ export const S = {
   panelEmptyAgent: 'No agent notes yet — click to add.',
   panelEditHint: 'Saves as you type · Esc when done',
   panelTargetSuffix: (fileName: string) => `→ ${fileName}`,
-  // Clickable note affordances on package.json lines (pacmon.noteButtons)
+  // Clickable note affordances on package.json lines (depos.noteButtons)
   buttonAdd: 'Add note',
   buttonEdit: 'Edit note',
-  buttonTooltip: (name: string) => `Pacmon: write the dependency note for ${name}`,
-  // Pacmon view (activity bar)
-  viewTitle: 'Pacmon — Dependency Notes',
+  buttonTooltip: (name: string) => `Depos: write the dependency note for ${name}`,
+  // Depos view (activity bar)
+  viewTitle: 'Depos — Dependency Notes',
   viewGroupTargets: 'Click targets',
   viewTargetsLede: 'How you open a dependency’s note from its manifest. Right-click always works too.',
   viewGroupActions: 'Actions',
-  viewGroupWeb: 'Depos',
+  viewGroupWeb: 'Organization',
   viewWebSignedOut: (host: string | undefined) =>
-    `Not signed in${host ? ` to ${host}` : ''}. Sign in to use your organization's notes and allowlist in folders it has added to Depos.`,
+    `Not signed in${host ? ` to ${host}` : ''}. Sign in to use your organization's notes and allowlist in the folders it has added.`,
   viewWebSignedIn: (host: string) => `Signed in to ${host}.`,
-  viewWebInvalidUrl: 'pacmon.depos.url is not a valid address. Fix it in Settings.',
-  viewWebSignIn: 'Sign in to Depos',
+  viewWebInvalidUrl: 'depos.url is not a valid address. Fix it in Settings.',
+  viewWebSignIn: 'Sign in',
   viewWebSignInHelp: 'Opens your browser. You check the code and approve the sign-in there.',
   viewWebShow: 'Show connection',
   viewWebShowHelp: 'Who you are signed in as, and the organization of each folder.',
   viewWebSignOut: 'Sign out',
-  viewWebSignOutHelp: 'Ends the sign-in in this editor and in Depos, and removes the local copy of the notes and allowlist results from Depos.',
+  viewWebSignOutHelp: 'Ends the sign-in in this editor and on the server, and removes the local copy of your organization’s notes and allowlist results.',
   viewOpenNotes: (fileName: string) => `Open ${fileName}`,
   viewOpenPackage: 'Open dependency manifest',
   viewOpenPackageHelp: 'The JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet, vcpkg, or Conan manifest these notes describe.',
@@ -111,7 +123,7 @@ export const S = {
     }) as Record<string, string>)[id] ?? id,
   viewTargetsCount: (on: number, total: number) => `${on} of ${total}`,
   viewReset: 'Reset to defaults',
-  viewOpenSettings: 'Open Pacmon settings',
+  viewOpenSettings: 'Open Depos settings',
   buttonGesture: (id: string): string =>
     (({
       iconLeft: 'click',
@@ -123,7 +135,7 @@ export const S = {
   buttonHelp: (id: string): string =>
     (({
       iconLeft:
-        'The Pacmon mark before the dependency — filled when it has a note, hollow when it does not. The mouse turns into a hand over it.',
+        'The Depos mark before the dependency — filled when it has a note, hollow when it does not. The mouse turns into a hand over it.',
       link: 'The package name itself opens its note. Adds nothing to the file.',
       codelens: 'Unmissable — and it roughly doubles the apparent height of the manifest.',
       inlayHint: 'Spelled out at the end of the line, where it competes with the note preview.',
@@ -153,7 +165,7 @@ export const S = {
   fixRenameKey: (key: string) => `Change to "${key}:"`,
   fixKeepAsNote: 'Keep it as "- note: …"',
   fixRemoveLine: 'Remove this line',
-  fixAllTitle: (n: number) => (n === 1 ? 'Pacmon: fix 1 agent-notes field' : `Pacmon: fix ${n} agent-notes fields`),
+  fixAllTitle: (n: number) => (n === 1 ? 'Depos: fix 1 agent-notes field' : `Depos: fix ${n} agent-notes fields`),
   // Problems made visible: inline text, code lens, status bar, panel
   problemCount: (n: number) => (n === 1 ? '1 problem' : `${n} problems`),
   inlineProblemPrefix: '⚠︎ ',
@@ -161,7 +173,7 @@ export const S = {
   lensFixable: (n: number, fixable: number) =>
     `$(warning) ${n === 1 ? '1 problem' : `${n} problems`} in this block — fix ${fixable === n ? 'all' : String(fixable)}`,
   statusProblems: (n: number) =>
-    `Pacmon: ${n === 1 ? '1 problem' : `${n} problems`} in the agent notes of this file — click to open Problems.`,
+    `Depos: ${n === 1 ? '1 problem' : `${n} problems`} in the agent notes of this file — click to open Problems.`,
   panelProblemsHeader: (n: number) => (n === 1 ? '1 problem in the agent notes:' : `${n} problems in the agent notes:`),
   panelProblemUnknown: (line: number, key: string) => `line ${line}: "${key}:" is not a field`,
   panelProblemSuggest: (line: number, key: string, suggestion: string) => `line ${line}: "${key}:" → "${suggestion}:"?`,
@@ -170,7 +182,7 @@ export const S = {
   panelFix: 'Fix',
   missingFrontmatter: 'No frontmatter — "Format DEPENDENCY-NOTES.md" adds it.',
   unknownFormat: (version: string) =>
-    `Unknown format "${version}" — this Pacmon reads ${SUPPORTED_FORMAT_VERSIONS.join(' and ')}.`,
+    `Unknown format "${version}" — this version of Depos reads ${SUPPORTED_FORMAT_VERSIONS.join(' and ')}.`,
   missingEcosystem: 'Format dependency-notes/2 requires an "ecosystem" field.',
   wrongEcosystem: (actual: string, expected: string) =>
     `This notes path belongs to ${expected}, but frontmatter says ${actual}.`,
@@ -185,30 +197,30 @@ export const S = {
   fixAgentHeading: 'Change to "### Agent notes"',
   fixPlainText: 'Make it plain text',
   fixHeading: (name: string) => `Change to "## ${name}"`,
-  runFormat: 'Format the file (Pacmon)',
-  // Depos (pacmon.depos.url): the optional organization connection.
-  webUrlPrompt: 'Address of your Depos',
-  webUrlPlaceholder: 'https://depos.example.com',
-  webUrlInvalid: 'Pacmon: pacmon.depos.url is not a valid http or https address.',
-  webUrlInsecure: 'Pacmon: pacmon.depos.url must use https. Plain http is allowed only for localhost.',
+  runFormat: 'Format the file (Depos)',
+  // Depos (depos.url): the optional organization connection.
+  webUrlPrompt: 'Address of your Depos server',
+  webUrlPlaceholder: 'https://depos.dev',
+  webUrlInvalid: 'Depos: depos.url is not a valid http or https address.',
+  webUrlInsecure: 'Depos: depos.url must use https. Plain http is allowed only for localhost.',
   webSignInCode: (code: string) =>
-    `Pacmon: approve the sign-in in your browser. Check that the page shows the code ${code}.`,
+    `Depos: approve the sign-in in your browser. Check that the page shows the code ${code}.`,
   webOpenBrowser: 'Open browser',
-  webWaiting: (code: string) => `Pacmon: waiting for approval in the browser (code ${code})`,
-  webSignedIn: (name: string, email: string) => `Pacmon: signed in to Depos as ${name} (${email}).`,
-  webDenied: 'Pacmon: the sign-in was denied in the browser.',
-  webExpired: 'Pacmon: the sign-in code expired. Run "Sign In to Depos" again.',
-  webSignedOut: 'Pacmon: signed out of Depos.',
-  webNotSignedIn: 'Pacmon: not signed in to Depos.',
-  webSessionExpired: 'Pacmon: your Depos sign-in has ended. Sign in again.',
+  webWaiting: (code: string) => `Depos: waiting for approval in the browser (code ${code})`,
+  webSignedIn: (name: string, email: string) => `Depos: signed in as ${name} (${email}).`,
+  webDenied: 'Depos: the sign-in was denied in the browser.',
+  webExpired: 'Depos: the sign-in code expired. Run "Depos: Sign In" again.',
+  webSignedOut: 'Depos: signed out.',
+  webNotSignedIn: 'Depos: not signed in.',
+  webSessionExpired: 'Depos: your sign-in has ended. Sign in again.',
   webSignIn: 'Sign in',
-  webUnreachable: (origin: string) => `Pacmon: could not reach ${origin}.`,
+  webUnreachable: (origin: string) => `Depos: could not reach ${origin}.`,
   webFolderOrg: (folder: string, org: string, repo: string) => `${folder}: organization ${org} (${repo})`,
   webFolderNoOrg: (folder: string, repo: string) =>
-    `${folder}: ${repo} is not added to any of your organizations in Depos`,
+    `${folder}: ${repo} is not added to any of your organizations`,
   webFolderNoRemote: (folder: string) => `${folder}: no GitHub remote`,
   // Org mode: the notes in Depos are the notes (docs/format.md, "The organization layer").
-  orgDiagSource: 'Pacmon (organization)',
+  orgDiagSource: 'Depos (organization)',
   orgDenied: (name: string, org: string, reason: string) =>
     reason ? `${name} is denied in ${org}. Reason: ${reason}` : `${name} is denied in ${org}.`,
   orgUnlisted: (name: string, org: string) => `${name} is not listed in the allowlist of ${org}.`,
@@ -224,12 +236,12 @@ export const S = {
   orgOpenWeb: 'Open in Depos',
   orgNotesLabel: (org: string) => `notes of ${org} in Depos`,
   orgMcpLabel: (folder: string) => `Depos notes (${folder})`,
-  orgNotesGone: 'These notes from Depos are no longer available. Sign in to Depos again, or open the notes file of the repository.',
+  orgNotesGone: 'These organization notes are no longer available. Sign in again, or open the notes file of the repository.',
   orgModeNotesFile: (org: string) =>
-    `You are signed in to Depos, so Pacmon uses the notes of ${org} from Depos. This file is no longer used: delete it from the repository.`,
+    `You are signed in, so Depos uses the notes of ${org}. This file is no longer used: delete it from the repository.`,
   orgNoteReadOnly: 'Only organization admins can change these notes.',
   orgNoteNotConnected: 'This repository is not added to an organization in Depos.',
-  orgNoteSaveFailed: 'Pacmon: the note could not be saved to Depos. Try again.',
+  orgNoteSaveFailed: 'Depos: the note could not be saved to your organization. Try again.',
   orgNoteDropped: (count: number) =>
-    `Pacmon: ${count} ${count === 1 ? 'line' : 'lines'} of the agent notes ${count === 1 ? 'is' : 'are'} not a field and ${count === 1 ? 'was' : 'were'} not saved. A note in Depos keeps "- key: value" lines only.`,
+    `Depos: ${count} ${count === 1 ? 'line' : 'lines'} of the agent notes ${count === 1 ? 'is' : 'are'} not a field and ${count === 1 ? 'was' : 'were'} not saved. An organization note keeps "- key: value" lines only.`,
 };

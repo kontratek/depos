@@ -12,6 +12,7 @@ import com.intellij.openapi.components.StoragePathMacros
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.roots.ProjectRootManager
@@ -22,6 +23,8 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.psi.PsiManager
 import com.intellij.ui.EditorNotifications
 import com.intellij.psi.search.FilenameIndex
@@ -49,8 +52,10 @@ class PacmonProjectService(private val project: Project) :
     com.intellij.openapi.components.PersistentStateComponent<PacmonProjectService.Settings>,
     Disposable {
     /**
-     * The same five settings the VS Code extension contributes under `pacmon.*`,
-     * with the same names and the same defaults — see the extension manifest and
+     * The same five settings the VS Code extension contributes under `depos.*`
+     * (`pacmon.*` before the rename), with the same names and the same defaults.
+     * The state keeps its Pacmon-era name, so stored values carry over. See the
+     * extension manifest and
      * `dev.pacmon.jetbrains.settings.PacmonOptions` for the values each accepts.
      * `noteButtons` is a list because the click targets are not exclusive: any
      * combination of them may be on at once, including none.
@@ -78,6 +83,8 @@ class PacmonProjectService(private val project: Project) :
     private data class CachedDependencies(val stamp: Long, val entries: List<DependencyEntry>)
     private val dependencyCache = ConcurrentHashMap<String, CachedDependencies>()
     private val manifestIndex = ConcurrentHashMap<ManifestKind, List<VirtualFile>>()
+    /** [notesDirForRoot] by root path: `.depos` or `.pacmon`. */
+    private val notesDirCache = ConcurrentHashMap<String, String>()
     private var lastManifest: VirtualFile? = null
     private val discoveryExcludedDirectories = mapOf(
         ManifestKind.ZIG to setOf("zig-pkg", ".zig-cache", "zig-cache", "zig-out"),
@@ -93,10 +100,12 @@ class PacmonProjectService(private val project: Project) :
     init {
         project.messageBus.connect(this).subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
             override fun after(events: List<VFileEvent>) {
-                if (events.none { isRelevantPath(it.path) }) return
+                val paths = events.flatMap(::eventPaths)
+                if (paths.none(::isRelevantPath)) return
                 dependencyCache.clear()
                 manifestIndex.clear()
-                val changedPacmonFiles = events.map { it.path.replace('\\', '/') }
+                if (paths.any(::isInNotesDirectory)) notesDirCache.clear()
+                val changedPacmonFiles = paths.map { it.replace('\\', '/') }
                     .filter(::isRelevantPath)
                     .toSet()
                 ApplicationManager.getApplication().invokeLater {
@@ -263,6 +272,83 @@ class PacmonProjectService(private val project: Project) :
 
     fun creationTargetDirectory(manifest: VirtualFile): VirtualFile = manifestOwnerDirectory(manifest)
 
+    /**
+     * Where a first note for [manifest] goes: beside the directory that owns it,
+     * in the notes directory of its repository ([notesDirForRoot]).
+     */
+    fun creationTargetPath(manifest: VirtualFile): String {
+        val kind = ManifestRegistry.forPath(manifest.path)?.kind ?: ManifestKind.NPM
+        return "${creationTargetDirectory(manifest).path}/${NotesCore.notesRelativePath(kind, newNotesDirectory(manifest))}"
+    }
+
+    /**
+     * The notes directory new files go to under [root], decided once for the whole
+     * repository: `.depos/` when anything is there (AGENT-RULES.md or a notes file),
+     * else `.pacmon/` when anything is there, else `.depos/`. A repository that keeps
+     * its notes in `.pacmon/` stays there whole — the first note of a new ecosystem
+     * or of a new monorepo package included — until "Move Notes to .depos/" moves
+     * all of it: a teammate on a version from before Depos reads `.pacmon/` only,
+     * and must not lose sight of half of the notes.
+     */
+    fun notesDirForRoot(root: VirtualFile): String {
+        notesDirCache[root.path]?.let { return it }
+        var complete = true
+        val decided = NotesCore.NOTES_DIRECTORIES.firstOrNull { dir ->
+            notesDirInUse(root, dir) ?: false.also { complete = false }
+        } ?: NotesCore.NOTES_DIRECTORY
+        // While the index is being built the answer covers the root only: asked again once it is ready.
+        if (complete) notesDirCache[root.path] = decided
+        return decided
+    }
+
+    /** Where a manifest's notes are: the directory of its notes file, or the one a first note would go to. */
+    fun notesDirForManifest(manifest: VirtualFile): String =
+        resolveNotesFile(manifest)?.let { NotesCore.notesDirOf(it.path) } ?: newNotesDirectory(manifest)
+
+    /**
+     * How messages name the notes file of [manifest]: its path from the directory
+     * that owns the manifest, under the notes directory it is (or will be) in —
+     * `.depos/cargo/DEPENDENCY-NOTES.md`, or `.pacmon/…` in a repository not moved yet.
+     */
+    fun notesRelativePathFor(manifest: VirtualFile): String {
+        val adapter = ManifestRegistry.forPath(manifest.path) ?: return NotesCore.NOTES_RELATIVE_PATH
+        return ManifestRegistry.notesRelativePathIn(adapter, notesDirForManifest(manifest))
+    }
+
+    /** For a notes file under `.pacmon/`: the `.depos/` file beside it that is read instead, if there is one. */
+    fun shadowingNotesFile(notesFile: VirtualFile): VirtualFile? {
+        val current = NotesCore.inCurrentNotesDir(notesFile.path) ?: return null
+        return notesFile.fileSystem.findFileByPath(current)?.takeIf { !it.isDirectory }
+    }
+
+    /** [file]'s path from the root it is under, the way messages name files; its full path outside every root. */
+    fun displayPath(file: VirtualFile): String =
+        manifestRoot(file)?.let { VfsUtilCore.getRelativePath(file, it) } ?: file.path
+
+    private fun newNotesDirectory(manifest: VirtualFile): String =
+        manifestRoot(manifest)?.let(::notesDirForRoot) ?: NotesCore.NOTES_DIRECTORY
+
+    /** Whether anything is under [dir] in [root]; null when only the index could tell, and it is not ready. */
+    private fun notesDirInUse(root: VirtualFile, dir: String): Boolean? {
+        // Every write puts AGENT-RULES.md at the root, so this answers for most repositories.
+        if (root.findChild(dir)?.findChild(NotesCore.AGENT_RULES_FILE_NAME)?.isDirectory == false) return true
+        if (ManifestRegistry.adapters.any { notesIn(root, it.kind, dir) != null }) return true
+        val notesFiles = try {
+            filesNamed(NotesCore.NOTES_FILE_NAME)
+        } catch (_: IndexNotReadyException) {
+            return null
+        }
+        return notesFiles.any { file ->
+            val segments = VfsUtilCore.getRelativePath(file, root)?.split('/') ?: return@any false
+            dir in segments.dropLast(1) && segments.none { it in NOTES_DISCOVERY_EXCLUDED }
+        }
+    }
+
+    /** The project's files with this name, from the index: none from libraries or excluded folders. */
+    fun filesNamed(name: String): Collection<VirtualFile> = ReadAction.compute<Collection<VirtualFile>, RuntimeException> {
+        FilenameIndex.getVirtualFilesByName(name, GlobalSearchScope.projectScope(project))
+    }
+
     private fun manifestOwnerDirectory(manifest: VirtualFile): VirtualFile {
         val adapter = ManifestRegistry.forPath(manifest.path)
         if (adapter?.kind == ManifestKind.PYTHON && manifest.name != "pyproject.toml") {
@@ -291,10 +377,12 @@ class PacmonProjectService(private val project: Project) :
         var result: VirtualFile? = null
         WriteCommandAction.runWriteCommandAction(project, "Update dependency note", null, {
             val existing = resolveNotesFile(manifest)
-            val notesFile = existing ?: createNotesFile(creationTargetDirectory(manifest), kind)
+            val notesFile = existing
+                ?: createNotesFile(creationTargetDirectory(manifest), kind, newNotesDirectory(manifest))
             val current = if (existing == null) "" else textOf(notesFile)
             val updated = if (existing == null || current.isBlank()) {
-                NotesCore.newNotesFile(dependency, human, agent, kind)
+                // The header names the AGENT-RULES.md of the directory the file is in.
+                NotesCore.newNotesFile(dependency, human, agent, kind, NotesCore.notesDirOf(notesFile.path))
             } else {
                 NotesCore.upsertNoteLayers(current, dependency, human, agent)
             }
@@ -318,18 +406,19 @@ class PacmonProjectService(private val project: Project) :
     }
 
     /**
-     * Two writes: `.pacmon/AGENT-RULES.md` is rewritten from the plugin's own
-     * copy (the rules and the field list, owned by Pacmon), and each of
-     * [targets] (relative to the project root, e.g. `AGENTS.md`) gets the
-     * three-line pointer to it, inserted or updated between markers. Returns
-     * every path actually written, `AGENT-RULES.md` first.
+     * Two writes: `.depos/AGENT-RULES.md` (`.pacmon/` in a repository not moved
+     * yet) is rewritten from the plugin's own copy (the rules and the field list,
+     * owned by Depos), and each of [targets] (relative to the project root, e.g.
+     * `AGENTS.md`) gets the three-line pointer to it, inserted or updated between
+     * markers. Returns every path actually written, `AGENT-RULES.md` first.
      */
     fun setUpAiInstructions(targets: List<String>): List<String> {
         val root = projectRoot() ?: return emptyList()
         val written = mutableListOf<String>()
         WriteCommandAction.runWriteCommandAction(project, "Set Up AI Instructions", null, {
-            ensureAgentRules(overwrite = true)
-            written.add(NotesCore.AGENT_RULES_RELATIVE_PATH)
+            val notesDir = notesDirForRoot(root)
+            writeAgentRules(root, notesDir, overwrite = true)
+            written.add(NotesCore.agentRulesRelativePath(notesDir))
             for (relative in targets) {
                 val parts = relative.split('/')
                 var directory = root
@@ -340,7 +429,7 @@ class PacmonProjectService(private val project: Project) :
                 val file = directory.findChild(fileName) ?: directory.createChildData(this, fileName)
                 val document = FileDocumentManager.getInstance().getDocument(file)
                     ?: error("Could not open $relative.")
-                document.setText(StringUtil.convertLineSeparators(AiInstructions.upsert(document.text)))
+                document.setText(StringUtil.convertLineSeparators(AiInstructions.upsert(document.text, notesDir)))
                 FileDocumentManager.getInstance().saveDocument(document)
                 written.add(relative)
             }
@@ -348,8 +437,8 @@ class PacmonProjectService(private val project: Project) :
         return written
     }
 
-    private fun createNotesFile(manifestDirectory: VirtualFile, kind: ManifestKind): VirtualFile {
-        val parts = ManifestRegistry.forKind(kind).notesRelativePath.split('/')
+    private fun createNotesFile(manifestDirectory: VirtualFile, kind: ManifestKind, notesDir: String): VirtualFile {
+        val parts = NotesCore.notesRelativePath(kind, notesDir).split('/')
         var directory = manifestDirectory
         for (part in parts.dropLast(1)) {
             directory = directory.findChild(part) ?: directory.createChildDirectory(this, part)
@@ -365,7 +454,8 @@ class PacmonProjectService(private val project: Project) :
             ?: root
     }
 
-    private fun manifestRoots(): List<VirtualFile> = buildList {
+    /** The project root first, then every other content root. */
+    fun manifestRoots(): List<VirtualFile> = buildList {
         projectRoot()?.let(::add)
         ProjectRootManager.getInstance(project).contentRoots.forEach { root ->
             if (none { it.path == root.path }) add(root)
@@ -378,8 +468,16 @@ class PacmonProjectService(private val project: Project) :
 
     private fun ensureAgentRules(overwrite: Boolean = false) {
         val root = projectRoot() ?: return
-        val notesDirectory = root.findChild(NotesCore.NOTES_DIRECTORY)
-            ?: root.createChildDirectory(this, NotesCore.NOTES_DIRECTORY)
+        writeAgentRules(root, notesDirForRoot(root), overwrite)
+    }
+
+    /**
+     * `<root>/<notesDir>/AGENT-RULES.md`: the plugin's own copy, which is written
+     * for `.depos/`, as it reads in a repository whose notes are under [notesDir].
+     * Kept as it is unless [overwrite]. In a write action.
+     */
+    fun writeAgentRules(root: VirtualFile, notesDir: String, overwrite: Boolean) {
+        val notesDirectory = root.findChild(notesDir) ?: root.createChildDirectory(this, notesDir)
         val existing = notesDirectory.findChild(NotesCore.AGENT_RULES_FILE_NAME)
         if (existing != null && !overwrite) return
         val rules = javaClass.getResourceAsStream("/pacmon/AGENT-RULES.md")
@@ -389,8 +487,21 @@ class PacmonProjectService(private val project: Project) :
         val file = existing ?: notesDirectory.createChildData(this, NotesCore.AGENT_RULES_FILE_NAME)
         val document = FileDocumentManager.getInstance().getDocument(file)
             ?: error("Could not create AGENT-RULES.md.")
-        document.setText(rules.replace("\r\n", "\n"))
+        document.setText(NotesCore.inNotesDir(rules.replace("\r\n", "\n"), notesDir))
         FileDocumentManager.getInstance().saveDocument(document)
+    }
+
+    /**
+     * After "Move Notes to .depos/": every answer kept about where the notes are is
+     * stale, and everything that shows them is told, with the paths that moved.
+     */
+    fun notesMoved(paths: Set<String>) {
+        dependencyCache.clear()
+        manifestIndex.clear()
+        notesDirCache.clear()
+        refreshOpenEditors()
+        EditorNotifications.getInstance(project).updateAllNotifications()
+        project.messageBus.syncPublisher(PacmonNotesListener.TOPIC).notesChanged(paths)
     }
 
     /**
@@ -405,20 +516,20 @@ class PacmonProjectService(private val project: Project) :
             .notesChanged(setOf(path.replace('\\', '/')))
     }
 
-    private fun notesIn(directory: VirtualFile, kind: ManifestKind): VirtualFile? {
+    /** The notes file of [kind] in one directory: `.depos/` first, then `.pacmon/`. */
+    private fun notesIn(directory: VirtualFile, kind: ManifestKind): VirtualFile? =
+        NotesCore.NOTES_DIRECTORIES.firstNotNullOfOrNull { notesIn(directory, kind, it) }
+
+    private fun notesIn(directory: VirtualFile, kind: ManifestKind, notesDir: String): VirtualFile? {
         var current: VirtualFile? = directory
-        for (part in ManifestRegistry.forKind(kind).notesRelativePath.split('/')) {
+        for (part in NotesCore.notesRelativePath(kind, notesDir).split('/')) {
             current = current?.findChild(part) ?: return null
         }
         return current?.takeIf { !it.isDirectory }
     }
 
-    fun notesKind(file: VirtualFile): ManifestKind? {
-        val normalized = file.path.replace('\\', '/')
-        return ManifestRegistry.adapters.firstOrNull {
-            normalized.endsWith("/${it.notesRelativePath}")
-        }?.kind
-    }
+    /** The ecosystem whose notes file [file] is, under `.depos/` or `.pacmon/`; null for any other file. */
+    fun notesKind(file: VirtualFile): ManifestKind? = ManifestRegistry.notesKindOfPath(file.path)
 
     fun manifestBesideNotes(file: VirtualFile): VirtualFile? {
         val kind = notesKind(file) ?: return null
@@ -531,11 +642,34 @@ class PacmonProjectService(private val project: Project) :
         FileDocumentManager.getInstance().getCachedDocument(file)?.text ?: VfsUtilCore.loadText(file)
     }
 
+    /** A manifest, or anything in a notes directory — a notes file, AGENT-RULES.md, the directory itself. */
     private fun isRelevantPath(path: String): Boolean {
         val normalized = path.replace('\\', '/')
-        return ManifestRegistry.adapters.any {
-            it.matchesPath(normalized) ||
-                normalized.endsWith("/${it.notesRelativePath}")
-        }
+        return ManifestRegistry.adapters.any { it.matchesPath(normalized) } || isInNotesDirectory(normalized)
+    }
+
+    private fun isInNotesDirectory(path: String): Boolean {
+        val normalized = path.replace('\\', '/')
+        return NotesCore.NOTES_DIRECTORIES.any { normalized.endsWith("/$it") || normalized.contains("/$it/") }
+    }
+
+    /** The paths an event touches: a move or a rename has two, the one it leaves and the one it takes. */
+    private fun eventPaths(event: VFileEvent): List<String> = when {
+        event is VFileMoveEvent -> listOf(event.oldPath, event.newPath)
+        event is VFilePropertyChangeEvent && event.isRename -> listOf(event.oldPath, event.newPath)
+        else -> listOf(event.path)
+    }
+
+    companion object {
+        /**
+         * Directories never searched for notes: dependencies, build output, caches,
+         * virtual environments. The same list as the VS Code extension's
+         * `DISCOVERY_EXCLUDE` (`src/ext/resolveNotesFile.ts`).
+         */
+        val NOTES_DISCOVERY_EXCLUDED = setOf(
+            "node_modules", "target", ".gradle", "_build", "deps", "zig-pkg", ".zig-cache", "zig-cache", "zig-out",
+            ".venv", "venv", ".tox", ".nox", "site-packages", "dist", "build", "bin", "obj", "vendor", "testdata",
+            ".bundle", ".conan", ".conan2", "vcpkg_installed", ".git",
+        )
     }
 }

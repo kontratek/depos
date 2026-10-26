@@ -46,7 +46,7 @@ export class AgentBlockLenses implements vscode.CodeLensProvider, vscode.Disposa
       const range = new vscode.Range(section.agentHeadingLine, 0, section.agentHeadingLine, 0);
       const command: vscode.Command =
         fixable > 0
-          ? { command: 'pacmon.fixAgentNotes', title: S.lensFixable(mine.length, fixable), arguments: [doc.uri] }
+          ? { command: 'depos.fixAgentNotes', title: S.lensFixable(mine.length, fixable), arguments: [doc.uri] }
           : { command: 'workbench.action.problems.focus', title: S.lensProblems(mine.length) };
       lenses.push(new vscode.CodeLens(range, command));
     }

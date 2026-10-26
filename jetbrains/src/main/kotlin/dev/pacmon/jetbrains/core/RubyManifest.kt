@@ -20,12 +20,12 @@ private data class RubyBlock(
     enum class Kind { GROUP, PLATFORM, DEFINITION, GEMSPEC, GENERIC }
 }
 
-/** Static Gemfile/gems.rb/gemspec parser. Pacmon never invokes Ruby or Bundler. */
+/** Static Gemfile/gems.rb/gemspec parser. Depos never invokes Ruby or Bundler. */
 object RubyManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.RUBY
     override val fileNames = listOf("Gemfile", "gems.rb")
     override val discoveryGlobs = listOf("**/Gemfile", "**/gems.rb", "**/*.gemspec")
-    override val notesRelativePath = ".pacmon/ruby/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/ruby/DEPENDENCY-NOTES.md"
     override fun matchesPath(path: String): Boolean {
         val name = path.replace('\\', '/').substringAfterLast('/')
         return name == "Gemfile" || name == "gems.rb" || name.endsWith(".gemspec")

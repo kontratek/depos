@@ -18,6 +18,7 @@ import { extractVcpkgDependencies } from './vcpkg-manifest';
 import { extractConanDependencies } from './conan-manifest';
 import { extractComposerDependencies } from './composer-manifest';
 import { extractRubyDependencies, isRubyManifestPath } from './ruby-manifest';
+import { NOTES_DIR, NOTES_DIRS, type NotesDir } from './template';
 export { dependencyAtOffset } from './dependency';
 
 export interface ManifestAdapter {
@@ -60,7 +61,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'npm',
     fileNames: ['package.json'],
     discoveryGlobs: exactDiscoveryGlobs(['package.json']),
-    notesRelativePath: '.pacmon/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['package.json']),
     extractDependencies: extractNpmDependencies,
     normalizeNoteKey: (raw) => tolerantKey(raw).toLowerCase(),
@@ -69,7 +70,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'cargo',
     fileNames: ['Cargo.toml'],
     discoveryGlobs: exactDiscoveryGlobs(['Cargo.toml']),
-    notesRelativePath: '.pacmon/cargo/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/cargo/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['Cargo.toml']),
     extractDependencies: extractCargoDependencies,
     normalizeNoteKey: tolerantKey,
@@ -78,7 +79,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'maven',
     fileNames: ['pom.xml'],
     discoveryGlobs: exactDiscoveryGlobs(['pom.xml']),
-    notesRelativePath: '.pacmon/maven/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/maven/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['pom.xml']),
     extractDependencies: extractMavenDependencies,
     normalizeNoteKey: tolerantKey,
@@ -87,7 +88,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'gradle',
     fileNames: ['build.gradle.kts', 'build.gradle'],
     discoveryGlobs: exactDiscoveryGlobs(['build.gradle.kts', 'build.gradle']),
-    notesRelativePath: '.pacmon/gradle/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/gradle/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['build.gradle.kts', 'build.gradle']),
     extractDependencies: extractGradleDependencies,
     normalizeNoteKey: tolerantKey,
@@ -96,7 +97,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'mix',
     fileNames: ['mix.exs'],
     discoveryGlobs: exactDiscoveryGlobs(['mix.exs']),
-    notesRelativePath: '.pacmon/mix/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/mix/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['mix.exs']),
     extractDependencies: extractMixDependencies,
     normalizeNoteKey: tolerantKey,
@@ -105,7 +106,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'gleam',
     fileNames: ['gleam.toml'],
     discoveryGlobs: exactDiscoveryGlobs(['gleam.toml']),
-    notesRelativePath: '.pacmon/gleam/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/gleam/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['gleam.toml']),
     extractDependencies: extractGleamDependencies,
     normalizeNoteKey: tolerantKey,
@@ -114,7 +115,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'zig',
     fileNames: ['build.zig.zon'],
     discoveryGlobs: exactDiscoveryGlobs(['build.zig.zon']),
-    notesRelativePath: '.pacmon/zig/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/zig/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['build.zig.zon']),
     extractDependencies: extractZigDependencies,
     normalizeNoteKey: tolerantKey,
@@ -123,7 +124,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'python',
     fileNames: ['pyproject.toml', 'requirements.txt'],
     discoveryGlobs: ['**/pyproject.toml', '**/requirements*.txt', '**/requirements/**/*.txt'],
-    notesRelativePath: '.pacmon/python/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/python/DEPENDENCY-NOTES.md',
     matchesPath: (path) => {
       const normalized = normalizedPath(path);
       const basename = pathBasename(normalized);
@@ -140,7 +141,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'ruby',
     fileNames: ['Gemfile', 'gems.rb'],
     discoveryGlobs: ['**/Gemfile', '**/gems.rb', '**/*.gemspec'],
-    notesRelativePath: '.pacmon/ruby/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/ruby/DEPENDENCY-NOTES.md',
     matchesPath: isRubyManifestPath,
     extractDependencies: extractRubyDependencies,
     normalizeNoteKey: tolerantKey,
@@ -149,7 +150,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'nuget',
     fileNames: ['Directory.Packages.props'],
     discoveryGlobs: ['**/*.csproj', '**/*.fsproj', '**/*.vbproj', '**/Directory.Packages.props'],
-    notesRelativePath: '.pacmon/nuget/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/nuget/DEPENDENCY-NOTES.md',
     matchesPath: isNugetManifestPath,
     extractDependencies: extractNugetDependencies,
     normalizeNoteKey: (raw) => tolerantKey(raw).toLowerCase(),
@@ -158,7 +159,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'go',
     fileNames: ['go.mod'],
     discoveryGlobs: exactDiscoveryGlobs(['go.mod']),
-    notesRelativePath: '.pacmon/go/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/go/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['go.mod']),
     extractDependencies: extractGoDependencies,
     normalizeNoteKey: tolerantKey,
@@ -167,7 +168,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'vcpkg',
     fileNames: ['vcpkg.json'],
     discoveryGlobs: exactDiscoveryGlobs(['vcpkg.json']),
-    notesRelativePath: '.pacmon/vcpkg/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/vcpkg/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['vcpkg.json']),
     extractDependencies: extractVcpkgDependencies,
     normalizeNoteKey: (raw) => tolerantKey(raw).toLowerCase(),
@@ -176,7 +177,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'conan',
     fileNames: ['conanfile.py', 'conanfile.txt'],
     discoveryGlobs: exactDiscoveryGlobs(['conanfile.py', 'conanfile.txt']),
-    notesRelativePath: '.pacmon/conan/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/conan/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['conanfile.py', 'conanfile.txt']),
     extractDependencies: extractConanDependencies,
     normalizeNoteKey: (raw) => tolerantKey(raw).toLowerCase(),
@@ -185,7 +186,7 @@ export const MANIFEST_ADAPTERS: readonly ManifestAdapter[] = [
     kind: 'composer',
     fileNames: ['composer.json'],
     discoveryGlobs: exactDiscoveryGlobs(['composer.json']),
-    notesRelativePath: '.pacmon/composer/DEPENDENCY-NOTES.md',
+    notesRelativePath: '.depos/composer/DEPENDENCY-NOTES.md',
     matchesPath: exactPathMatcher(['composer.json']),
     extractDependencies: extractComposerDependencies,
     normalizeNoteKey: (raw) => tolerantKey(raw).toLowerCase(),
@@ -202,4 +203,16 @@ export function manifestAdapterForPath(path: string): ManifestAdapter | undefine
 
 export function manifestAdapterForKind(kind: ManifestKind): ManifestAdapter {
   return MANIFEST_ADAPTERS.find((adapter) => adapter.kind === kind)!;
+}
+
+/** The adapter's notes path under `dir`: `notesRelativePath` names the current directory. */
+export function notesRelativePathIn(adapter: ManifestAdapter, dir: NotesDir): string {
+  return dir === NOTES_DIR ? adapter.notesRelativePath : `${dir}/${adapter.notesRelativePath.slice(NOTES_DIR.length + 1)}`;
+}
+
+/** The ecosystem whose notes file the path is, under either notes directory. */
+export function notesKindOfPath(path: string): ManifestKind | undefined {
+  const normalized = path.replace(/\\/g, '/');
+  return MANIFEST_ADAPTERS.find((adapter) =>
+    NOTES_DIRS.some((dir) => normalized.endsWith(`/${notesRelativePathIn(adapter, dir)}`)))?.kind;
 }

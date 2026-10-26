@@ -111,7 +111,7 @@ class DeposConnection : PersistentStateComponent<DeposConnection.Settings> {
 
     /** The setting; the local default until it is changed. An empty value asks at sign-in. */
     var url: String
-        get() = settings.url
+        get() = DeposServerUrl.renamed(settings.url)
         set(value) {
             if (value == settings.url) return
             settings.url = value
@@ -256,7 +256,7 @@ class DeposConnection : PersistentStateComponent<DeposConnection.Settings> {
     private fun origin(project: Project?, promptIfEmpty: Boolean): String? {
         var raw = url
         if (raw.isBlank() && promptIfEmpty) {
-            raw = Messages.showInputDialog(project, "${DeposStrings.webUrlPrompt}, such as ${DeposStrings.webUrlPlaceholder}", "Pacmon", null, "", null)
+            raw = Messages.showInputDialog(project, "${DeposStrings.webUrlPrompt}, such as ${DeposStrings.webUrlPlaceholder}", "Depos", null, "", null)
                 ?.takeIf { it.isNotBlank() }
                 ?: return null
             (DeposServerUrl.parse(raw) as? DeposServerUrl.Parsed.Ok)?.let { url = it.origin }
@@ -277,7 +277,7 @@ class DeposConnection : PersistentStateComponent<DeposConnection.Settings> {
     /** The device flow: a code, the browser, a cancellable wait. On the UI thread. */
     fun signIn(project: Project?) {
         val origin = origin(project, promptIfEmpty = true) ?: return
-        object : Task.Backgroundable(project, "Pacmon: signing in to Depos", true) {
+        object : Task.Backgroundable(project, "Depos: signing in", true) {
             override fun run(indicator: ProgressIndicator) {
                 val code = try {
                     DeviceFlow.requestDeviceCode(http, origin)

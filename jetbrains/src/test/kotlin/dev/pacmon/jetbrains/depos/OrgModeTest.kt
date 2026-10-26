@@ -47,7 +47,7 @@ class OrgModeTest : BasePlatformTestCase() {
     private val packageJson = """{ "dependencies": { "express": "^4", "left-pad": "^1", "react": "^18" } }"""
 
     fun testTheNoteComesFromTheOrgNotesNotTheFile() {
-        myFixture.addFileToProject(".pacmon/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nFrom the file.\n")
+        myFixture.addFileToProject(".depos/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nFrom the file.\n")
         val manifest = myFixture.addFileToProject("package.json", packageJson).virtualFile
         orgMode()
         val service = project.getService(PacmonProjectService::class.java)
@@ -95,7 +95,7 @@ class OrgModeTest : BasePlatformTestCase() {
 
     fun testTheNotesFileCarriesABannerInOrgModeOnly() {
         myFixture.addFileToProject("package.json", packageJson)
-        val notes = myFixture.addFileToProject(".pacmon/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nFrom the file.\n")
+        val notes = myFixture.addFileToProject(".depos/DEPENDENCY-NOTES.md", "# Dependency Notes\n\n## express\n\nFrom the file.\n")
         myFixture.configureFromExistingVirtualFile(notes.virtualFile)
         val provider = PacmonOrgModeNotificationProvider()
         assertNull(provider.collectNotificationData(project, notes.virtualFile))

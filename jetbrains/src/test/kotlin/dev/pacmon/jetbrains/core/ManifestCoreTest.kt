@@ -7,6 +7,29 @@ import org.junit.Test
 
 class ManifestCoreTest {
     @Test
+    fun `notes paths name the current directory, and the legacy one on request`() {
+        for (adapter in ManifestRegistry.adapters) assertTrue(adapter.kind.id, adapter.notesRelativePath.startsWith(".depos/"))
+        val cargo = ManifestRegistry.forKind(ManifestKind.CARGO)
+        assertEquals(".depos/cargo/DEPENDENCY-NOTES.md", ManifestRegistry.notesRelativePathIn(cargo, ".depos"))
+        assertEquals(".pacmon/cargo/DEPENDENCY-NOTES.md", ManifestRegistry.notesRelativePathIn(cargo, ".pacmon"))
+        assertEquals(
+            ".pacmon/DEPENDENCY-NOTES.md",
+            ManifestRegistry.notesRelativePathIn(ManifestRegistry.forKind(ManifestKind.NPM), ".pacmon"),
+        )
+    }
+
+    @Test
+    fun `knows a notes file under either directory, and nothing else`() {
+        assertEquals(ManifestKind.NPM, ManifestRegistry.notesKindOfPath("/repo/.depos/DEPENDENCY-NOTES.md"))
+        assertEquals(ManifestKind.NPM, ManifestRegistry.notesKindOfPath("/repo/.pacmon/DEPENDENCY-NOTES.md"))
+        assertEquals(ManifestKind.CARGO, ManifestRegistry.notesKindOfPath("/repo/apps/api/.pacmon/cargo/DEPENDENCY-NOTES.md"))
+        assertEquals(ManifestKind.NUGET, ManifestRegistry.notesKindOfPath("C:\\repo\\.depos\\nuget\\DEPENDENCY-NOTES.md"))
+        assertNull(ManifestRegistry.notesKindOfPath("/repo/DEPENDENCY-NOTES.md"))
+        assertNull(ManifestRegistry.notesKindOfPath("/repo/.depos/AGENT-RULES.md"))
+        assertNull(ManifestRegistry.notesKindOfPath("/repo/.other/cargo/DEPENDENCY-NOTES.md"))
+    }
+
+    @Test
     fun `registry matches only supported manifests in priority order`() {
         assertEquals(
             listOf("package.json", "Cargo.toml", "pom.xml", "build.gradle.kts", "build.gradle", "mix.exs", "gleam.toml", "build.zig.zon", "pyproject.toml", "requirements.txt", "Gemfile", "gems.rb", "composer.json", "Directory.Packages.props", "go.mod", "vcpkg.json", "conanfile.py", "conanfile.txt"),

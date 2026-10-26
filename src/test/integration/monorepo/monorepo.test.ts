@@ -36,7 +36,7 @@ async function exists(uri: vscode.Uri): Promise<boolean> {
   }
 }
 
-/** Pacmon's hover text for one dependency of one package.json ('' when silent). */
+/** Depos' hover text for one dependency of one package.json ('' when silent). */
 async function hoverText(pkg: vscode.Uri, dep: string): Promise<string> {
   const doc = await vscode.workspace.openTextDocument(pkg);
   await vscode.window.showTextDocument(doc);
@@ -141,9 +141,9 @@ async function goHoverText(manifest: vscode.Uri, dep: string): Promise<string> {
     .map((content) => typeof content === 'string' ? content : content.value).join('\n');
 }
 
-const cfg = (): vscode.WorkspaceConfiguration => vscode.workspace.getConfiguration('pacmon');
+const cfg = (): vscode.WorkspaceConfiguration => vscode.workspace.getConfiguration('depos');
 
-suite('pacmon monorepo', () => {
+suite('depos monorepo', () => {
   suiteSetup(async function () {
     this.timeout(30000);
     const ext = vscode.extensions.getExtension('kontra.pacmon');
@@ -252,7 +252,7 @@ suite('pacmon monorepo', () => {
       await sleep(500);
       const manifest = at('apps', 'dotnet-app', 'App.csproj');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(manifest));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'New.Package', 'Nested package note.');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'New.Package', 'Nested package note.');
       const text = await poll(async () => {
         try {
           const value = await readText(nestedNotes);
@@ -279,7 +279,7 @@ suite('pacmon monorepo', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(ecosystemLine).range, 'ecosystem: cargo'));
     try {
       const mine = await poll(() => {
-        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return diagnostics.some((item) => item.code === 'wrong-ecosystem') ? diagnostics : undefined;
       });
       assert.ok(
@@ -341,7 +341,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly ignores the nested notes file', async function () {
+  test('depos.monorepo = rootOnly ignores the nested notes file', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -350,13 +350,34 @@ suite('pacmon monorepo', () => {
         const t = await hoverText(at('packages', 'app', 'package.json'), 'express');
         return t.includes('App-level') ? undefined : t;
       });
-      assert.ok(!text.includes('command:pacmon.') && !text.includes('Edit note'), `expected silence, got: ${text}`);
+      assert.ok(!text.includes('command:depos.') && !text.includes('Edit note'), `expected silence, got: ${text}`);
     } finally {
       await cfg().update('monorepo', undefined, vscode.ConfigurationTarget.Global);
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes an umbrella child use root Mix notes', async function () {
+  test('pacmon.monorepo, from before Pacmon became Depos, is still read; depos.monorepo wins', async function () {
+    this.timeout(20000);
+    const legacy = vscode.workspace.getConfiguration('pacmon');
+    await legacy.update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
+    try {
+      const silent = await poll(async () => {
+        const t = await hoverText(at('packages', 'app', 'package.json'), 'express');
+        return t.includes('App-level') ? undefined : t;
+      });
+      assert.ok(!silent.includes('Edit note'), `expected silence, got: ${silent}`);
+      await cfg().update('monorepo', 'nearest', vscode.ConfigurationTarget.Global);
+      await poll(async () => {
+        const t = await hoverText(at('packages', 'app', 'package.json'), 'express');
+        return t.includes('App-level') ? t : undefined;
+      });
+    } finally {
+      await legacy.update('monorepo', undefined, vscode.ConfigurationTarget.Global);
+      await cfg().update('monorepo', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  test('depos.monorepo = rootOnly makes an umbrella child use root Mix notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -370,7 +391,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes a nested Gleam manifest use root Gleam notes', async function () {
+  test('depos.monorepo = rootOnly makes a nested Gleam manifest use root Gleam notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -384,7 +405,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes a nested Zig manifest use root Zig notes', async function () {
+  test('depos.monorepo = rootOnly makes a nested Zig manifest use root Zig notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -398,7 +419,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes a nested Python manifest use root Python notes', async function () {
+  test('depos.monorepo = rootOnly makes a nested Python manifest use root Python notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -412,7 +433,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes a nested Go module use root Go notes', async function () {
+  test('depos.monorepo = rootOnly makes a nested Go module use root Go notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -426,7 +447,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes a nested Composer manifest use root Composer notes', async function () {
+  test('depos.monorepo = rootOnly makes a nested Composer manifest use root Composer notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -440,7 +461,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes nested Ruby manifests use root Ruby notes', async function () {
+  test('depos.monorepo = rootOnly makes nested Ruby manifests use root Ruby notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -454,7 +475,7 @@ suite('pacmon monorepo', () => {
     }
   });
 
-  test('pacmon.monorepo = rootOnly makes nested C/C++ manifests use their matching root notes', async function () {
+  test('depos.monorepo = rootOnly makes nested C/C++ manifests use their matching root notes', async function () {
     this.timeout(20000);
     await cfg().update('monorepo', 'rootOnly', vscode.ConfigurationTarget.Global);
     try {
@@ -483,7 +504,7 @@ suite('pacmon monorepo', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(ecosystemLine).range, 'ecosystem: cargo'));
     try {
       const mine = await poll(() => {
-        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return diagnostics.some((item) => item.code === 'wrong-ecosystem') ? diagnostics : undefined;
       });
       assert.ok(
@@ -505,7 +526,7 @@ suite('pacmon monorepo', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(ecosystemLine).range, 'ecosystem: cargo'));
     try {
       const mine = await poll(() => {
-        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return diagnostics.some((item) => item.code === 'wrong-ecosystem') ? diagnostics : undefined;
       });
       assert.ok(
@@ -527,7 +548,7 @@ suite('pacmon monorepo', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(ecosystemLine).range, 'ecosystem: cargo'));
     try {
       const mine = await poll(() => {
-        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return diagnostics.some((item) => item.code === 'wrong-ecosystem') ? diagnostics : undefined;
       });
       assert.ok(
@@ -549,7 +570,7 @@ suite('pacmon monorepo', () => {
     await editor.edit((edit) => edit.replace(doc.lineAt(ecosystemLine).range, 'ecosystem: cargo'));
     try {
       const mine = await poll(() => {
-        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'pacmon');
+        const diagnostics = vscode.languages.getDiagnostics(notes).filter((item) => item.source === 'depos');
         return diagnostics.some((item) => item.code === 'wrong-ecosystem') ? diagnostics : undefined;
       });
       assert.ok(
@@ -570,7 +591,7 @@ suite('pacmon monorepo', () => {
     try {
       const pkg = at('packages', 'app', 'package.json');
       await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(pkg));
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', 'react-fake', 'UI runtime (fake)');
+      await vscode.commands.executeCommand('depos.addOrEditNote', 'react-fake', 'UI runtime (fake)');
 
       const text = await poll(async () => {
         const t = await readText(appNotes);

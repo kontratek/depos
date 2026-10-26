@@ -60,7 +60,7 @@ class PacmonNoteDeclarationHandler : GotoDeclarationHandler {
 
         override fun getName(): String = dependency.name
 
-        override fun getPresentableText(): String = "Pacmon note for ${dependency.name}"
+        override fun getPresentableText(): String = "Depos note for ${dependency.name}"
 
         override fun canNavigate(): Boolean = true
 

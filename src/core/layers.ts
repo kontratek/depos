@@ -108,7 +108,7 @@ export function isRemovedSection(model: NotesFileModel, s: NoteSection): boolean
   return status !== undefined && /^removed\b/i.test(status);
 }
 
-/** Which layer the end-of-line preview leads with (setting `pacmon.inlineSource`). */
+/** Which layer the end-of-line preview leads with (setting `depos.inlineSource`). */
 export type InlineSource = 'human-first' | 'ai-first' | 'human-only' | 'ai-only';
 export const INLINE_SOURCES: readonly InlineSource[] = ['human-first', 'ai-first', 'human-only', 'ai-only'];
 

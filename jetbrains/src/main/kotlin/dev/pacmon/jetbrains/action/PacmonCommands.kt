@@ -16,7 +16,7 @@ import com.intellij.testFramework.LightVirtualFile
 import dev.pacmon.jetbrains.settings.Decorations
 
 /**
- * What the Pacmon actions actually do, with no `AnActionEvent` in sight — the
+ * What the Depos actions actually do, with no `AnActionEvent` in sight — the
  * Tools menu invokes these and so do the buttons in the tool window's Actions
  * section, which have no action event to hand. The VS Code extension reaches
  * the same five commands from its view the same way.
@@ -40,7 +40,7 @@ object PacmonCommands {
             Messages.showInfoMessage(
                 project,
                 "No ${NotesCore.NOTES_FILE_NAME} found. Use \"Add/Edit Dependency Note\" to create one.",
-                "Pacmon",
+                "Depos",
             )
             return
         }
@@ -66,7 +66,7 @@ object PacmonCommands {
             ?: selected?.let { service(project).manifestBesideNotes(it) }
             ?: service(project).defaultManifest()
         if (file == null) {
-            Messages.showInfoMessage(project, "No supported dependency manifest found in this project.", "Pacmon")
+            Messages.showInfoMessage(project, "No supported dependency manifest found in this project.", "Depos")
             return
         }
         service(project).open(file)
@@ -80,14 +80,19 @@ object PacmonCommands {
         val notesFile = findNotesFile(project, manifest)
         if (notesFile == null) {
             statusBar?.info =
-                "Pacmon: no ${NotesCore.NOTES_FILE_NAME} found. Use \"Add/Edit Dependency Note\" to create one."
+                "Depos: no ${NotesCore.NOTES_FILE_NAME} found. Use \"Add/Edit Dependency Note\" to create one."
             return
         }
 
         var changed = false
         WriteCommandAction.runWriteCommandAction(project, "Format DEPENDENCY-NOTES.md", null, {
             val document = FileDocumentManager.getInstance().getDocument(notesFile) ?: return@runWriteCommandAction
-            val canonical = NotesCore.normalizeText(document.text, service(project).notesKind(notesFile))
+            // The header keeps naming the AGENT-RULES.md of the directory the file is in.
+            val canonical = NotesCore.normalizeText(
+                document.text,
+                service(project).notesKind(notesFile),
+                NotesCore.notesDirOf(notesFile.path),
+            )
             if (canonical != document.text) {
                 document.setText(canonical)
                 FileDocumentManager.getInstance().saveDocument(document)
@@ -95,9 +100,9 @@ object PacmonCommands {
             }
         })
         statusBar?.info = if (changed) {
-            "Pacmon: ${NotesCore.NOTES_FILE_NAME} formatted."
+            "Depos: ${NotesCore.NOTES_FILE_NAME} formatted."
         } else {
-            "Pacmon: ${NotesCore.NOTES_FILE_NAME} is already in canonical form."
+            "Depos: ${NotesCore.NOTES_FILE_NAME} is already in canonical form."
         }
         service(project).open(notesFile)
     }
@@ -107,7 +112,7 @@ object PacmonCommands {
         if (!dialog.showAndGet()) return
         val written = service(project).setUpAiInstructions(dialog.selectedTargets())
         WindowManager.getInstance().getStatusBar(project)?.info =
-            "Pacmon: AI instructions written to ${written.joinToString(", ")}."
+            "Depos: AI instructions written to ${written.joinToString(", ")}."
     }
 
     /**
@@ -122,7 +127,7 @@ object PacmonCommands {
         notes.state.decorations = if (on) Decorations.PREVIEW else Decorations.OFF
         notes.settingsChanged()
         WindowManager.getInstance().getStatusBar(project)?.info =
-            if (on) "Pacmon: note markers on." else "Pacmon: note markers off."
+            if (on) "Depos: note markers on." else "Depos: note markers off."
     }
 
     /**

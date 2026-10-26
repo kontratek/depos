@@ -6,6 +6,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import dev.pacmon.jetbrains.action.MoveNotes
 import dev.pacmon.jetbrains.core.LintFinding
 import dev.pacmon.jetbrains.core.NotesCore
 import dev.pacmon.jetbrains.core.NotesLint
@@ -40,6 +41,16 @@ class PacmonNotesAnnotator : Annotator {
         val kind = service.notesKind(notesFile) ?: return
         val starts = lineStartOffsets(text)
         val fileEnd = file.textRange.endOffset
+
+        // A .pacmon/ file with a .depos/ one beside it is never read.
+        service.shadowingNotesFile(notesFile)?.let { current ->
+            wholeLineRange(0, text, starts, fileEnd)?.let { range ->
+                holder.newAnnotation(HighlightSeverity.WARNING, MoveNotes.shadowedNotesFile(service.displayPath(current)))
+                    .range(range)
+                    .create()
+            }
+        }
+
         val dependencies = service.dependenciesForNotes(notesFile).map { it.name }
         val findings = NotesLint.lint(model, dependencies, kind)
         if (findings.isEmpty()) return
@@ -67,21 +78,26 @@ class PacmonNotesAnnotator : Annotator {
      * of the file is where they belong anyway.
      */
     private fun rangeFor(finding: LintFinding, text: String, starts: List<Int>, fileEnd: Int): TextRange? {
-        val span = spanOf(finding)
-        var line = finding.line.coerceIn(0, starts.size - 1)
-        if (span == null) {
-            while (line < starts.size && lineText(text, starts, line).isBlank()) line++
-            if (line >= starts.size) return null
-        }
+        val span = spanOf(finding) ?: return wholeLineRange(finding.line, text, starts, fileEnd)
+        val line = finding.line.coerceIn(0, starts.size - 1)
         val lineStart = starts[line]
         val content = lineText(text, starts, line)
-        val range = if (span == null) {
-            val indent = content.length - content.trimStart().length
-            (lineStart + indent) to (lineStart + content.trimEnd().length)
-        } else {
-            val start = span.start.coerceIn(0, content.length)
-            (lineStart + start) to (lineStart + span.end.coerceIn(start, content.length))
-        }
+        val start = span.start.coerceIn(0, content.length)
+        return clamp((lineStart + start) to (lineStart + span.end.coerceIn(start, content.length)), fileEnd)
+    }
+
+    /** Line [line]'s text without its indent, or the first line below it that has text. */
+    private fun wholeLineRange(line: Int, text: String, starts: List<Int>, fileEnd: Int): TextRange? {
+        var current = line.coerceIn(0, starts.size - 1)
+        while (current < starts.size && lineText(text, starts, current).isBlank()) current++
+        if (current >= starts.size) return null
+        val lineStart = starts[current]
+        val content = lineText(text, starts, current)
+        val indent = content.length - content.trimStart().length
+        return clamp((lineStart + indent) to (lineStart + content.trimEnd().length), fileEnd)
+    }
+
+    private fun clamp(range: Pair<Int, Int>, fileEnd: Int): TextRange? {
         val start = range.first.coerceAtMost(fileEnd)
         var end = range.second.coerceAtMost(fileEnd)
         // A span the edit has since emptied still deserves a caret-width mark.

@@ -24,7 +24,7 @@ class DeposException(message: String) : RuntimeException(message)
  */
 object DeviceFlow {
     /** The client id Depos accepts for this plugin. */
-    const val CLIENT_ID = "pacmon-jetbrains"
+    const val CLIENT_ID = "depos-jetbrains"
     private const val GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
     private val jsonHeaders = mapOf("Content-Type" to "application/json", "Accept" to "application/json")
 

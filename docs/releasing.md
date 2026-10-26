@@ -1,6 +1,6 @@
 # Releasing
 
-Pacmon is published by the Release workflow, never from a laptop. Merging a pull
+Depos is published by the Release workflow, never from a laptop. Merging a pull
 request publishes nothing; a release is a button. The run raises the version,
 names the CHANGELOG's "Unreleased" section, runs the whole test suite, builds one
 VS Code VSIX, one JetBrains plugin zip and one Visual Studio VSIX, pushes the
@@ -11,12 +11,12 @@ the same Marketplace, and attaches all three to a GitHub Release.
 
 The JetBrains plugin takes its version from `package.json` and its change notes
 from the CHANGELOG section of that version (`jetbrains/build.gradle.kts`); the
-Visual Studio extension takes the same version (`Pacmon.VisualStudio.csproj`)
+Visual Studio extension takes the same version (`Depos.VisualStudio.csproj`)
 and links to the CHANGELOG. One version number and one set of notes serve every
 registry. The JetBrains Marketplace lists a version only after its own review,
 normally within two business days; the run does not wait for that.
 
-The Visual Studio VSIX, `pacmon-visualstudio.vsix` for Visual Studio 2022 and
+The Visual Studio VSIX, `depos-visualstudio.vsix` for Visual Studio 2022 and
 newer, builds and publishes only on Windows, so the workflow is four jobs:
 `version` decides the version and the notes; `visualstudio` builds and tests the
 Visual Studio VSIX from them and checks it with `visualstudio/verify-vsix.ps1`;
@@ -26,7 +26,10 @@ Visual Studio VSIX from them and checks it with `visualstudio/verify-vsix.ps1`;
 the VS Code extension, `kontra.pacmon`; the listing page and its categories are
 in `visualstudio/marketplace/`. The workflow publishes every version, the first
 included: unlike JetBrains, the Visual Studio Marketplace creates the listing on
-the first upload. The VSIX identity is `dev.pacmon.visualstudio`, and its
+the first upload. The VSIX identity is `dev.pacmon.visualstudio`. The listing
+and the identity are from before Pacmon became Depos and stay, so installed
+copies update; so do the GUIDs Visual Studio keeps the extension's state under,
+such as where its tool window is docked, and `verify-vsix.ps1` checks them. The
 publisher must stay `Kontra`, the display name of the Marketplace publisher —
 VsixPublisher refuses anything else, and `verify-vsix.ps1` checks it on every
 CI run.
@@ -123,6 +126,6 @@ replaces a version it already has instead of refusing it, so check the listing
 first.
 
 ```sh
-msbuild visualstudio/Pacmon.VisualStudio/Pacmon.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true
-VsixPublisher.exe publish -payload visualstudio/Pacmon.VisualStudio/bin/Release/net472/pacmon-visualstudio.vsix -publishManifest visualstudio/marketplace/publishManifest.json -personalAccessToken <token>
+msbuild visualstudio/Depos.VisualStudio/Depos.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true
+VsixPublisher.exe publish -payload visualstudio/Depos.VisualStudio/bin/Release/net472/depos-visualstudio.vsix -publishManifest visualstudio/marketplace/publishManifest.json -personalAccessToken <token>
 ```

@@ -27,6 +27,7 @@ jetbrains/build/
 
 # Written by the extension during F5 and integration runs
 fixtures/**/.pacmon/AGENT-RULES.md
+fixtures/**/.depos/AGENT-RULES.md
 fixtures/**/.gradle/
 
 # Format experiments and scratch — never part of the repository

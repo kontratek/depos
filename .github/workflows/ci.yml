@@ -65,17 +65,17 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - uses: microsoft/setup-msbuild@v2
-      - run: dotnet restore visualstudio/Pacmon.VisualStudio.sln
-      - run: dotnet test visualstudio/Pacmon.Core.Tests/Pacmon.Core.Tests.csproj --no-restore --nologo
-      - run: dotnet test visualstudio/Pacmon.VisualStudio.Tests/Pacmon.VisualStudio.Tests.csproj --no-restore --nologo -p:CreateVsixContainer=false -p:DeployExtension=false -m:1
-      - run: msbuild visualstudio/Pacmon.VisualStudio/Pacmon.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true /m:1
+      - run: dotnet restore visualstudio/Depos.VisualStudio.sln
+      - run: dotnet test visualstudio/Depos.Core.Tests/Depos.Core.Tests.csproj --no-restore --nologo
+      - run: dotnet test visualstudio/Depos.VisualStudio.Tests/Depos.VisualStudio.Tests.csproj --no-restore --nologo -p:CreateVsixContainer=false -p:DeployExtension=false -m:1
+      - run: msbuild visualstudio/Depos.VisualStudio/Depos.VisualStudio.csproj /restore /t:Build /p:Configuration=Release /p:DeployExtension=false /p:CreateVsixContainer=true /m:1
       - name: Verify Visual Studio VSIX
         shell: pwsh
         run: ./visualstudio/verify-vsix.ps1
       - uses: actions/upload-artifact@v7
         with:
-          name: pacmon-visualstudio-vsix
-          path: visualstudio/Pacmon.VisualStudio/bin/Release/net472/pacmon-visualstudio.vsix
+          name: depos-visualstudio-vsix
+          path: visualstudio/Depos.VisualStudio/bin/Release/net472/depos-visualstudio.vsix
 
   # The IntelliJ Plugin Verifier, against the build target and the newest
   # release of every later IDE branch (pluginVerification.ides in

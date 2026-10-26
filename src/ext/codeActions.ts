@@ -4,7 +4,7 @@ import { AGENT_FIELD_RE } from '../core/layers';
 import { classifyStrayHeading, lintNotes } from '../core/lint';
 import { parseNotes } from '../core/parseNotes';
 import { normalizeText } from '../core/serialize';
-import { AGENT_NOTES_HEADING, DEFAULT_TITLE } from '../core/template';
+import { AGENT_NOTES_HEADING, DEFAULT_TITLE, notesDirOf } from '../core/template';
 import { NOTES_GLOB, isNotesFile } from './config';
 import { DIAG_SOURCE, type DiagCode } from './diagnostics';
 import { S } from './strings';
@@ -12,7 +12,17 @@ import { S } from './strings';
 const HEADING_TEXT_RE = /^#{1,6}\s*(.+?)\s*$/;
 
 /** "Fix All" (the command, or `editor.codeActionsOnSave`) picks this kind up. */
-export const FIX_ALL_KIND = vscode.CodeActionKind.SourceFixAll.append('pacmon');
+export const FIX_ALL_KIND = vscode.CodeActionKind.SourceFixAll.append('depos');
+/**
+ * The kind from before Pacmon became Depos, which people put in
+ * `editor.codeActionsOnSave`. Still answered when asked for by name; one
+ * action per request either way, so no fix runs twice.
+ */
+export const LEGACY_FIX_ALL_KIND = vscode.CodeActionKind.SourceFixAll.append('pacmon');
+
+function fixAllKindFor(only: vscode.CodeActionKind | undefined): vscode.CodeActionKind {
+  return only && !only.contains(FIX_ALL_KIND) && only.contains(LEGACY_FIX_ALL_KIND) ? LEGACY_FIX_ALL_KIND : FIX_ALL_KIND;
+}
 
 function removeLine(doc: vscode.TextDocument, diag: vscode.Diagnostic, preferred = false): vscode.CodeAction {
   const fix = new vscode.CodeAction(S.fixRemoveLine, vscode.CodeActionKind.QuickFix);
@@ -83,7 +93,7 @@ function diagnosticsOnLine(doc: vscode.TextDocument, range: vscode.Range, contex
   return out;
 }
 
-/** Quick fixes for pacmon diagnostics, a fix-all for the agent block, and a
+/** Quick fixes for Depos diagnostics, a fix-all for the agent block, and a
  *  formatting provider so the editor's own "Format Document" (and
  *  format-on-save) normalizes the notes file. */
 export function registerFixProviders(): vscode.Disposable[] {
@@ -95,10 +105,11 @@ export function registerFixProviders(): vscode.Disposable[] {
       provideCodeActions(doc, range, context) {
         const actions: vscode.CodeAction[] = [];
 
-        if (context.only === undefined || context.only.contains(FIX_ALL_KIND)) {
+        const fixAllKind = fixAllKindFor(context.only);
+        if (context.only === undefined || context.only.contains(fixAllKind)) {
           const all = fixAllEdit(doc);
           if (all) {
-            const action = new vscode.CodeAction(S.fixAllTitle(all.count), FIX_ALL_KIND);
+            const action = new vscode.CodeAction(S.fixAllTitle(all.count), fixAllKind);
             action.edit = all.edit;
             actions.push(action);
           }
@@ -124,7 +135,7 @@ export function registerFixProviders(): vscode.Disposable[] {
             const fix = new vscode.CodeAction(S.runFormat, vscode.CodeActionKind.QuickFix);
             fix.diagnostics = [diag];
             fix.isPreferred = true;
-            fix.command = { command: 'pacmon.normalizeNotesFile', title: S.runFormat };
+            fix.command = { command: 'depos.normalizeNotesFile', title: S.runFormat };
             actions.push(fix);
           }
 
@@ -174,13 +185,13 @@ export function registerFixProviders(): vscode.Disposable[] {
         return actions;
       },
     },
-    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, FIX_ALL_KIND] },
+    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, FIX_ALL_KIND, LEGACY_FIX_ALL_KIND] },
   );
 
   const formatting = vscode.languages.registerDocumentFormattingEditProvider(selector, {
     provideDocumentFormattingEdits(doc) {
       const original = doc.getText();
-      const canonical = normalizeText(original);
+      const canonical = normalizeText(original, notesDirOf(doc.uri.path));
       if (canonical === original) return [];
       const fullRange = new vscode.Range(new vscode.Position(0, 0), doc.lineAt(doc.lineCount - 1).range.end);
       return [vscode.TextEdit.replace(fullRange, canonical)];

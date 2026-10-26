@@ -7,8 +7,49 @@
 
 ## Unreleased
 
-- **Notes from Depos in VS Code (preview).** The Pacmon view has a new
-  **Depos** section: **Sign in to Depos** opens the browser, you check the
+- **Pacmon is now Depos.** The extension, its commands, views and settings
+  are called Depos, and its site is https://depos.dev (https://pacmon.dev
+  redirects there). The marketplace listings keep their identifiers
+  (`kontra.pacmon`, `dev.pacmon.jetbrains`, `kontra.pacmon-visualstudio`), so
+  this version arrives as an ordinary update, and sign-ins and settings stay.
+
+- **Notes live in `.depos/`; `.pacmon/` keeps working.** A first note goes to
+  `.depos/` beside the manifest, with `.depos/AGENT-RULES.md` at the root of
+  the workspace. A repository that keeps its notes in `.pacmon/` works as
+  before and stays there, new notes included, so a teammate on an older
+  version still sees all of them. Once everyone has updated, **Move Notes to
+  .depos/** moves the repository in one step, together with `AGENT-RULES.md`,
+  the header of each notes file and the pointer in `AGENTS.md` and the like;
+  opening a notes file in `.pacmon/` offers it once. Where both directories
+  hold a file for the same manifest, the `.depos/` one is read and the other is
+  marked as ignored. The header of a notes file names the `AGENT-RULES.md` of
+  its own directory, so formatting never moves it. The pointer block **Set Up
+  AI Instructions** writes now starts with `<!-- depos:start -->`; an older
+  `pacmon:` block is replaced in place, and a second one is removed. The same
+  in VS Code, JetBrains IDEs and Visual Studio.
+
+- **The Tools entries are in a Depos submenu in JetBrains IDEs and Visual
+  Studio.** **Tools → Depos** holds the notes commands, the new **Move Notes to
+  .depos/** and, after a separator, **Sign In**, **Sign Out**, **Show
+  Connection**, **Refresh Organization Notes** and **Copy MCP Setup**; the
+  editor's context menu keeps **Add/Edit Dependency Note**. JetBrains keymaps
+  keep working: the action ids did not change. The settings page is **Settings
+  → Tools → Depos**, and in Visual Studio **Tools → Options → Depos**.
+
+- **Settings and commands are named `depos.*` in VS Code.** A `pacmon.*`
+  setting is still read where the `depos.*` one is not set, and shows as
+  deprecated in the Settings editor; nothing is copied, so a team's
+  `.vscode/settings.json` stays as it is. Keybindings that name a `pacmon.*`
+  command keep working, and `editor.codeActionsOnSave` may name
+  `source.fixAll.depos` or the old `source.fixAll.pacmon`. The Depos view may
+  open in its default place once, and VS Code may ask once to trust the
+  "Depos notes" MCP server again. A `depos.url` saved as https://pacmon.dev is
+  read as https://depos.dev. The description of what the extension does in an
+  untrusted workspace now says it makes network requests while you are signed
+  in.
+
+- **Notes from Depos in VS Code (preview).** The Depos view has a new
+  **Organization** section: **Sign in** opens the browser, you check the
   code and approve it, and VS Code keeps the sign-in in its secret storage.
   Signed in, a workspace folder whose GitHub repository is added to one of
   your organizations in Depos uses that organization's notes in Depos:
@@ -19,18 +60,17 @@
   Depos**, the package's page in Depos. Organization admins edit
   these notes in the note editor and the change goes to Depos; other members
   read them. If someone else changed the note first, the save is refused and
-  the editor shows the new version. Pacmon keeps a copy of the notes on
+  the editor shows the new version. The extension keeps a copy of the notes on
   your machine, asks Depos only for what changed (at start, when the window
-  gets focus, every 5 minutes, or with **Refresh Notes from Depos**), and
+  gets focus, every 5 minutes, or with **Refresh Organization Notes**), and
   uses the copy while Depos cannot be reached. **Show connection** tells which
   organization each folder belongs to; **Sign out** ends the sign-in in Depos
-  too and removes the copy. Pacmon makes network requests only while you are
-  signed in. The address is `pacmon.depos.url` (default
-  `http://localhost:3000` until there is a public Depos); it must use `https`,
-  except for `localhost`, and a workspace cannot set it.
+  too and removes the copy. The extension makes network requests only while you are
+  signed in. The address is `depos.url` (default https://depos.dev); it must
+  use `https`, except for `localhost`, and a workspace cannot set it.
 
 - **The organization's allowlist in the editor (preview).** In org mode,
-  Pacmon shows the allowlist result Depos decides for each package of the
+  the extension shows the allowlist result Depos decides for each package of the
   folder's repository. Denied and Not listed packages are marked at their
   manifest line: a warning when the ecosystem is set to Audit, an error in
   Enforce. The hover shows the result, the reason, the expiry, and **Open in
@@ -39,22 +79,22 @@
   when allowed, with the
   reason and expiry in its tooltip. A line you just added
   is checked at once, before you push it. An ecosystem set to Off shows
-  nothing. Pacmon asks Depos again only when the allowlist changed, and uses
+  nothing. The extension asks Depos again only when the allowlist changed, and uses
   the last copy while Depos cannot be reached.
 
 - **AI agents read the notes from Depos in org mode (preview).** For each folder in org
-  mode, Pacmon adds a "Depos notes" MCP server to VS Code, so Copilot and
+  mode, the extension adds a "Depos notes" MCP server to VS Code, so Copilot and
   other agents in VS Code read the notes and check a package against the
   organization's allowlist before they add it. The agents of organization
   admins can also write the agent fields of a note; they never change the
-  human text. The server uses your Depos sign-in, which Pacmon adds when the
-  server starts and never saves in your MCP settings. `.pacmon/AGENT-RULES.md`
+  human text. The server uses your Depos sign-in, which the extension adds when the
+  server starts and never saves in your MCP settings. `.depos/AGENT-RULES.md`
   tells agents to use these tools when they have them; run **Set Up AI
   Instructions** to refresh it. VS Code 1.101 or later is required.
 
 - **Notes and the allowlist from Depos in JetBrains IDEs (preview).** The
-  same organization connection as in VS Code. **Tools → Sign In to Depos**, or
-  the new **DEPOS** group of the Pacmon tool window, opens the browser; you
+  same organization connection as in VS Code. **Tools → Depos → Sign In**, or
+  the new **ORGANIZATION** group of the Depos tool window, opens the browser; you
   check the code and approve it, and the IDE keeps the sign-in in its password
   safe. Signed in, the project's folder and each content root whose GitHub
   repository is added to one of your organizations use that organization's
@@ -69,13 +109,81 @@
   expiry and **Open in Depos**, and the note editor shows the result as a
   badge beside the package name, as in VS Code. The copy on your
   machine is refreshed at start, when the IDE gets focus, every 5 minutes and
-  with **Refresh Notes from Depos**. JetBrains IDEs have no way for a
-  plugin to add an MCP server, so **Copy Depos MCP Setup** puts an `.mcp.json`
+  with **Refresh Organization Notes**. JetBrains IDEs have no way for a
+  plugin to add an MCP server, so **Copy MCP Setup** puts an `.mcp.json`
   for the repository on the clipboard instead: it reads an MCP key from the
   `DEPOS_MCP_KEY` environment variable, which an admin adds in Depos under
-  Settings → AI agents. The address is **Depos address** under **Settings →
-  Tools → Pacmon**, for every project; it uses the IDE's proxy and certificate
-  settings. Pacmon makes network requests only while you are signed in.
+  Settings → AI agents. The address is **Server address** under **Settings →
+  Tools → Depos**, for every project; it uses the IDE's proxy and certificate
+  settings. The plugin makes network requests only while you are signed in.
+
+- **Notes and the allowlist from Depos in Visual Studio (preview).** The
+  same organization connection as in VS Code and JetBrains IDEs. **Tools →
+  Depos → Sign In**, or the new **Organization** group in the settings of the
+  Depos tool window, opens the browser; you check the code and approve it, and
+  Visual Studio keeps the sign-in in Windows Credential Manager. Signed in, a
+  solution's folder and each project's folder whose GitHub repository is added
+  to one of your organizations use that organization's notes from Depos: Quick
+  Info, the marks, the end-of-line preview, coverage and the note editor show
+  them, **Open NuGet Dependency Notes** opens them read-only, and
+  `DEPENDENCY-NOTES.md` is not read or changed; a red bar above it and an Error
+  List entry say it is no longer used and should be deleted. Organization
+  admins edit these notes in the tool window, and the change goes to Depos;
+  other members read them, and a refused save keeps your text and says why.
+  Denied and Not listed packages are marked at their manifest line and listed
+  in the Error List, a warning in Audit and an error in Enforce; Quick Info
+  and the note editor show the result, its reason, its expiry and **Open in
+  Depos**, and the note editor shows the result as a badge beside the package
+  name. The copy on your machine is refreshed at start, when Visual Studio
+  gets focus, every 5 minutes and with **Refresh Organization Notes**, and
+  used while the server cannot be reached; **Sign Out** ends the sign-in on
+  the server too and removes the copy. **Copy MCP Setup** puts the
+  repository's MCP server on the clipboard in Visual Studio's `.mcp.json`
+  format, which asks for the MCP key when the server starts. The address is
+  **Server address** under **Tools → Options → Depos → General**. The
+  extension makes network requests only while you are signed in.
+
+- **Visual Studio writes the agent pointer too.** **Set Up AI Instructions**
+  now asks which instruction files to connect, as VS Code and JetBrains IDEs
+  do, and writes the same three lines into `AGENTS.md`, `CLAUDE.md` and the
+  others besides `.depos/AGENT-RULES.md`. Problems in a notes file are also
+  listed in the Error List, and Extensions → Installed shows the right version.
+
+- **Visual Studio shows its commands.** The extension's commands were missing
+  from the Tools menu and the editor's context menu: the command table was
+  built under a name Visual Studio did not look for. They are there now, under
+  **Tools → Depos**, and **Add/Edit Dependency Note** in the editor's context
+  menu.
+
+- **Depos supports PHP/Composer projects in JetBrains IDEs, including PhpStorm.**
+  `composer.json` gets what VS Code already has: markers, quick documentation,
+  note editing and coverage for the package and platform requirements in the
+  root `require` and `require-dev` objects, backed by the same
+  `.depos/composer/DEPENDENCY-NOTES.md`. The manifest is read statically; PHP
+  and Composer are never run.
+
+- **Depos supports C/C++ vcpkg projects in JetBrains IDEs, including CLion.**
+  `vcpkg.json` gets what VS Code already has: markers, quick documentation,
+  note editing and coverage for the string and object entries in the root
+  `dependencies` array and in `features.<name>.dependencies`, backed by the
+  same `.depos/vcpkg/DEPENDENCY-NOTES.md`. Host dependencies keep a separate
+  scope. The manifest is read statically; vcpkg is never run.
+
+- **Depos supports C/C++ Conan projects in JetBrains IDEs, including CLion.**
+  `conanfile.txt` and `conanfile.py` get what VS Code already has: markers,
+  quick documentation, note editing and coverage, backed by the same
+  `.depos/conan/DEPENDENCY-NOTES.md`. Depos reads the `requires`,
+  `tool_requires`, `test_requires` and `build_requires` sections of
+  `conanfile.txt`, and literal class fields and `self.requires(...)`-style
+  calls in `conanfile.py`. Both are read statically; Conan and Python are
+  never run.
+
+- **Conan version ranges with spaces are read.** Requirements such as
+  `openssl/[>=3.0 <4]` in `conanfile.txt` and `conanfile.py` were skipped
+  without a warning; they now get markers, hover and coverage like
+  `zlib/[~1.3]`.
+
+## 0.10.0 — 2026-10-02
 
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing
@@ -85,10 +193,10 @@
   ignores dynamic declarations, `eval_gemfile`, `Gemfile.lock` and transitive
   gems.
 
-- **Pacmon supports PHP/Composer projects in VS Code and JetBrains/PhpStorm.**
-  Package and platform requirements in the root `require` and `require-dev`
-  objects of `composer.json` get markers, hover, note editing and coverage
-  backed by `.pacmon/composer/DEPENDENCY-NOTES.md`. Parsing is static: Pacmon never runs
+- **Pacmon supports PHP/Composer projects in VS Code.** Package and platform
+  requirements in the root `require` and `require-dev` objects of
+  `composer.json` get markers, hover, note editing and coverage backed by
+  `.pacmon/composer/DEPENDENCY-NOTES.md`. Parsing is static: Pacmon never runs
   PHP or Composer, and ignores other package-link fields, `composer.lock` and
   transitive packages.
 

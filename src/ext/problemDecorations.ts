@@ -7,7 +7,7 @@ import { S } from './strings';
 const MAX_INLINE = 140;
 
 /**
- * The message of each Pacmon diagnostic, written at the end of its line in the
+ * The message of each Depos diagnostic, written at the end of its line in the
  * notes file (the way Error Lens does it), with a faint tint on the line.
  * A squiggle alone is easy to miss; the text is not. Only our diagnostics,
  * only in `.pacmon/DEPENDENCY-NOTES.md` — and all of them warnings, so one colour.

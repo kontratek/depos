@@ -4,7 +4,7 @@ object NugetManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.NUGET
     override val fileNames = listOf("Directory.Packages.props")
     override val discoveryGlobs = listOf("**/*.csproj", "**/*.fsproj", "**/*.vbproj", "**/Directory.Packages.props")
-    override val notesRelativePath = ".pacmon/nuget/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/nuget/DEPENDENCY-NOTES.md"
 
     private val projectExtensions = listOf(".csproj", ".fsproj", ".vbproj")
     private val packageId = Regex("^[A-Za-z0-9][A-Za-z0-9._-]*$")

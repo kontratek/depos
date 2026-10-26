@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
-/** Single output channel — makes "is it even running?" answerable (View → Output → Pacmon). */
-export const log = vscode.window.createOutputChannel('Pacmon');
+/** Single output channel — makes "is it even running?" answerable (View → Output → Depos). */
+export const log = vscode.window.createOutputChannel('Depos');
 
 export function logInfo(message: string): void {
   log.appendLine(`[${new Date().toISOString()}] ${message}`);

@@ -8,7 +8,7 @@ import {
   type PollClock,
 } from '../../ext/web/deviceFlow';
 import { githubFullName, remoteUrlFromGitConfig } from '../../ext/web/gitRemote';
-import { parseServerUrl } from '../../ext/web/serverUrl';
+import { parseServerUrl, renamedServerUrl } from '../../ext/web/serverUrl';
 
 /** The optional Depos connection: server address, git remote, device flow. */
 
@@ -185,5 +185,19 @@ describe('pollForToken', () => {
   it('throws on an unexpected error', async () => {
     const { fetchFn } = fakeFetch([{ status: 500, body: {} }]);
     await expect(pollForToken(fetchFn, 'o', CODE, fakeClock().clock)).rejects.toThrow('HTTP 500');
+  });
+});
+
+describe('renamedServerUrl', () => {
+  it('reads an address saved before Pacmon became Depos as depos.dev', () => {
+    expect(renamedServerUrl('https://pacmon.dev')).toBe('https://depos.dev');
+    expect(renamedServerUrl('https://www.pacmon.dev/')).toBe('https://depos.dev/');
+    expect(renamedServerUrl('HTTPS://PACMON.DEV')).toBe('https://depos.dev');
+  });
+
+  it('leaves every other address alone', () => {
+    for (const url of ['https://depos.dev', 'http://localhost:3000', 'https://pacmon.dev.example.com', 'https://notpacmon.dev', undefined]) {
+      expect(renamedServerUrl(url)).toBe(url);
+    }
   });
 });
