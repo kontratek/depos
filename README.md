@@ -131,7 +131,7 @@ Visual Studio exposes the corresponding choices in **Tools → Options → Depos
 
 The Depos web app holds one note per package for a whole organization, shared by all its repositories. In VS Code and JetBrains IDEs (preview), sign in and every workspace folder — in a JetBrains IDE, the project's folder and each content root — whose GitHub repository is added to one of your organizations works in **org mode**:
 
-- The hover, the note editor, the end-of-line preview and coverage show the organization's notes from Depos. `DEPENDENCY-NOTES.md` is not read or changed; an error at its top says it is no longer used and should be deleted.
+- The hover, the note editor, the end-of-line preview and coverage show the organization's notes from Depos. `DEPENDENCY-NOTES.md` is not read or changed; an error at its top (in Visual Studio, a bar above it and an Error List entry) says it is no longer used and should be deleted.
 - Organization admins edit these notes in the note editor, and the change goes to Depos. Other members read them.
 - If someone else changed the note first, the save is refused and the editor fetches the new version.
 - The organization's allowlist shows at each manifest line: Denied and Not listed packages are a warning in Audit and an error in Enforce, and the hover and the note editor show the result, its reason and a link to the package in Depos. A line you just added is checked at once.
@@ -146,7 +146,7 @@ VS Code 1.101 or newer, a JetBrains IDE 2025.2 or newer, or Visual Studio 2022 o
 
 ## Format reference
 
-npm notes use the `dependency-notes/1` format. Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan notes use `dependency-notes/2`, whose frontmatter also names the ecosystem. VS Code and JetBrains support every listed ecosystem, and the Visual Studio VSIX currently supports NuGet. The reference is [`docs/format.md`](docs/format.md).
+npm notes use the `dependency-notes/1` format. Cargo, Maven, Gradle, Mix, Gleam, Zig, Python, Ruby, Composer, Go, NuGet, vcpkg and Conan notes use `dependency-notes/2`, whose frontmatter also names the ecosystem. VS Code and JetBrains support every listed ecosystem, and the Visual Studio extension currently supports NuGet. The reference is [`docs/format.md`](docs/format.md).
 
 ## Contributing and license
 

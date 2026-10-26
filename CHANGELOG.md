@@ -148,6 +148,51 @@
 
 ## 0.10.0 — 2026-10-02
 
+- **Notes and the allowlist from Depos in Visual Studio (preview).** The
+  same organization connection as in VS Code and JetBrains IDEs. **Tools →
+  Sign In to Depos**, or the new **Depos** group in the settings of the Depos
+  tool window, opens the browser; you check the code and approve it, and
+  Visual Studio keeps the sign-in in Windows Credential Manager. Signed in, a
+  solution's folder and each project's folder whose GitHub repository is added
+  to one of your organizations use that organization's notes from Depos: Quick
+  Info, the marks, the end-of-line preview, coverage and the note editor show
+  them, **Open NuGet Dependency Notes** opens them read-only, and
+  `DEPENDENCY-NOTES.md` is not read or changed; a red bar above it and an Error
+  List entry say it is no longer used and should be deleted. Organization
+  admins edit these notes in the tool window, and the change goes to Depos;
+  other members read them, and a refused save keeps your text and says why.
+  Denied and Not listed packages are marked at their manifest line and listed
+  in the Error List, a warning in Audit and an error in Enforce; Quick Info
+  and the note editor show the result, its reason, its expiry and **Open in
+  Depos**, and the note editor shows the result as a badge beside the package
+  name. The copy on your machine is refreshed at start, when Visual Studio
+  gets focus, every 5 minutes and with **Refresh Notes from Depos**, and used
+  while Depos cannot be reached; **Sign Out of Depos** ends the sign-in in
+  Depos too and removes it. **Copy Depos MCP Setup** puts the repository's MCP
+  server on the clipboard in Visual Studio's `.mcp.json` format, which asks for
+  the MCP key when the server starts. The address is **Depos address** under
+  **Tools → Options → Depos → General**. Depos makes network requests only
+  while you are signed in.
+
+- **The Visual Studio extension is now Depos — Dependency Notes.** It is a new
+  Visual Studio Marketplace listing, `kontra.depos-visualstudio`, with the
+  identity `dev.depos.visualstudio`; the Pacmon listing gets no further
+  versions, so uninstall it and install Depos. Its menus, tool window and
+  options page say Depos (**Tools → Options → Depos**); options set for Pacmon
+  are not carried over. Notes files and `.pacmon/AGENT-RULES.md` stay where
+  they are and need no change.
+
+- **Visual Studio writes the agent pointer too.** **Set Up AI Instructions**
+  now asks which instruction files to connect, as VS Code and JetBrains IDEs
+  do, and writes the same three lines into `AGENTS.md`, `CLAUDE.md` and the
+  others besides `.pacmon/AGENT-RULES.md`. Problems in a notes file are also
+  listed in the Error List, and Extensions → Installed shows the right version.
+
+- **Visual Studio shows its commands.** The extension's commands were missing
+  from the Tools menu and the editor's context menu: the command table was
+  built under a name Visual Studio did not look for. **Depos Dependency
+  Notes**, **Add/Edit Dependency Note** and the other commands are there now.
+
 - **Pacmon supports Ruby projects in VS Code and JetBrains/RubyMine.** Literal
   gems in `Gemfile`, `gems.rb` and `*.gemspec` get markers, hover, note editing
   and shared coverage backed by `.pacmon/ruby/DEPENDENCY-NOTES.md`. Groups,

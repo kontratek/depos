@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+  <Commands package="guidDeposPackage">
+    <Groups>
+      <Group guid="guidDeposCommands" id="DeposMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+      <Group guid="guidDeposCommands" id="DeposEditorGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+      <Group guid="guidDeposCommands" id="DeposConnectionGroup" priority="0x0601">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+    </Groups>
+    <Buttons>
+      <Button guid="guidDeposCommands" id="ShowDepos" priority="0x0100" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Depos Dependency Notes</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="AddOrEditNote" priority="0x0100" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposEditorGroup" />
+        <Strings><ButtonText>Depos: Add/Edit Dependency Note</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="OpenNotes" priority="0x0200" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Open NuGet Dependency Notes</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="OpenManifest" priority="0x0250" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Open NuGet Dependency Manifest</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="ShowCoverage" priority="0x0300" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Documentation Coverage</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="NormalizeNotes" priority="0x0400" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Format NuGet Dependency Notes</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="SetupAiInstructions" priority="0x0500" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Set Up AI Instructions</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="ToggleMarkers" priority="0x0600" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
+        <Strings><ButtonText>Toggle Note Markers</ButtonText></Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="SignIn" priority="0x0100" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Sign In to Depos</ButtonText>
+          <ToolTipText>Sign in to Depos to use your organization's notes and allowlist</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="SignOut" priority="0x0200" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Sign Out of Depos</ButtonText>
+          <ToolTipText>End the Depos sign-in and remove the local copy of the notes and allowlist results</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="ShowConnection" priority="0x0300" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Show Depos Connection</ButtonText>
+          <ToolTipText>Who you are signed in to Depos as, and the organization of each folder</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="RefreshNotes" priority="0x0400" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Refresh Notes from Depos</ButtonText>
+          <ToolTipText>Ask Depos for what changed in the notes and the allowlist</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="CopyMcpSetup" priority="0x0500" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Copy Depos MCP Setup</ButtonText>
+          <ToolTipText>Copy an .mcp.json for AI agents, for the repository of a folder in org mode</ToolTipText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+  <Symbols>
+    <GuidSymbol name="guidDeposPackage" value="{F797BD3C-55F1-4225-8D64-BC10034919EC}" />
+    <GuidSymbol name="guidDeposCommands" value="{9C0D68A1-5643-4FBD-A674-D9171E992BB0}">
+      <IDSymbol name="DeposMenuGroup" value="0x1000" />
+      <IDSymbol name="DeposEditorGroup" value="0x1001" />
+      <IDSymbol name="ShowDepos" value="0x0100" />
+      <IDSymbol name="AddOrEditNote" value="0x0101" />
+      <IDSymbol name="OpenNotes" value="0x0102" />
+      <IDSymbol name="ShowCoverage" value="0x0103" />
+      <IDSymbol name="NormalizeNotes" value="0x0104" />
+      <IDSymbol name="SetupAiInstructions" value="0x0105" />
+      <IDSymbol name="ToggleMarkers" value="0x0106" />
+      <IDSymbol name="OpenManifest" value="0x0107" />
+      <IDSymbol name="DeposConnectionGroup" value="0x1002" />
+      <IDSymbol name="SignIn" value="0x0108" />
+      <IDSymbol name="SignOut" value="0x0109" />
+      <IDSymbol name="ShowConnection" value="0x010A" />
+      <IDSymbol name="RefreshNotes" value="0x010B" />
+      <IDSymbol name="CopyMcpSetup" value="0x010C" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
