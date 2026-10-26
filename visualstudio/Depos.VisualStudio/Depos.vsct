@@ -10,6 +10,9 @@
       <Group guid="guidDeposCommands" id="DeposEditorGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
       </Group>
+      <Group guid="guidDeposCommands" id="DeposConnectionGroup" priority="0x0601">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
     </Groups>
     <Buttons>
       <Button guid="guidDeposCommands" id="ShowDepos" priority="0x0100" type="Button">
@@ -44,6 +47,41 @@
         <Parent guid="guidDeposCommands" id="DeposMenuGroup" />
         <Strings><ButtonText>Toggle Note Markers</ButtonText></Strings>
       </Button>
+      <Button guid="guidDeposCommands" id="SignIn" priority="0x0100" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Sign In to Depos</ButtonText>
+          <ToolTipText>Sign in to Depos to use your organization's notes and allowlist</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="SignOut" priority="0x0200" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Sign Out of Depos</ButtonText>
+          <ToolTipText>End the Depos sign-in and remove the local copy of the notes and allowlist results</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="ShowConnection" priority="0x0300" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Show Depos Connection</ButtonText>
+          <ToolTipText>Who you are signed in to Depos as, and the organization of each folder</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="RefreshNotes" priority="0x0400" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Refresh Notes from Depos</ButtonText>
+          <ToolTipText>Ask Depos for what changed in the notes and the allowlist</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidDeposCommands" id="CopyMcpSetup" priority="0x0500" type="Button">
+        <Parent guid="guidDeposCommands" id="DeposConnectionGroup" />
+        <Strings>
+          <ButtonText>Copy Depos MCP Setup</ButtonText>
+          <ToolTipText>Copy an .mcp.json for AI agents, for the repository of a folder in org mode</ToolTipText>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
   <Symbols>
@@ -59,6 +97,12 @@
       <IDSymbol name="SetupAiInstructions" value="0x0105" />
       <IDSymbol name="ToggleMarkers" value="0x0106" />
       <IDSymbol name="OpenManifest" value="0x0107" />
+      <IDSymbol name="DeposConnectionGroup" value="0x1002" />
+      <IDSymbol name="SignIn" value="0x0108" />
+      <IDSymbol name="SignOut" value="0x0109" />
+      <IDSymbol name="ShowConnection" value="0x010A" />
+      <IDSymbol name="RefreshNotes" value="0x010B" />
+      <IDSymbol name="CopyMcpSetup" value="0x010C" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

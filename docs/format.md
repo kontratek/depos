@@ -198,7 +198,7 @@ A tool that adds a section puts it at its sorted position when the file is sorte
 
 ## The organization layer
 
-Status: proposal. VS Code and JetBrains implement it as a preview. Visual Studio does not yet.
+Status: proposal. VS Code, JetBrains and Visual Studio implement it as a preview.
 
 A web app for Pacmon, such as Depos, can hold two kinds of data for an organization: notes, one note per package shared by all its repositories, and an allowlist. This data lives in the web app. It is never written into a notes file, and it does not change this format. A file that is valid without it stays valid and means the same.
 
@@ -249,7 +249,7 @@ A tool keeps a copy of the notes and the allowlist results on the user's machine
 
 ### Agents
 
-In org mode, a tool can give AI agents the notes of the web app through an MCP server. The web app serves one MCP server per repository. Where the editor has a way to add MCP servers, the tool registers it for the editor's agents, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write. A tool whose editor has no way to add an MCP server can give the user the setup for the key instead: the server's address, with the key read from the environment, never the key itself.
+In org mode, a tool can give AI agents the notes of the web app through an MCP server. The web app serves one MCP server per repository. Where the editor has a way to add MCP servers, the tool registers it for the editor's agents, with the user's sign-in. Agents outside an editor, such as a command-line agent or CI, connect to the same server with an MCP key of the organization. An admin adds the key in the web app. It can read, or read and write. A tool whose editor has no way to add an MCP server can give the user the setup for the key instead: the server's address, with the key read from the environment or asked for by the editor, never the key itself.
 
 - An agent that has these tools reads notes through them. It does not read or write the notes files of the folder.
 - An agent acts with the rights of the signed-in user, or of the admin who added the key. Only an admin's agent can write, and with a key only when the key can write.

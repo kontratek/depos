@@ -16,6 +16,7 @@ using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
 using Depos.Core;
+using Depos.Core.Org;
 
 namespace Depos.VisualStudio;
 
@@ -98,13 +99,22 @@ internal sealed class DeposQuickInfoSource : IAsyncQuickInfoSource
         if (dependency is null) return Task.FromResult<QuickInfoItem?>(null);
 
         var hasNote = runtime.TryGetLayers(path, dependency.NoteKey, out var layers, out var notesPath);
-        if (!hasNote) return Task.FromResult<QuickInfoItem?>(null);
+        var org = runtime.OrgFor(path);
+        // In org mode the allowlist result shows even for a package without a note.
+        var view = org is null ? null : runtime.Depos.Sync.View(path, dependency.NoteKey);
+        if (!hasNote && view is null) return Task.FromResult<QuickInfoItem?>(null);
+        var source = org is null ? Path.GetFileName(notesPath) : DeposStrings.OrgNotesLabel(org.OrgName);
         var elements = new List<object>
         {
             new ClassifiedTextElement(
                 new ClassifiedTextRun("keyword", dependency.DisplayName, ClassifiedTextRunStyle.Bold),
-                new ClassifiedTextRun("comment", $"  — {Path.GetFileName(notesPath)}")),
+                new ClassifiedTextRun("comment", $"  — {source}")),
         };
+        if (view is not null)
+        {
+            elements.Add(new ClassifiedTextElement(new ClassifiedTextRun("text", view.Line(), ClassifiedTextRunStyle.Bold)));
+            elements.Add(new ClassifiedTextElement(new ClassifiedTextRun("comment", view.Received)));
+        }
         var ordered = runtime.Options.InlineSource is InlineSource.AiFirst or InlineSource.AiOnly
             ? new[] { ("Agent notes", layers.Agent), ("Your note", layers.Human) }
             : new[] { ("Your note", layers.Human), ("Agent notes", layers.Agent) };
@@ -116,20 +126,27 @@ internal sealed class DeposQuickInfoSource : IAsyncQuickInfoSource
                 new ClassifiedTextRun("text", shown[index].Item1, ClassifiedTextRunStyle.Bold)));
             elements.AddRange(MarkdownElements(shown[index].Item2));
         }
-        elements.Add(new ClassifiedTextElement(
-            new ClassifiedTextRun(
+        var edit = new ClassifiedTextRun(
+            "text",
+            hasNote ? "Edit note" : "Add note",
+            () => RunAction(() => runtime.AddOrEditAsync(path, dependency.NoteKey)),
+            hasNote ? "Edit this dependency note" : "Add a note for this dependency",
+            ClassifiedTextRunStyle.Underline);
+        // Signed in to Depos, the package's page there takes the place of the notes file, shown once.
+        var open = view is not null
+            ? new ClassifiedTextRun(
                 "text",
-                "Edit note",
-                () => RunAction(() => runtime.AddOrEditAsync(path, dependency.NoteKey)),
-                "Edit this dependency note",
-                ClassifiedTextRunStyle.Underline),
-            new ClassifiedTextRun("text", "  ·  "),
-            new ClassifiedTextRun(
+                DeposStrings.OrgOpenWeb,
+                () => DeposService.OpenBrowser(view.Link),
+                view.Link,
+                ClassifiedTextRunStyle.Underline)
+            : new ClassifiedTextRun(
                 "text",
-                "Open notes file",
+                org is null ? "Open notes file" : DeposStrings.OrgOpenOrgNotes,
                 () => RunAction(() => runtime.OpenNotesAsync(path, dependency.NoteKey)),
-                notesPath,
-                ClassifiedTextRunStyle.Underline)));
+                org is null ? notesPath : DeposStrings.OrgNotesLabel(org.OrgName),
+                ClassifiedTextRunStyle.Underline);
+        elements.Add(new ClassifiedTextElement(edit, new ClassifiedTextRun("text", "  ·  "), open));
         var tracking = buffer.CurrentSnapshot.CreateTrackingSpan(
             EditorFeatureHelpers.Span(buffer.CurrentSnapshot, dependency.PrimaryRange).Span,
             SpanTrackingMode.EdgeInclusive);
@@ -475,20 +492,12 @@ internal sealed class DeposErrorTagger : ITagger<IErrorTag>, IDisposable
     {
         if (spans.Count == 0 || runtime is null) yield break;
         var snapshot = spans[0].Snapshot;
-        foreach (var finding in runtime.LintNotesBuffer(buffer))
+        foreach (var problem in runtime.Problems(buffer, snapshot))
         {
-            if (finding.Line < 0 || finding.Line >= snapshot.LineCount) continue;
-            var line = snapshot.GetLineFromLineNumber(finding.Line);
-            var start = Math.Min(line.End.Position, line.Start.Position + Math.Max(0, finding.StartColumn));
-            var end = finding.EndColumn > finding.StartColumn
-                ? Math.Min(line.End.Position, line.Start.Position + finding.EndColumn)
-                : line.End.Position;
-            var safeStart = start;
-            var safeEnd = Math.Min(snapshot.Length, Math.Max(start + 1, end));
-            if (safeEnd == safeStart && safeStart > 0) safeStart--;
-            var span = new SnapshotSpan(snapshot, Span.FromBounds(safeStart, safeEnd));
-            if (spans.IntersectsWith(span))
-                yield return new TagSpan<IErrorTag>(span, new ErrorTag(PredefinedErrorTypeNames.Warning, finding.Message));
+            var span = new SnapshotSpan(snapshot, new Span(problem.Start, problem.Length));
+            if (!spans.IntersectsWith(span)) continue;
+            var type = problem.Severity == DeposSeverity.Error ? PredefinedErrorTypeNames.SyntaxError : PredefinedErrorTypeNames.Warning;
+            yield return new TagSpan<IErrorTag>(span, new ErrorTag(type, problem.Message));
         }
     }
 

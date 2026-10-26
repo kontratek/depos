@@ -7,7 +7,7 @@ using Depos.Core;
 namespace Depos.VisualStudio;
 
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-[InstalledProductRegistration("Depos — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", "0.4.0")]
+[InstalledProductRegistration("Depos — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", DeposBuild.Version)]
 [ProvideMenuResource("Menus.ctmenu", 1)]
 [ProvideToolWindow(
     typeof(DeposToolWindow),
@@ -22,12 +22,25 @@ public sealed class DeposPackage : AsyncPackage
     public const string PackageGuid = "F797BD3C-55F1-4225-8D64-BC10034919EC";
     public static readonly Guid CommandSet = new("9C0D68A1-5643-4FBD-A674-D9171E992BB0");
 
+    private static DeposPackage? instance;
+
     internal DeposRuntime Runtime { get; private set; } = null!;
+
+    /// <summary>
+    /// Runs <paramref name="work"/> without blocking the caller, on the package's
+    /// task factory so Visual Studio waits for it at shutdown; a fault is reported
+    /// under <paramref name="faultEvent"/>.
+    /// </summary>
+    internal static void Forget(Func<Task> work, string faultEvent)
+    {
+        if (instance is { } package) package.JoinableTaskFactory.RunAsync(work).FileAndForget(faultEvent);
+    }
     internal DeposOptionsPage Options => (DeposOptionsPage)GetDialogPage(typeof(DeposOptionsPage));
 
     protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
     {
         await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+        instance = this;
         Runtime = await DeposRuntime.CreateAsync(this, cancellationToken);
         DeposRuntime.Current = Runtime;
         await RegisterCommandsAsync(cancellationToken);
@@ -37,6 +50,7 @@ public sealed class DeposPackage : AsyncPackage
     {
         if (disposing) Runtime?.Dispose();
         if (ReferenceEquals(DeposRuntime.Current, Runtime)) DeposRuntime.Current = null;
+        if (ReferenceEquals(instance, this)) instance = null;
         base.Dispose(disposing);
     }
 
@@ -74,6 +88,11 @@ public sealed class DeposPackage : AsyncPackage
             Runtime.NotifyChanged();
             await Task.CompletedTask;
         });
+        AddCommand(service, 0x0108, async () => await Runtime.Depos.SignInAsync());
+        AddCommand(service, 0x0109, async () => await Runtime.Depos.SignOutAsync());
+        AddCommand(service, 0x010A, async () => await Runtime.Depos.ShowConnectionAsync());
+        AddCommand(service, 0x010B, async () => await Runtime.Depos.RefreshAsync());
+        AddCommand(service, 0x010C, async () => await Runtime.Depos.CopyMcpSetupAsync());
     }
 
     private void AddCommand(OleMenuCommandService service, int id, Func<Task> execute)
@@ -85,7 +104,7 @@ public sealed class DeposPackage : AsyncPackage
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var active = Runtime?.ActiveDocumentPath;
-            command.Visible = id == 0x0100 || id == 0x0103 || id == 0x0105
+            command.Visible = id == 0x0100 || id == 0x0103 || id == 0x0105 || id >= 0x0108
                 || (active is not null && (NugetManifest.MatchesPath(active) || DeposRuntime.IsNotesPath(active)));
         };
         service.AddCommand(command);

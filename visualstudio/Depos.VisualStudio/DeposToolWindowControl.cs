@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Shell;
 using Depos.Core;
+using Depos.Core.Org;
 
 namespace Depos.VisualStudio;
 
@@ -37,6 +38,7 @@ internal sealed class NoteLayerControl : StackPanel
     private readonly Button edit = new() { Content = "Edit", Padding = new Thickness(8, 2, 8, 2) };
     private readonly string emptyText;
     private bool loading;
+    private bool readOnly;
 
     public NoteLayerControl(string? title, string emptyText)
     {
@@ -99,8 +101,19 @@ internal sealed class NoteLayerControl : StackPanel
         RefreshPreview();
     }
 
+    /// <summary>Org mode for a member who is not an admin: the note is shown, not edited.</summary>
+    public void SetReadOnly(bool value)
+    {
+        readOnly = value;
+        editor.IsReadOnly = value;
+        edit.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+        preview.Cursor = value ? Cursors.Arrow : Cursors.IBeam;
+        if (value) EndEdit();
+    }
+
     public void BeginEdit()
     {
+        if (readOnly) return;
         preview.Visibility = Visibility.Collapsed;
         editor.Visibility = Visibility.Visible;
         edit.Content = "Preview";
@@ -135,8 +148,11 @@ public sealed class DeposToolWindowControl : UserControl
     private readonly Button refreshButton = new() { Content = "Refresh", Padding = new Thickness(9, 3, 9, 3) };
     private readonly Border footer = new() { Padding = new Thickness(0, 7, 0, 0) };
     private readonly TextBlock packageTitle = new();
+    private readonly Border orgBadge = new() { CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(8, 3, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+    private readonly TextBlock orgBadgeText = new() { FontSize = 11, FontWeight = FontWeights.SemiBold };
     private readonly TextBlock packageScope = new() { Opacity = 0.7 };
     private readonly TextBlock notesPath = new() { Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock readOnlyLabel = new() { Text = DeposStrings.OrgNoteReadOnly, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
     private readonly NoteLayerControl human = new("Your note", "Nothing written yet — click to write.");
     private readonly NoteLayerControl agent = new(null, "No agent notes yet — click to add.");
     private readonly Expander agentBox = new();
@@ -157,6 +173,9 @@ public sealed class DeposToolWindowControl : UserControl
     private bool dirty;
     private bool showingSettings = true;
     private bool initialized;
+    private bool readOnly;
+    private bool saving;
+    private OrgView? orgView;
     private DateTime suppressReloadUntil;
 
     public DeposToolWindowControl()
@@ -317,10 +336,19 @@ public sealed class DeposToolWindowControl : UserControl
         DeposVisuals.ApplySecondaryTextTheme(packageScope);
         DeposVisuals.ApplySecondaryTextTheme(notesPath);
         DeposVisuals.ApplySecondaryTextTheme(saveStatus);
-        body.Children.Add(packageTitle);
+        DeposVisuals.ApplySecondaryTextTheme(readOnlyLabel);
+        // The allowlist result beside the package name; its mode, reason and expiry are the tooltip.
+        orgBadge.Child = orgBadgeText;
+        orgBadge.Visibility = Visibility.Collapsed;
+        var titleRow = new WrapPanel { Orientation = Orientation.Horizontal };
+        titleRow.Children.Add(packageTitle);
+        titleRow.Children.Add(orgBadge);
+        body.Children.Add(titleRow);
         body.Children.Add(packageScope);
         notesPath.Margin = new Thickness(0, 2, 0, 12);
         body.Children.Add(notesPath);
+        readOnlyLabel.Visibility = Visibility.Collapsed;
+        body.Children.Add(readOnlyLabel);
 
         human.Changed += LayerChanged;
         human.CommitRequested += (_, _) => Run(SaveCurrentAsync);
@@ -370,11 +398,15 @@ public sealed class DeposToolWindowControl : UserControl
         };
         openNotes.Click += (_, _) => Run(async () =>
         {
-            if (context is not null && selected is not null)
-            {
-                await SaveCurrentAsync();
-                await DeposRuntime.Current!.EnsureSectionAndOpenAsync(context.ManifestPath, selected.Dependency.NoteKey);
-            }
+            if (context is null || selected is null || DeposRuntime.Current is not { } runtime) return;
+            await SaveCurrentAsync();
+            // The link is built here from the local copy, not taken from anything shown.
+            if (runtime.Depos.Sync.View(context.ManifestPath, selected.Dependency.NoteKey) is { } view)
+                DeposService.OpenBrowser(view.Link);
+            else if (runtime.OrgFor(context.ManifestPath) is not null)
+                await runtime.OpenNotesAsync(context.ManifestPath);
+            else
+                await runtime.EnsureSectionAndOpenAsync(context.ManifestPath, selected.Dependency.NoteKey);
         });
         save.Click += (_, _) => Run(SaveCurrentAsync);
         buttons.Children.Add(openNotes);
@@ -417,9 +449,11 @@ public sealed class DeposToolWindowControl : UserControl
             settingsView.SyncFromOptions();
             return;
         }
-        if (dirty || human.IsKeyboardFocusWithin || agent.IsKeyboardFocusWithin)
+        if (saving || dirty || human.IsKeyboardFocusWithin || agent.IsKeyboardFocusWithin)
         {
-            saveStatus.Text = "Workspace changed; your unsaved text is preserved.";
+            // The text stays; who may change the note and its allowlist result follow at once.
+            RefreshOrg();
+            if (!saving) saveStatus.Text = "Workspace changed; your unsaved text is preserved.";
             return;
         }
         await SetContextAsync(context?.ManifestPath, selected?.Dependency.NoteKey);
@@ -438,7 +472,9 @@ public sealed class DeposToolWindowControl : UserControl
         {
             packageTitle.Text = row.Label;
             packageScope.Text = row.Scope;
-            notesPath.Text = context is null ? string.Empty : context.NotesPath;
+            notesPath.Text = context is null
+                ? string.Empty
+                : context.Org is { } org ? "→  " + DeposStrings.OrgNotesLabel(org.OrgName) : context.NotesPath;
             var layers = new SectionLayers(string.Empty, string.Empty, string.Empty);
             if (context?.Notes is { } notes)
             {
@@ -452,6 +488,7 @@ public sealed class DeposToolWindowControl : UserControl
             agentBox.IsExpanded = keepAgentExpanded;
             dirty = false;
             saveStatus.Text = row.Documented ? "Saved" : "No note yet";
+            RefreshOrg();
             UpdateAgentProblems();
         }
         finally
@@ -460,7 +497,37 @@ public sealed class DeposToolWindowControl : UserControl
         }
         RenderDetail();
         ShowDetailView();
-        if (!row.Documented) human.BeginEdit();
+        if (!row.Documented && !readOnly) human.BeginEdit();
+    }
+
+    /// <summary>
+    /// Org mode: whether the user may change the note, and the package's allowlist
+    /// result. The button opens the package's page in Depos instead of the notes
+    /// file, which org mode does not use.
+    /// </summary>
+    private void RefreshOrg()
+    {
+        var runtime = DeposRuntime.Current;
+        if (runtime is null || context is null || selected is null) return;
+        var org = runtime.OrgFor(context.ManifestPath);
+        readOnly = org is { CanEdit: false };
+        human.SetReadOnly(readOnly);
+        agent.SetReadOnly(readOnly);
+        readOnlyLabel.Visibility = readOnly ? Visibility.Visible : Visibility.Collapsed;
+        orgView = org is null ? null : runtime.Depos.Sync.View(context.ManifestPath, selected.Dependency.NoteKey);
+        openNotes.Content = orgView is not null ? DeposStrings.OrgOpenWeb : org is not null ? DeposStrings.OrgOpenOrgNotes : "Open notes file";
+        save.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
+        if (orgView is null)
+        {
+            orgBadge.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var colors = DeposBadgePalette.For(orgView.Kind, DeposMarkPalette.IsDarkTheme());
+        orgBadge.Background = colors.Background;
+        orgBadgeText.Foreground = colors.Foreground;
+        orgBadgeText.Text = orgView.Result;
+        orgBadge.ToolTip = orgView.Tooltip();
+        orgBadge.Visibility = Visibility.Visible;
     }
 
     private void LayerChanged(object? sender, EventArgs args)
@@ -479,17 +546,25 @@ public sealed class DeposToolWindowControl : UserControl
         var runtime = DeposRuntime.Current;
         var currentContext = context;
         var current = selected;
-        if (loading || !dirty || runtime is null || currentContext is null || current is null) return;
+        if (loading || !dirty || readOnly || runtime is null || currentContext is null || current is null) return;
+        if (saving)
+        {
+            // A save to Depos is still on its way: this one follows it.
+            saveTimer.Start();
+            return;
+        }
         var targetManifest = currentContext.ManifestPath;
         var targetPackage = current.Dependency.NoteKey;
         var humanText = human.Text;
         var agentText = agent.Text;
         dirty = false;
+        saving = true;
         saveStatus.Text = "Saving…";
         try
         {
             suppressReloadUntil = DateTime.UtcNow.AddSeconds(1);
             await runtime.SaveLayersAsync(targetManifest, targetPackage, humanText, agentText);
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (selected?.Dependency.NoteKey == targetPackage && human.Text == humanText && agent.Text == agentText)
             {
                 human.RefreshPreview();
@@ -504,11 +579,24 @@ public sealed class DeposToolWindowControl : UserControl
                 }
             }
         }
+        catch (DeposException error)
+        {
+            // Refused by Depos (a conflict, a lost sign-in): the text stays in the box, and why is said.
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            dirty = true;
+            saveStatus.Text = "Could not save: " + error.Message;
+            await runtime.Depos.InfoBars.ShowAsync(error.Message, InfoBarKind.Error);
+        }
         catch
         {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             dirty = true;
             saveStatus.Text = "Could not save. Your text is preserved.";
             throw;
+        }
+        finally
+        {
+            saving = false;
         }
     }
 
@@ -520,7 +608,7 @@ public sealed class DeposToolWindowControl : UserControl
         agentProblems.Visibility = findings.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (findings.Count == 0) return;
         agentProblemsText.Text = string.Join("\n", findings.Select(finding => $"⚠ {finding.Message}"));
-        fixAgent.Visibility = findings.Any(finding => finding.Kind == "unknownAgentKey")
+        fixAgent.Visibility = !readOnly && findings.Any(finding => finding.Kind == "unknownAgentKey")
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -530,8 +618,9 @@ public sealed class DeposToolWindowControl : UserControl
         settingsView?.SetCoverage(context);
         if (showingSettings || context is null) return;
         var documented = new HashSet<string>(context.Analysis.Documented.Select(item => item.NoteKey), StringComparer.OrdinalIgnoreCase);
-        var lintCount = context.Notes is null ? 0 : Notes.Lint(context.Notes, context.Dependencies.Select(item => item.NoteKey)).Count;
-        var problemCount = lintCount + context.Analysis.Orphans.Count;
+        // In org mode the notes are the organization's, kept in Depos: there is no file of this manifest to lint.
+        var lintCount = context.Notes is null || context.Org is not null ? 0 : Notes.Lint(context.Notes, context.Dependencies.Select(item => item.NoteKey)).Count;
+        var problemCount = context.Org is not null ? 0 : lintCount + context.Analysis.Orphans.Count;
         CaptionChanged?.Invoke(problemCount == 0
             ? $"Depos — {documented.Count}/{context.Dependencies.Count}"
             : $"Depos — {documented.Count}/{context.Dependencies.Count}, {problemCount} problems");
@@ -587,5 +676,6 @@ public sealed class DeposToolWindowControl : UserControl
         }
     }
 
-    private static void Run(Func<Task> action) => ThreadHelper.JoinableTaskFactory.Run(action);
+    // Not awaited on the UI thread: a save in org mode is a request to Depos.
+    private static void Run(Func<Task> action) => DeposPackage.Forget(action, "Depos/ToolWindow");
 }

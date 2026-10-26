@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Depos.Core;
+using Depos.Core.Org;
 
 namespace Depos.VisualStudio;
 
@@ -31,13 +32,20 @@ internal sealed class DependencyContext
 
 internal sealed class CoverageContext
 {
-    public CoverageContext(string manifestPath, string root, string notesPath, IReadOnlyList<DependencyEntry> dependencies, NotesFileModel? notes)
+    public CoverageContext(
+        string manifestPath,
+        string root,
+        string notesPath,
+        IReadOnlyList<DependencyEntry> dependencies,
+        NotesFileModel? notes,
+        OrgNotesState? org = null)
     {
         ManifestPath = manifestPath;
         Root = root;
         NotesPath = notesPath;
         Dependencies = dependencies;
         Notes = notes;
+        Org = org;
         Analysis = Depos.Core.Notes.Analyze(dependencies, notes);
     }
 
@@ -47,7 +55,19 @@ internal sealed class CoverageContext
     public IReadOnlyList<DependencyEntry> Dependencies { get; }
     public NotesFileModel? Notes { get; }
     public NotesAnalysis Analysis { get; }
+
+    /// <summary>Set in org mode: the notes come from Depos, not from <see cref="NotesPath"/>.</summary>
+    public OrgNotesState? Org { get; }
 }
+
+internal enum DeposSeverity
+{
+    Warning,
+    Error,
+}
+
+/// <summary>A problem in an open manifest or notes file, for the squiggle and the Error List.</summary>
+internal sealed record DeposProblem(int Start, int Length, int Line, int Column, string Message, DeposSeverity Severity, string Code);
 
 internal sealed class DeposRuntime : IDisposable
 {
@@ -62,6 +82,7 @@ internal sealed class DeposRuntime : IDisposable
     private FileSystemWatcher? watcher;
     private string? watcherRoot;
     private System.Threading.Timer? changeTimer;
+    private readonly object changeGate = new();
     private bool disposed;
 
     private DeposRuntime(
@@ -86,6 +107,9 @@ internal sealed class DeposRuntime : IDisposable
     public event EventHandler? Changed;
 
     public DeposOptionsPage Options => package.Options;
+
+    /// <summary>The optional connection to Depos and org mode.</summary>
+    public DeposService Depos { get; private set; } = null!;
 
     public string? ActiveDocumentPath
     {
@@ -119,6 +143,8 @@ internal sealed class DeposRuntime : IDisposable
             var folder = await runtime.TryGetOpenFolderRootAsync();
             if (!string.IsNullOrWhiteSpace(folder)) runtime.ConfigureWatcher(folder!);
         }
+        runtime.Depos = new DeposService(package, runtime, dte);
+        runtime.Depos.Start();
         return runtime;
     }
 
@@ -174,6 +200,11 @@ internal sealed class DeposRuntime : IDisposable
 
     public async Task OpenNotesAsync(string manifestPath, string? packageName = null)
     {
+        if (OrgFor(manifestPath) is not null)
+        {
+            await Depos.OpenOrgNotesAsync(manifestPath);
+            return;
+        }
         var root = await RootForAsync(manifestPath);
         var workspace = new NugetWorkspace(fileSystem);
         var notesPath = workspace.ResolveNotesPath(manifestPath, root, Options.Monorepo)
@@ -191,7 +222,7 @@ internal sealed class DeposRuntime : IDisposable
     public IReadOnlyList<LintFinding> LintNotesBuffer(ITextBuffer buffer)
     {
         var path = PathFor(buffer);
-        if (path is null || !IsNotesPath(path)) return Array.Empty<LintFinding>();
+        if (path is null || !IsNotesPath(path) || OrgFor(path) is not null) return Array.Empty<LintFinding>();
         var root = KnownRootFor(path);
         var workspace = new NugetWorkspace(fileSystem);
         var dependencies = workspace.DependenciesForNotes(path, root, Options.Monorepo);
@@ -201,7 +232,7 @@ internal sealed class DeposRuntime : IDisposable
     public IReadOnlyList<NoteSection> OrphansForNotesBuffer(ITextBuffer buffer)
     {
         var path = PathFor(buffer);
-        if (path is null || !IsNotesPath(path)) return Array.Empty<NoteSection>();
+        if (path is null || !IsNotesPath(path) || OrgFor(path) is not null) return Array.Empty<NoteSection>();
         var root = KnownRootFor(path);
         var workspace = new NugetWorkspace(fileSystem);
         var dependencies = workspace.DependenciesForNotes(path, root, Options.Monorepo);
@@ -214,8 +245,13 @@ internal sealed class DeposRuntime : IDisposable
         var workspace = new NugetWorkspace(fileSystem);
         notesPath = workspace.ResolveNotesPath(manifestPath, root, Options.Monorepo)
             ?? workspace.CreationTarget(manifestPath, root);
+        // Org mode: the notes from Depos; the notes file is not read.
+        if (Depos.Sync.NotesModel(manifestPath) is { } org) return org;
         return FileExists(notesPath) ? Notes.Parse(ReadDocument(notesPath)) : null;
     }
+
+    /// <summary>The org mode of the folder that holds <paramref name="path"/>; null outside org mode.</summary>
+    public OrgNotesState? OrgFor(string path) => Depos.Sync.NotesFor(path);
 
     public async Task<string> RootForAsync(string path)
     {
@@ -270,8 +306,11 @@ internal sealed class DeposRuntime : IDisposable
         var notesPath = workspace.ResolveNotesPath(path!, root, Options.Monorepo)
             ?? workspace.CreationTarget(path!, root);
         var dependencies = workspace.DependenciesForManifest(path!, root, Options.Monorepo);
-        var notes = FileExists(notesPath) ? Notes.Parse(ReadDocument(notesPath)) : null;
-        return new CoverageContext(path!, root, notesPath, dependencies, notes);
+        var org = OrgFor(path!);
+        var notes = org is not null
+            ? Depos.Sync.NotesModel(path!)
+            : FileExists(notesPath) ? Notes.Parse(ReadDocument(notesPath)) : null;
+        return new CoverageContext(path!, root, notesPath, dependencies, notes, org);
     }
 
     public async Task AddOrEditActiveDependencyAsync()
@@ -288,7 +327,12 @@ internal sealed class DeposRuntime : IDisposable
     public async Task AddOrEditAsync(string manifestPath, string packageName)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-        switch (Options.NoteEntry)
+        var org = OrgFor(manifestPath);
+        // Org mode edits in the tool window, which shows who may change the note and the allowlist result;
+        // Quick input stays for admins.
+        var entry = Options.NoteEntry;
+        if (org is not null && (entry == NoteEntryMode.OpenBeside || !org.CanEdit)) entry = NoteEntryMode.ToolWindow;
+        switch (entry)
         {
             case NoteEntryMode.ToolWindow:
                 await package.ShowToolWindowAsync(manifestPath, packageName);
@@ -300,9 +344,16 @@ internal sealed class DeposRuntime : IDisposable
                 var section = model is null ? null : Notes.FindSection(model, packageName);
                 var existing = section is null || model is null ? string.Empty : Notes.Layers(model, section).Human;
                 var dialog = new QuickInputDialog(packageName, existing);
-                if (dialog.ShowModal() == true)
+                if (dialog.ShowModal() != true) break;
+                try
+                {
                     await SaveLayersAsync(manifestPath, packageName, dialog.Value,
                         section is null || model is null ? string.Empty : Notes.Layers(model, section).Agent);
+                }
+                catch (DeposException error)
+                {
+                    await Depos.InfoBars.ShowAsync(error.Message, InfoBarKind.Error);
+                }
                 break;
             }
             case NoteEntryMode.OpenBeside:
@@ -311,8 +362,17 @@ internal sealed class DeposRuntime : IDisposable
         }
     }
 
+    /// <summary>
+    /// Saves a note: to the notes file, or in org mode to Depos, which throws
+    /// <see cref="DeposException"/> with a message for the user when it refuses.
+    /// </summary>
     public async Task SaveLayersAsync(string manifestPath, string packageName, string human, string agent)
     {
+        if (OrgFor(manifestPath) is not null)
+        {
+            await Depos.SaveNoteAsync(manifestPath, packageName, human, agent);
+            return;
+        }
         var root = await RootForAsync(manifestPath);
         var workspace = new NugetWorkspace(fileSystem);
         var notesPath = workspace.ResolveNotesPath(manifestPath, root, Options.Monorepo)
@@ -329,6 +389,11 @@ internal sealed class DeposRuntime : IDisposable
         if (path is null || !NugetManifest.MatchesPath(path))
         {
             await ShowInfoAsync("Open a supported NuGet manifest first.");
+            return;
+        }
+        if (OrgFor(path) is not null)
+        {
+            await Depos.OpenOrgNotesAsync(path);
             return;
         }
         var root = await RootForAsync(path);
@@ -369,6 +434,11 @@ internal sealed class DeposRuntime : IDisposable
 
     public async Task EnsureSectionAndOpenAsync(string manifestPath, string packageName)
     {
+        if (OrgFor(manifestPath) is not null)
+        {
+            await package.ShowToolWindowAsync(manifestPath, packageName);
+            return;
+        }
         var root = await RootForAsync(manifestPath);
         var model = NotesForManifest(manifestPath, root, out var notesPath);
         if (model is null || Notes.FindSection(model, packageName) is null)
@@ -378,6 +448,11 @@ internal sealed class DeposRuntime : IDisposable
 
     public async Task NavigateToNoteAsync(string manifestPath, string packageName)
     {
+        if (OrgFor(manifestPath) is not null)
+        {
+            await package.ShowToolWindowAsync(manifestPath, packageName);
+            return;
+        }
         var root = await RootForAsync(manifestPath);
         var model = NotesForManifest(manifestPath, root, out var notesPath);
         if (model is null || Notes.FindSection(model, packageName) is null)
@@ -401,19 +476,35 @@ internal sealed class DeposRuntime : IDisposable
     public async Task NormalizeNotesAsync(string path) =>
         await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path)));
 
+    /// <summary>
+    /// Two writes, as in the other editors: <c>.pacmon/AGENT-RULES.md</c> is
+    /// rewritten from the extension's own copy, and each instruction file the user
+    /// picks (<c>AGENTS.md</c>, <c>CLAUDE.md</c>, …) gets the three-line pointer to
+    /// it, inserted or updated between markers.
+    /// </summary>
     public async Task SetupAiInstructionsAsync()
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-        var active = ActiveDocumentPath;
-        if (active is null)
+        var seed = ActiveDocumentPath ?? dte.Solution?.FullName;
+        if (string.IsNullOrWhiteSpace(seed))
         {
-            await ShowInfoAsync("Open a file in the workspace first.");
+            await ShowInfoAsync("Open a solution or a file in the workspace first.");
             return;
         }
-        var root = await RootForAsync(active);
-        // Rewritten on every run, as the VS Code extension does, so an old copy
-        // gets the current rules.
-        await OpenDocumentAsync(await WriteAgentRulesAsync(root, overwrite: true));
+        var root = await RootForAsync(seed!);
+        var dialog = new AiInstructionsTargetsDialog(root);
+        if (dialog.ShowModal() != true) return;
+        // Rewritten on every run, as the other editors do, so an old copy gets the current rules.
+        var rules = await WriteAgentRulesAsync(root, overwrite: true);
+        var written = new List<string> { AiInstructions.AgentRulesRelativePath };
+        foreach (var target in dialog.SelectedTargets)
+        {
+            var path = Path.Combine(root, target.Replace('/', Path.DirectorySeparatorChar));
+            await WriteDocumentAsync(path, AiInstructions.Upsert(FileExists(path) ? ReadDocument(path) : string.Empty));
+            written.Add(target);
+        }
+        await OpenDocumentAsync(rules);
+        await Depos.InfoBars.ShowAsync("Set up AI instructions: " + string.Join(", ", written) + ".", InfoBarKind.Information);
     }
 
     /// <summary>
@@ -428,18 +519,111 @@ internal sealed class DeposRuntime : IDisposable
         return rulesPath;
     }
 
+    /// <summary>Raises <see cref="Changed"/> on the UI thread, once for a burst of calls. Safe from any thread.</summary>
     public void NotifyChanged()
     {
-        changeTimer?.Dispose();
-        changeTimer = new System.Threading.Timer(
-            _ => ThreadHelper.JoinableTaskFactory.Run(async () =>
+        lock (changeGate)
+        {
+            if (disposed) return;
+            changeTimer?.Dispose();
+            changeTimer = new System.Threading.Timer(
+                _ => ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    Changed?.Invoke(this, EventArgs.Empty);
+                }),
+                null,
+                180,
+                Timeout.Infinite);
+        }
+    }
+
+    /// <summary>The files open in an editor, by full path. On the UI thread.</summary>
+    public IReadOnlyList<string> OpenDocumentPaths()
+    {
+        var open = new List<string>();
+        foreach (var pair in buffers.ToArray())
+        {
+            if (pair.Value.TryGetTarget(out _)) open.Add(pair.Key);
+        }
+        return open;
+    }
+
+    /// <summary>The open buffer of a file, if it is open in an editor. On the UI thread.</summary>
+    public ITextBuffer? OpenBuffer(string path) => TryGetBuffer(path, out var buffer) ? buffer : null;
+
+    /// <summary>The first manifest a notes file describes, or null.</summary>
+    public string? ManifestForNotes(string notesPath) =>
+        new NugetWorkspace(fileSystem).ManifestsForNotes(notesPath, KnownRootFor(notesPath), Options.Monorepo).FirstOrDefault();
+
+    /// <summary>
+    /// What is wrong in an open file: lint findings in a notes file, the notice on
+    /// a notes file Depos replaces, and Denied or Not listed packages of a manifest
+    /// in org mode. The squiggles and the Error List both show it.
+    /// </summary>
+    public IReadOnlyList<DeposProblem> Problems(ITextBuffer buffer, ITextSnapshot snapshot)
+    {
+        var path = PathFor(buffer);
+        if (path is null) return Array.Empty<DeposProblem>();
+        var problems = new List<DeposProblem>();
+        if (IsNotesPath(path))
+        {
+            if (OrgFor(path) is { } org)
             {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Changed?.Invoke(this, EventArgs.Empty);
-            }),
-            null,
-            180,
-            Timeout.Infinite);
+                var first = snapshot.GetLineFromLineNumber(0);
+                problems.Add(new DeposProblem(
+                    first.Start.Position,
+                    Math.Min(Math.Max(1, first.Length), snapshot.Length),
+                    0,
+                    0,
+                    DeposStrings.OrgModeNotesFile(org.OrgName),
+                    DeposSeverity.Error,
+                    "org-mode-notes-file"));
+                return problems;
+            }
+            foreach (var finding in LintNotesBuffer(buffer))
+            {
+                if (finding.Line < 0 || finding.Line >= snapshot.LineCount) continue;
+                var line = snapshot.GetLineFromLineNumber(finding.Line);
+                var start = Math.Min(line.End.Position, line.Start.Position + Math.Max(0, finding.StartColumn));
+                var end = finding.EndColumn > finding.StartColumn
+                    ? Math.Min(line.End.Position, line.Start.Position + finding.EndColumn)
+                    : line.End.Position;
+                var safeEnd = Math.Min(snapshot.Length, Math.Max(start + 1, end));
+                if (safeEnd == start && start > 0) start--;
+                problems.Add(new DeposProblem(
+                    start,
+                    safeEnd - start,
+                    finding.Line,
+                    start - line.Start.Position,
+                    finding.Message,
+                    DeposSeverity.Warning,
+                    finding.Kind));
+            }
+            return problems;
+        }
+        if (!NugetManifest.MatchesPath(path)) return problems;
+        foreach (var dependency in NugetManifest.ExtractDependencies(snapshot.GetText(), path))
+        {
+            // Looked up in the local copy, so a line just typed is judged at once.
+            if (Depos.Sync.Allowlist(path, dependency.NoteKey) is not { } allowlist || !allowlist.Result.IsViolation) continue;
+            var range = dependency.PrimaryRange;
+            var start = Math.Max(0, Math.Min(range.Offset, snapshot.Length));
+            var length = Math.Max(0, Math.Min(range.Length, snapshot.Length - start));
+            var line = snapshot.GetLineFromPosition(start);
+            var denied = allowlist.Result.Kind == OrgResultKind.Denied;
+            problems.Add(new DeposProblem(
+                start,
+                length,
+                line.LineNumber,
+                start - line.Start.Position,
+                denied
+                    ? DeposStrings.OrgDenied(dependency.DisplayName, allowlist.OrgName, allowlist.Result.Reason)
+                    : DeposStrings.OrgUnlisted(dependency.DisplayName, allowlist.OrgName),
+                allowlist.Result.Mode == PolicyMode.Enforce ? DeposSeverity.Error : DeposSeverity.Warning,
+                denied ? "org-denied" : "org-not-listed"));
+        }
+        return problems;
     }
 
     public void Dispose()
@@ -451,7 +635,8 @@ internal sealed class DeposRuntime : IDisposable
         foreach (var pair in bufferHandlers) pair.Key.Changed -= pair.Value;
         bufferHandlers.Clear();
         watcher?.Dispose();
-        changeTimer?.Dispose();
+        lock (changeGate) changeTimer?.Dispose();
+        Depos?.Dispose();
     }
 
     private void RegisterDocument(ITextDocument document)
@@ -462,6 +647,8 @@ internal sealed class DeposRuntime : IDisposable
         EventHandler<TextContentChangedEventArgs> handler = (_, _) => NotifyChanged();
         document.TextBuffer.Changed += handler;
         bufferHandlers[document.TextBuffer] = handler;
+        // A file just opened may need the org-mode notice and Error List entries.
+        if (IsNotesPath(path) || NugetManifest.MatchesPath(path)) NotifyChanged();
     }
 
     private void OnTextDocumentCreated(object sender, TextDocumentEventArgs args) => RegisterDocument(args.TextDocument);
@@ -544,6 +731,8 @@ internal sealed class DeposRuntime : IDisposable
         var root = await RootForAsync(seed!);
         return new NugetWorkspace(fileSystem).DiscoverManifests(root).FirstOrDefault();
     }
+
+    public Task<string?> OpenFolderRootAsync() => TryGetOpenFolderRootAsync();
 
     private async Task<string?> TryGetOpenFolderRootAsync()
     {

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Microsoft.VisualStudio.Shell;
 using Depos.Core;
+using Depos.Core.Org;
 
 namespace Depos.VisualStudio;
 
@@ -59,4 +60,20 @@ public sealed class DeposOptionsPage : DialogPage
     [Description("Use the nearest ecosystem notes file or only the workspace-root file.")]
     [DefaultValue(MonorepoMode.Nearest)]
     public MonorepoMode Monorepo { get; set; } = MonorepoMode.Nearest;
+
+    [Category("Depos connection")]
+    [DisplayName("Depos address")]
+    [Description(
+        "For the optional organization connection (Tools → Sign In to Depos, or the Depos tool window). Signed in, a folder "
+        + "whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of "
+        + "its notes files. Requests are made only while you are signed in: for the commands, and to fetch the notes of each "
+        + "folder (at start, when Visual Studio gets focus, and every 5 minutes). Must use https, except for localhost.")]
+    [DefaultValue(DeposServerUrl.Default)]
+    public string DeposAddress { get; set; } = DeposServerUrl.Default;
+
+    protected override void OnApply(PageApplyEventArgs e)
+    {
+        base.OnApply(e);
+        if (e.ApplyBehavior == ApplyKind.Apply) DeposRuntime.Current?.Depos.AddressApplied();
+    }
 }

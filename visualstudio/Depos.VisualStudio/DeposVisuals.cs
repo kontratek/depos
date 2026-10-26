@@ -120,6 +120,32 @@ internal static class DeposMarkPalette
     }
 }
 
+/// <summary>
+/// The allowlist badge's colors, the same as the other editors': green (the
+/// mark's colors) when allowed, yellow when not listed, red when denied.
+/// </summary>
+internal static class DeposBadgePalette
+{
+    internal readonly record struct BadgeColors(Brush Background, Brush Foreground, int BackgroundRgb, int ForegroundRgb);
+
+    public static BadgeColors For(Depos.Core.Org.OrgResultKind kind, bool darkTheme) => kind switch
+    {
+        Depos.Core.Org.OrgResultKind.Allowed => darkTheme ? Colors(0x00ff66, 0x0a0a0a) : Colors(0x00662f, 0xffffff),
+        Depos.Core.Org.OrgResultKind.Unlisted => Colors(0xf2c200, 0x1a1a1a),
+        _ => Colors(0xc72e2e, 0xffffff),
+    };
+
+    private static BadgeColors Colors(int background, int foreground) =>
+        new(Frozen(background), Frozen(foreground), background, foreground);
+
+    private static Brush Frozen(int rgb)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb((byte)((rgb >> 16) & 0xff), (byte)((rgb >> 8) & 0xff), (byte)(rgb & 0xff)));
+        brush.Freeze();
+        return brush;
+    }
+}
+
 internal sealed class MarkdownPresenter : StackPanel
 {
     private static readonly Regex InlinePattern = new(

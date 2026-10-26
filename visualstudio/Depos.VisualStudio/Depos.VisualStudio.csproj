@@ -34,6 +34,8 @@
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.14.2142" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <!-- Depos.Core's JSON library: Visual Studio loads its own copy, so the VSIX does not carry one. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" ExcludeAssets="runtime" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Depos.Core\Depos.Core.csproj" />
@@ -42,7 +44,7 @@
     <None Remove="source.extension.vsixmanifest" />
     <Content Include="source.extension.vsixmanifest" />
     <SourceVsixManifest Include="$(IntermediateOutputPath)source.extension.vsixmanifest" />
-    <Content Include="..\..\media\icon.png" Link="Assets\pacmon.png">
+    <Content Include="..\..\media\icon.png" Link="Assets\icon.png">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
     <Content Include="..\..\LICENSE" Link="LICENSE">
@@ -59,6 +61,20 @@
              Query="/*[local-name()='PackageManifest']/*[local-name()='Metadata']/*[local-name()='Identity']/@Version"
              Value="$(DeposVersion)" />
     <ItemGroup><FileWrites Include="$(GeneratedVsixManifest)" /></ItemGroup>
+  </Target>
+  <!-- The version as a constant, for attributes such as InstalledProductRegistration. -->
+  <Target Name="GenerateDeposBuildInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <DeposBuildInfoFile>$(IntermediateOutputPath)DeposBuild.g.cs</DeposBuildInfoFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(DeposBuildInfoFile)"
+                      Lines="namespace Depos.VisualStudio%3B;internal static class DeposBuild { public const string Version = &quot;$(DeposVersion)&quot;%3B }"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(DeposBuildInfoFile)" />
+      <FileWrites Include="$(DeposBuildInfoFile)" />
+    </ItemGroup>
   </Target>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />

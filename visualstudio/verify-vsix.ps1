@@ -17,6 +17,8 @@ try {
   foreach ($required in @('extension.vsixmanifest', 'Depos.VisualStudio.dll', 'Depos.Core.dll', 'Depos.VisualStudio.pkgdef', 'Assets/icon.png')) {
     if ($required -notin $names) { throw "VSIX is missing $required" }
   }
+  # Visual Studio loads its own Newtonsoft.Json; a second copy in the VSIX could load beside it.
+  if ('Newtonsoft.Json.dll' -in $names) { throw 'VSIX carries Newtonsoft.Json.dll; Visual Studio provides it.' }
   $entry = $archive.GetEntry('extension.vsixmanifest')
   $reader = [System.IO.StreamReader]::new($entry.Open())
   try { $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }

@@ -5,6 +5,7 @@ using System.Windows.Input;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using Depos.Core;
+using Depos.Core.Org;
 
 namespace Depos.VisualStudio;
 
@@ -27,6 +28,8 @@ internal sealed class DeposSettingsControl : ScrollViewer
     private readonly Button searchDependencies;
     private readonly Button normalizeNotes;
     private readonly Action<string> statusChanged;
+    private readonly TextBlock deposStatus = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.78, Margin = new Thickness(0, 0, 0, 6) };
+    private readonly StackPanel deposActions = new();
     private bool syncing;
 
     public DeposSettingsControl(
@@ -43,6 +46,7 @@ internal sealed class DeposSettingsControl : ScrollViewer
 
         var content = new StackPanel { Margin = new Thickness(2, 0, 2, 18) };
         content.Children.Add(CoverageSection());
+        content.Children.Add(DeposSection());
         content.Children.Add(ClickTargetsSection());
         content.Children.Add(ChoiceSection(
             "Note editor",
@@ -150,11 +154,45 @@ internal sealed class DeposSettingsControl : ScrollViewer
             Check(noteEntries, options.NoteEntry);
             Check(monorepoModes, options.Monorepo);
             UpdateTargetCount();
+            UpdateDepos();
         }
         finally
         {
             syncing = false;
         }
+    }
+
+    /// <summary>
+    /// The Depos group: whether this Visual Studio is signed in, and what it can
+    /// do. Read from the address option and the stored token; no request.
+    /// </summary>
+    public void UpdateDepos()
+    {
+        var depos = DeposRuntime.Current?.Depos;
+        if (depos is null) return;
+        var status = depos.Connection.Status();
+        deposStatus.Text = status.Invalid
+            ? DeposStrings.ViewWebInvalidUrl
+            : status.SignedIn ? DeposStrings.ViewWebSignedIn(status.Host!) : DeposStrings.ViewWebSignedOut(status.Host);
+        deposActions.Children.Clear();
+        if (!status.SignedIn)
+        {
+            deposActions.Children.Add(ActionButton(DeposStrings.ViewWebSignIn, DeposStrings.ViewWebSignInHelp, depos.SignInAsync));
+            return;
+        }
+        deposActions.Children.Add(ActionButton(DeposStrings.ViewWebShow, DeposStrings.ViewWebShowHelp, depos.ShowConnectionAsync));
+        deposActions.Children.Add(ActionButton(DeposStrings.ViewWebRefresh, DeposStrings.ViewWebRefreshHelp, depos.RefreshAsync));
+        deposActions.Children.Add(ActionButton(DeposStrings.ViewWebMcp, DeposStrings.ViewWebMcpHelp, depos.CopyMcpSetupAsync));
+        deposActions.Children.Add(ActionButton(DeposStrings.ViewWebSignOut, DeposStrings.ViewWebSignOutHelp, depos.SignOutAsync));
+    }
+
+    private FrameworkElement DeposSection()
+    {
+        var body = new StackPanel();
+        body.Children.Add(Heading(DeposStrings.ViewGroupWeb));
+        body.Children.Add(deposStatus);
+        body.Children.Add(deposActions);
+        return new Border { Child = body, Margin = new Thickness(0, 0, 0, 20) };
     }
 
     public void SetCoverage(CoverageContext? context)
@@ -176,7 +214,9 @@ internal sealed class DeposSettingsControl : ScrollViewer
         var count = context.Dependencies.Count;
         var missing = Math.Max(0, count - documented.Count);
         coverageRatio.Text = $"{documented.Count} of {count}";
-        coveragePath.Text = Path.GetFileName(context.ManifestPath);
+        coveragePath.Text = context.Org is null
+            ? Path.GetFileName(context.ManifestPath)
+            : $"{Path.GetFileName(context.ManifestPath)} — {DeposStrings.OrgNotesLabel(context.Org.OrgName)}";
         coverageStatus.Text = count == 0
             ? "This manifest has no supported direct dependencies."
             : missing == 0
@@ -186,7 +226,8 @@ internal sealed class DeposSettingsControl : ScrollViewer
                     : $"{missing} dependencies have no note yet.";
         coverageProgress.Maximum = Math.Max(1, count);
         coverageProgress.Value = documented.Count;
-        SetActionsEnabled(true, context.Notes is not null);
+        // In org mode there is no notes file to format.
+        SetActionsEnabled(true, context.Notes is not null && context.Org is null);
     }
 
     private FrameworkElement CoverageSection()
@@ -440,7 +481,8 @@ internal sealed class DeposSettingsControl : ScrollViewer
         normalizeNotes.IsEnabled = hasNotes;
     }
 
-    private static void Run(Func<Task> action) => ThreadHelper.JoinableTaskFactory.Run(action);
+    // Not awaited on the UI thread: a Depos action waits for the network or the browser.
+    private static void Run(Func<Task> action) => DeposPackage.Forget(action, "Depos/Settings");
 }
 
 internal sealed class DependencyPickerDialog : DialogWindow
