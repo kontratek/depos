@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-console.log(`Depos — Dependency Notes (formerly Pacmon)
+console.log(`Depos (formerly Pacmon) — Dependency Notes
 
 The command line interface is not released yet. Today Depos is an extension
 for VS Code, the JetBrains IDEs and Visual Studio that documents why each

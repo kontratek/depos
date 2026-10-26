@@ -19,8 +19,8 @@
     <VsixId>dev.pacmon.visualstudio</VsixId>
     <VsixVersion>$(DeposVersion)</VsixVersion>
     <VsixPublisher>Kontra</VsixPublisher>
-    <VsixDisplayName>Depos — Dependency Notes</VsixDisplayName>
-    <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository. Formerly Pacmon.</VsixDescription>
+    <VsixDisplayName>Depos (formerly Pacmon) — Dependency Notes</VsixDisplayName>
+    <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository.</VsixDescription>
     <AssemblyName>Depos.VisualStudio</AssemblyName>
     <RootNamespace>Depos.VisualStudio</RootNamespace>
     <IntermediateOutputPath>obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>

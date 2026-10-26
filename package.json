@@ -1,7 +1,7 @@
 {
   "name": "pacmon",
-  "displayName": "Depos — Dependency Notes",
-  "description": "Why each dependency exists, as a note next to JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet or C/C++ package manifests. Plain Markdown in your repo; AI agents read and write it too. Formerly Pacmon.",
+  "displayName": "Depos (formerly Pacmon) — Dependency Notes",
+  "description": "Why each dependency exists, as a note next to JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet or C/C++ package manifests. Plain Markdown in your repo; AI agents read and write it too.",
   "version": "0.10.0",
   "publisher": "kontra",
   "private": true,

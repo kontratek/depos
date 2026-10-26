@@ -9,9 +9,11 @@
 
 - **Pacmon is now Depos.** The extension, its commands, views and settings
   are called Depos, and its site is https://depos.dev (https://pacmon.dev
-  redirects there). The marketplace listings keep their identifiers
-  (`kontra.pacmon`, `dev.pacmon.jetbrains`, `kontra.pacmon-visualstudio`), so
-  this version arrives as an ordinary update, and sign-ins and settings stay.
+  redirects there). The marketplace listings are titled "Depos (formerly
+  Pacmon) — Dependency Notes", and "Depos (formerly Pacmon)" on the
+  JetBrains Marketplace. They keep their identifiers (`kontra.pacmon`,
+  `dev.pacmon.jetbrains`, `kontra.pacmon-visualstudio`), so this version
+  arrives as an ordinary update, and sign-ins and settings stay.
 
 - **Notes live in `.depos/`; `.pacmon/` keeps working.** A first note goes to
   `.depos/` beside the manifest, with `.depos/AGENT-RULES.md` at the root of

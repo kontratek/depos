@@ -2,7 +2,7 @@
     <!-- The id is from before Pacmon became Depos, and stays: it is the plugin's
          identity on the Marketplace, so installed copies keep updating. -->
     <id>dev.pacmon.jetbrains</id>
-    <name>Depos</name>
+    <name>Depos (formerly Pacmon)</name>
     <vendor email="info@depos.dev" url="https://depos.dev">Kontra</vendor>
     <!-- Display names for registrations whose ids stay from before the rename:
          the tool window and the notification group. -->
@@ -53,7 +53,6 @@
         <a href="https://marketplace.visualstudio.com/items?itemName=kontra.pacmon">VS Code
         extension</a> reads the same files, and the format is documented at
         <a href="https://depos.dev/format/">depos.dev/format</a>.</p>
-        <p>Formerly Pacmon.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
