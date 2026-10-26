@@ -473,8 +473,16 @@ internal sealed class DeposRuntime : IDisposable
         await NormalizeNotesAsync(path);
     }
 
-    public async Task NormalizeNotesAsync(string path) =>
+    public async Task NormalizeNotesAsync(string path)
+    {
+        // Org mode does not use the notes file, so it does not rewrite it either: the file is to be deleted.
+        if (OrgFor(path) is { } org)
+        {
+            await Depos.InfoBars.ShowAsync(DeposStrings.OrgModeNotesFile(org.OrgName), InfoBarKind.Warning);
+            return;
+        }
         await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path)));
+    }
 
     /// <summary>
     /// Two writes, as in the other editors: <c>.pacmon/AGENT-RULES.md</c> is
