@@ -28,7 +28,7 @@ public abstract record SendResult
     public sealed record Status(int Code, string? Message) : SendResult;
 }
 
-/// <summary>The status line of the Depos group, from the address and the stored token: no request.</summary>
+/// <summary>The status line of the Organization group, from the address and the stored token: no request.</summary>
 public readonly record struct DeposStatus(string? Host, bool Invalid, bool SignedIn);
 
 /// <summary>A 401 while showing the connection: the sign-in has ended.</summary>

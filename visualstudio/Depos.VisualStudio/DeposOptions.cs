@@ -21,6 +21,14 @@ public enum NoteEntryMode
 
 public sealed class DeposOptionsPage : DialogPage
 {
+    /// <summary>
+    /// Visual Studio keeps each option under the page's type name and the
+    /// property's ("Pacmon.VisualStudio.PacmonOptionsPage.Decorations"), the type
+    /// from before Pacmon became Depos: the options set then are read, and kept,
+    /// under that name.
+    /// </summary>
+    public DeposOptionsPage() => SharedSettingsStorePath = "Pacmon.VisualStudio.PacmonOptionsPage";
+
     [Category("Display")]
     [DisplayName("Decorations")]
     [Description("Show a note preview, a compact badge, or nothing at the end of dependency lines.")]
@@ -61,13 +69,14 @@ public sealed class DeposOptionsPage : DialogPage
     [DefaultValue(MonorepoMode.Nearest)]
     public MonorepoMode Monorepo { get; set; } = MonorepoMode.Nearest;
 
-    [Category("Depos connection")]
-    [DisplayName("Depos address")]
+    [Category("Organization")]
+    [DisplayName("Server address")]
     [Description(
-        "For the optional organization connection (Tools → Sign In to Depos, or the Depos tool window). Signed in, a folder "
+        "For the optional organization connection (Tools → Depos → Sign In, or the Depos tool window). Signed in, a folder "
         + "whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of "
-        + "its notes files. Requests are made only while you are signed in: for the commands, and to fetch the notes of each "
-        + "folder (at start, when Visual Studio gets focus, and every 5 minutes). Must use https, except for localhost.")]
+        + "its notes files. Depos makes network requests only while you are signed in: for the commands, and to fetch the "
+        + "notes of each folder (at start, when Visual Studio gets focus, and every 5 minutes). Must use https, except for "
+        + "localhost.")]
     [DefaultValue(DeposServerUrl.Default)]
     public string DeposAddress { get; set; } = DeposServerUrl.Default;
 

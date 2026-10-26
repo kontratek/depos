@@ -205,7 +205,7 @@ internal sealed class DeposService : IDisposable
         if (origin is null) return;
         if (await package.GetServiceAsync(typeof(SVsTaskStatusCenterService)) is not IVsTaskStatusCenterService center) return;
         var options = default(TaskHandlerOptions);
-        options.Title = "Signing in to Depos";
+        options.Title = "Depos: signing in";
         options.ActionsAfterCompletion = CompletionActions.None;
         var data = default(TaskProgressData);
         data.CanBeCanceled = true;

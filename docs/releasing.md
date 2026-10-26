@@ -22,11 +22,14 @@ newer, builds and publishes only on Windows, so the workflow is four jobs:
 Visual Studio VSIX from them and checks it with `visualstudio/verify-vsix.ps1`;
 `release` tests and builds the rest, pushes the commit and the tag and publishes;
 `visualstudio-publish` then sends the VSIX with VsixPublisher. Its listing,
-`kontra.depos-visualstudio`, is an item of its own under the same publisher as
+`kontra.pacmon-visualstudio`, is an item of its own under the same publisher as
 the VS Code extension, `kontra.pacmon`; the listing page and its categories are
 in `visualstudio/marketplace/`. The workflow publishes every version, the first
 included: unlike JetBrains, the Visual Studio Marketplace creates the listing on
-the first upload. The VSIX identity is `dev.depos.visualstudio`, and its
+the first upload. The VSIX identity is `dev.pacmon.visualstudio`. The listing
+and the identity are from before Pacmon became Depos and stay, so installed
+copies update; so do the GUIDs Visual Studio keeps the extension's state under,
+such as where its tool window is docked, and `verify-vsix.ps1` checks them. The
 publisher must stay `Kontra`, the display name of the Marketplace publisher —
 VsixPublisher refuses anything else, and `verify-vsix.ps1` checks it on every
 CI run.

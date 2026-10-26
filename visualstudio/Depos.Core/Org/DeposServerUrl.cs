@@ -15,7 +15,7 @@ public readonly record struct DeposUrl(string? Origin, DeposUrlProblem Problem)
 }
 
 /// <summary>
-/// The address of Depos, from the "Depos address" option. A port of
+/// The address of the Depos server, from the "Server address" option. A port of
 /// <c>src/ext/web/serverUrl.ts</c>: only the origin is kept, and plain http is
 /// allowed only for this machine.
 /// </summary>

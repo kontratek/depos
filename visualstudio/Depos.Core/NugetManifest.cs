@@ -8,7 +8,18 @@ public static class NugetManifest
         "^[A-Za-z0-9][A-Za-z0-9._-]*$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public const string NotesRelativePath = ".pacmon/nuget/DEPENDENCY-NOTES.md";
+    public const string NotesRelativePath = Notes.DirectoryName + "/nuget/" + Notes.FileName;
+
+    /// <summary>The notes path under <paramref name="directoryName"/>; <see cref="NotesRelativePath"/> names the current directory.</summary>
+    public static string NotesRelativePathIn(string directoryName) => $"{Notes.Checked(directoryName)}/nuget/{Notes.FileName}";
+
+    /// <summary>Whether the path is a NuGet notes file, under either notes directory.</summary>
+    public static bool IsNotesPath(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        return Notes.DirectoryNames.Any(directoryName =>
+            normalized.EndsWith("/" + NotesRelativePathIn(directoryName), StringComparison.OrdinalIgnoreCase));
+    }
 
     public static bool MatchesPath(string path)
     {

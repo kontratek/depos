@@ -210,7 +210,7 @@ public sealed class NotesTests
 
             <!-- Each "## name" below is a package from the nuget dependency manifest.
               The text under it is written by people. "### Agent notes" and everything below
-              it is written by AI agents — rules in .pacmon/AGENT-RULES.md. -->
+              it is written by AI agents — rules in .depos/AGENT-RULES.md. -->
 
             # Dependency Notes
 
@@ -236,5 +236,64 @@ public sealed class NotesTests
 
         Assert.AreEqual(expected, Notes.Normalize(input));
         Assert.AreEqual(expected, Notes.Normalize(expected));
+    }
+
+    [TestMethod]
+    public void HeaderCommentNamesTheAgentRulesOfTheFilesOwnDirectory()
+    {
+        // Derived from the file's path in new files and in every format, so a
+        // .pacmon/ file is never rewritten to point at .depos/, nor back.
+        const string legacyName = Notes.LegacyDirectoryName;
+        var current = Notes.UpsertLayers(Notes.NewFile(), "Alpha", "Human", "- purpose: JSON");
+        var legacy = Notes.UpsertLayers(
+            Notes.NewFile(directoryName: legacyName), "Alpha", "Human", "- purpose: JSON", legacyName);
+
+        StringAssert.Contains(current, "rules in .depos/AGENT-RULES.md. -->");
+        StringAssert.Contains(legacy, "rules in .pacmon/AGENT-RULES.md. -->");
+        Assert.IsFalse(legacy.Contains(".depos/"));
+        Assert.AreEqual(current, Notes.Normalize(current));
+        Assert.AreEqual(legacy, Notes.Normalize(legacy, legacyName));
+        Assert.AreEqual(legacy, Notes.Normalize(current, legacyName));
+        Assert.AreEqual(current, Notes.Normalize(legacy, Notes.DirectoryName));
+        StringAssert.Contains(
+            Notes.UpsertLayers(string.Empty, "Alpha", "Human", string.Empty, legacyName),
+            "rules in .pacmon/AGENT-RULES.md. -->");
+        Assert.ThrowsExactly<ArgumentException>(() => Notes.NewFile(directoryName: "pacmon"));
+    }
+
+    [DataTestMethod]
+    [DataRow("C:\\repo\\.pacmon\\nuget\\DEPENDENCY-NOTES.md", ".pacmon")]
+    [DataRow("C:/repo/apps/.pacmon/nuget/DEPENDENCY-NOTES.md", ".pacmon")]
+    [DataRow(".pacmon/AGENT-RULES.md", ".pacmon")]
+    [DataRow("C:\\repo\\.depos\\nuget\\DEPENDENCY-NOTES.md", ".depos")]
+    [DataRow("C:\\repo\\docs.pacmon\\nuget\\DEPENDENCY-NOTES.md", ".depos")]
+    public void NotesDirectoryFollowsThePath(string path, string expected) =>
+        Assert.AreEqual(expected, Notes.DirectoryNameOf(path));
+
+    [TestMethod]
+    public void AgentRulesAreWrittenForTheRepositorysNotesDirectory()
+    {
+        var legacy = AgentRules.TextIn(Notes.LegacyDirectoryName);
+
+        Assert.AreEqual(AgentRules.Text, AgentRules.TextIn(Notes.DirectoryName));
+        StringAssert.Contains(AgentRules.Text, ".depos/AGENT-RULES.md");
+        // One transformation, the same in every editor: each ".depos/" path.
+        Assert.AreEqual(AgentRules.Text.Replace(".depos/", ".pacmon/"), legacy);
+        StringAssert.Contains(legacy, ".pacmon/AGENT-RULES.md");
+        StringAssert.Contains(legacy, ".pacmon/nuget/DEPENDENCY-NOTES.md");
+        StringAssert.Contains(legacy, "https://depos.dev/format/");
+        Assert.AreEqual(".pacmon/AGENT-RULES.md", AgentRules.RelativePath(Notes.LegacyDirectoryName));
+    }
+
+    [TestMethod]
+    public void ShadowedFileWarningUsesTheVsCodeWords()
+    {
+        var finding = Notes.ShadowedFinding(".depos/nuget/DEPENDENCY-NOTES.md");
+
+        Assert.AreEqual(Notes.ShadowedKind, finding.Kind);
+        Assert.AreEqual(0, finding.Line);
+        Assert.AreEqual(
+            "Ignored: .depos/nuget/DEPENDENCY-NOTES.md is read instead of this file. Move what is still needed there, then delete this file.",
+            finding.Message);
     }
 }

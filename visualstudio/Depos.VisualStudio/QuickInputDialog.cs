@@ -42,7 +42,7 @@ internal sealed class QuickInputDialog : DialogWindow
         Loaded += (_, _) => { input.Focus(); input.SelectAll(); };
     }
 
-    /// <summary>A one-line answer to any question, such as the Depos address.</summary>
+    /// <summary>A one-line answer to any question, such as the server address.</summary>
     public static QuickInputDialog Text(string title, string question, string existing) => new(title, question, existing);
 
     public string Value => input.Text.Trim();
@@ -92,7 +92,7 @@ internal sealed class ChoiceDialog : DialogWindow
     }
 }
 
-/// <summary>Which instruction files get the three-line pointer to <c>.pacmon/AGENT-RULES.md</c>.</summary>
+/// <summary>Which instruction files get the three-line pointer to <c>AGENT-RULES.md</c>.</summary>
 internal sealed class AiInstructionsTargetsDialog : DialogWindow
 {
     private readonly List<(string Target, CheckBox Box)> boxes = new();

@@ -163,8 +163,8 @@ internal sealed class DeposSettingsControl : ScrollViewer
     }
 
     /// <summary>
-    /// The Depos group: whether this Visual Studio is signed in, and what it can
-    /// do. Read from the address option and the stored token; no request.
+    /// The Organization group: whether this Visual Studio is signed in, and what
+    /// it can do. Read from the address option and the stored token; no request.
     /// </summary>
     public void UpdateDepos()
     {

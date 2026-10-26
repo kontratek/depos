@@ -6,8 +6,10 @@ using EnvDTE80;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.Settings;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Shell.Settings;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
@@ -148,9 +150,8 @@ internal sealed class DeposRuntime : IDisposable
         return runtime;
     }
 
-    public static bool IsNotesPath(string path) => path.Replace('\\', '/').EndsWith(
-        "/.pacmon/nuget/DEPENDENCY-NOTES.md",
-        StringComparison.OrdinalIgnoreCase);
+    /// <summary>A NuGet notes file under .depos/, or under .pacmon/ in a repository from before Pacmon became Depos.</summary>
+    public static bool IsNotesPath(string path) => NugetManifest.IsNotesPath(path);
 
     public void RegisterBuffer(ITextBuffer buffer)
     {
@@ -211,8 +212,8 @@ internal sealed class DeposRuntime : IDisposable
             ?? workspace.CreationTarget(manifestPath, root);
         if (!FileExists(notesPath))
         {
-            await WriteDocumentAsync(notesPath, Notes.NewFile());
-            await WriteAgentRulesAsync(root, overwrite: false);
+            await WriteDocumentAsync(notesPath, Notes.NewFile(directoryName: Notes.DirectoryNameOf(notesPath)));
+            await WriteAgentRulesAsync(workspace, root, overwrite: false);
         }
         await OpenDocumentAsync(notesPath, packageName);
     }
@@ -226,7 +227,11 @@ internal sealed class DeposRuntime : IDisposable
         var root = KnownRootFor(path);
         var workspace = new NugetWorkspace(fileSystem);
         var dependencies = workspace.DependenciesForNotes(path, root, Options.Monorepo);
-        return Notes.Lint(Notes.Parse(buffer.CurrentSnapshot.GetText()), dependencies.Select(item => item.NoteKey));
+        var findings = Notes.Lint(Notes.Parse(buffer.CurrentSnapshot.GetText()), dependencies.Select(item => item.NoteKey));
+        // A .pacmon/ file with a .depos/ one beside it is never read.
+        return workspace.ShadowingNotesPath(path) is { } current
+            ? new[] { Notes.ShadowedFinding(NugetWorkspace.RelativePath(current, root)) }.Concat(findings).ToArray()
+            : findings;
     }
 
     public IReadOnlyList<NoteSection> OrphansForNotesBuffer(ITextBuffer buffer)
@@ -235,6 +240,8 @@ internal sealed class DeposRuntime : IDisposable
         if (path is null || !IsNotesPath(path) || OrgFor(path) is not null) return Array.Empty<NoteSection>();
         var root = KnownRootFor(path);
         var workspace = new NugetWorkspace(fileSystem);
+        // No manifest reads a .pacmon/ file with a .depos/ one beside it: its warning says so, not one mark per section.
+        if (workspace.ShadowingNotesPath(path) is not null) return Array.Empty<NoteSection>();
         var dependencies = workspace.DependenciesForNotes(path, root, Options.Monorepo);
         var model = Notes.Parse(buffer.CurrentSnapshot.GetText());
         return Notes.Analyze(dependencies, model).Orphans;
@@ -377,9 +384,10 @@ internal sealed class DeposRuntime : IDisposable
         var workspace = new NugetWorkspace(fileSystem);
         var notesPath = workspace.ResolveNotesPath(manifestPath, root, Options.Monorepo)
             ?? workspace.CreationTarget(manifestPath, root);
-        var original = FileExists(notesPath) ? ReadDocument(notesPath) : Notes.NewFile();
-        await WriteDocumentAsync(notesPath, Notes.UpsertLayers(original, packageName, human, agent));
-        await WriteAgentRulesAsync(root, overwrite: false);
+        var directoryName = Notes.DirectoryNameOf(notesPath);
+        var original = FileExists(notesPath) ? ReadDocument(notesPath) : Notes.NewFile(directoryName: directoryName);
+        await WriteDocumentAsync(notesPath, Notes.UpsertLayers(original, packageName, human, agent, directoryName));
+        await WriteAgentRulesAsync(workspace, root, overwrite: false);
     }
 
     public async Task OpenNotesForActiveManifestAsync()
@@ -401,8 +409,8 @@ internal sealed class DeposRuntime : IDisposable
         var notesPath = workspace.ResolveNotesPath(path, root, Options.Monorepo) ?? workspace.CreationTarget(path, root);
         if (!FileExists(notesPath))
         {
-            await WriteDocumentAsync(notesPath, Notes.NewFile());
-            await WriteAgentRulesAsync(root, overwrite: false);
+            await WriteDocumentAsync(notesPath, Notes.NewFile(directoryName: Notes.DirectoryNameOf(notesPath)));
+            await WriteAgentRulesAsync(workspace, root, overwrite: false);
         }
         await OpenDocumentAsync(notesPath);
     }
@@ -423,7 +431,7 @@ internal sealed class DeposRuntime : IDisposable
         }
         if (!IsNotesPath(path))
         {
-            await ShowInfoAsync("Open .pacmon/nuget/DEPENDENCY-NOTES.md first.");
+            await ShowInfoAsync("Open a NuGet DEPENDENCY-NOTES.md first.");
             return;
         }
         var root = KnownRootFor(path);
@@ -467,7 +475,7 @@ internal sealed class DeposRuntime : IDisposable
         var path = ActiveDocumentPath;
         if (path is null || !IsNotesPath(path))
         {
-            await ShowInfoAsync("Open .pacmon/nuget/DEPENDENCY-NOTES.md first.");
+            await ShowInfoAsync("Open a NuGet DEPENDENCY-NOTES.md first.");
             return;
         }
         await NormalizeNotesAsync(path);
@@ -481,14 +489,14 @@ internal sealed class DeposRuntime : IDisposable
             await Depos.InfoBars.ShowAsync(DeposStrings.OrgModeNotesFile(org.OrgName), InfoBarKind.Warning);
             return;
         }
-        await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path)));
+        await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path), Notes.DirectoryNameOf(path)));
     }
 
     /// <summary>
-    /// Two writes, as in the other editors: <c>.pacmon/AGENT-RULES.md</c> is
-    /// rewritten from the extension's own copy, and each instruction file the user
-    /// picks (<c>AGENTS.md</c>, <c>CLAUDE.md</c>, …) gets the three-line pointer to
-    /// it, inserted or updated between markers.
+    /// Two writes, as in the other editors: AGENT-RULES.md, in the repository's
+    /// notes directory, is rewritten from the extension's own copy, and each
+    /// instruction file the user picks (<c>AGENTS.md</c>, <c>CLAUDE.md</c>, …) gets
+    /// the three-line pointer to it, inserted or updated between markers.
     /// </summary>
     public async Task SetupAiInstructionsAsync()
     {
@@ -502,29 +510,109 @@ internal sealed class DeposRuntime : IDisposable
         var root = await RootForAsync(seed!);
         var dialog = new AiInstructionsTargetsDialog(root);
         if (dialog.ShowModal() != true) return;
+        var workspace = new NugetWorkspace(fileSystem);
+        var directoryName = workspace.NotesDirectoryFor(root);
         // Rewritten on every run, as the other editors do, so an old copy gets the current rules.
-        var rules = await WriteAgentRulesAsync(root, overwrite: true);
-        var written = new List<string> { AiInstructions.AgentRulesRelativePath };
+        var rules = await WriteAgentRulesAsync(workspace, root, overwrite: true);
+        var written = new List<string> { AgentRules.RelativePath(directoryName) };
         foreach (var target in dialog.SelectedTargets)
         {
             var path = Path.Combine(root, target.Replace('/', Path.DirectorySeparatorChar));
-            await WriteDocumentAsync(path, AiInstructions.Upsert(FileExists(path) ? ReadDocument(path) : string.Empty));
+            await WriteDocumentAsync(path, AiInstructions.Upsert(FileExists(path) ? ReadDocument(path) : string.Empty, directoryName));
             written.Add(target);
         }
         await OpenDocumentAsync(rules);
-        await Depos.InfoBars.ShowAsync("Set up AI instructions: " + string.Join(", ", written) + ".", InfoBarKind.Information);
+        await Depos.InfoBars.ShowAsync($"Depos: AI instructions written to {string.Join(", ", written)}.", InfoBarKind.Information);
     }
 
     /// <summary>
-    /// .pacmon/AGENT-RULES.md at the workspace root, the rules every notes file's
-    /// header comment points agents to: written when it is missing, and always
-    /// when <paramref name="overwrite"/> is set.
+    /// AGENT-RULES.md at the workspace root, in the repository's notes directory
+    /// (.depos/, or .pacmon/ for a repository that keeps its notes there, with
+    /// the rules' paths there too): the rules every notes file's header comment
+    /// points agents to. Written when it is missing, and always when
+    /// <paramref name="overwrite"/> is set.
     /// </summary>
-    private async Task<string> WriteAgentRulesAsync(string root, bool overwrite)
+    private async Task<string> WriteAgentRulesAsync(NugetWorkspace workspace, string root, bool overwrite)
     {
-        var rulesPath = Path.Combine(root, ".pacmon", "AGENT-RULES.md");
-        if (overwrite || !FileExists(rulesPath)) await WriteDocumentAsync(rulesPath, AgentRules.Text);
+        var directoryName = workspace.NotesDirectoryFor(root);
+        var rulesPath = Path.Combine(root, directoryName, AgentRules.FileName);
+        if (overwrite || !FileExists(rulesPath)) await WriteDocumentAsync(rulesPath, AgentRules.TextIn(directoryName));
         return rulesPath;
+    }
+
+    /// <summary>
+    /// "Move Notes to .depos/", as in the other editors (<see cref="MoveNotes"/>).
+    /// Never run without asking: a teammate on a version from before Depos reads
+    /// .pacmon/ only.
+    /// </summary>
+    public async Task MoveNotesToDeposAsync()
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        var seed = ActiveDocumentPath ?? dte.Solution?.FullName;
+        if (string.IsNullOrWhiteSpace(seed))
+        {
+            await ShowInfoAsync("Open a solution or a file in the workspace first.");
+            return;
+        }
+        var root = await RootForAsync(seed!);
+        var legacy = new NugetWorkspace(fileSystem).LegacyNotesDirectories(root);
+        if (legacy.Count == 0)
+        {
+            await ShowInfoAsync(MoveNotes.None);
+            return;
+        }
+        if (MoveNotes.Conflicts(legacy) is { Count: > 0 } conflicts)
+        {
+            ShowMessage(MoveNotes.Conflict(string.Join(", ", conflicts.Select(directory => NugetWorkspace.RelativePath(directory, root)))), OLEMSGICON.OLEMSGICON_WARNING);
+            return;
+        }
+        if (ShowMessage(MoveNotes.Confirm(legacy.Count), OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OKCANCEL) != (int)VSConstants.MessageBoxResult.IDOK) return;
+
+        // A file open under a directory that moves is saved and closed, and opened again from where it went.
+        var reopen = new List<string>();
+        foreach (var document in dte.Documents.Cast<Document>().ToArray())
+        {
+            var path = document.FullName;
+            if (!legacy.Any(directory => IsUnder(path, directory))) continue;
+            reopen.Add(path);
+            document.Close(vsSaveChanges.vsSaveChangesYes);
+        }
+        var outcome = await MoveNotes.MoveAsync(root, legacy, path => FileExists(path) ? ReadDocument(path) : null, WriteDocumentAsync);
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        foreach (var path in reopen)
+        {
+            var moved = outcome.Moved.FirstOrDefault(directory => IsUnder(path, directory.From));
+            var now = moved is null ? path : moved.To + path.Substring(moved.From.Length);
+            if (File.Exists(now)) await OpenDocumentAsync(now);
+        }
+        NotifyChanged();
+        if (outcome.Moved.Count > 0) await Depos.InfoBars.ShowAsync(MoveNotes.Done(outcome.Moved.Count), InfoBarKind.Information);
+        if (outcome.Failure is { } failure) ShowMessage(failure, OLEMSGICON.OLEMSGICON_CRITICAL);
+    }
+
+    private static bool IsUnder(string path, string directory) =>
+        Path.GetFullPath(path).StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Once per solution, when a notes file under .pacmon/ is opened: the move,
+    /// offered. Not in org mode, where the notes file is not used at all.
+    /// </summary>
+    private void SuggestMoveNotes(string path)
+    {
+        if (!string.Equals(Path.GetFileName(path), Notes.FileName, StringComparison.OrdinalIgnoreCase)
+            || Notes.DirectoryNameOf(path) != Notes.LegacyDirectoryName) return;
+        DeposPackage.Forget(async () =>
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (Depos is null || OrgFor(path) is not null) return;
+            const string collection = "Depos\\MoveNotesSuggested";
+            var root = (await RootForAsync(path)).Replace('\\', '/');
+            var store = new ShellSettingsManager(package).GetWritableSettingsStore(SettingsScope.UserSettings);
+            if (store.CollectionExists(collection) && store.PropertyExists(collection, root)) return;
+            store.CreateCollection(collection);
+            store.SetBoolean(collection, root, true);
+            await Depos.InfoBars.ShowAsync(MoveNotes.Suggest, InfoBarKind.Information, new InfoBarAction(MoveNotes.Action, MoveNotesToDeposAsync));
+        }, "Depos/MoveNotes");
     }
 
     /// <summary>Raises <see cref="Changed"/> on the UI thread, once for a burst of calls. Safe from any thread.</summary>
@@ -657,6 +745,7 @@ internal sealed class DeposRuntime : IDisposable
         bufferHandlers[document.TextBuffer] = handler;
         // A file just opened may need the org-mode notice and Error List entries.
         if (IsNotesPath(path) || NugetManifest.MatchesPath(path)) NotifyChanged();
+        SuggestMoveNotes(path);
     }
 
     private void OnTextDocumentCreated(object sender, TextDocumentEventArgs args) => RegisterDocument(args.TextDocument);
@@ -697,11 +786,11 @@ internal sealed class DeposRuntime : IDisposable
         else
         {
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-            var temporary = fullPath + ".pacmon.tmp";
+            var temporary = fullPath + ".depos.tmp";
             File.WriteAllText(temporary, text, new UTF8Encoding(false));
             if (File.Exists(fullPath))
             {
-                var backup = fullPath + ".pacmon.bak";
+                var backup = fullPath + ".depos.bak";
                 try { File.Replace(temporary, fullPath, backup, true); }
                 finally { if (File.Exists(backup)) File.Delete(backup); }
             }
@@ -782,7 +871,11 @@ internal sealed class DeposRuntime : IDisposable
         };
         FileSystemEventHandler changed = (_, args) =>
         {
-            if (NugetManifest.MatchesPath(args.FullPath) || IsNotesPath(args.FullPath)) NotifyChanged();
+            // A whole .depos/ or .pacmon/ directory moved or removed, too: a renamed directory is one event.
+            if (NugetManifest.MatchesPath(args.FullPath)
+                || IsNotesPath(args.FullPath)
+                || Notes.DirectoryNames.Contains(Path.GetFileName(args.FullPath), StringComparer.OrdinalIgnoreCase))
+                NotifyChanged();
         };
         watcher.Changed += changed;
         watcher.Created += changed;
@@ -793,13 +886,14 @@ internal sealed class DeposRuntime : IDisposable
     private async Task ShowInfoAsync(string message)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-        VsShellUtilities.ShowMessageBox(
-            package,
-            message,
-            "Depos",
-            OLEMSGICON.OLEMSGICON_INFO,
-            OLEMSGBUTTON.OLEMSGBUTTON_OK,
-            OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+        ShowMessage(message, OLEMSGICON.OLEMSGICON_INFO);
+    }
+
+    /// <summary>A Depos message box on the UI thread; the button pressed.</summary>
+    private int ShowMessage(string message, OLEMSGICON icon, OLEMSGBUTTON buttons = OLEMSGBUTTON.OLEMSGBUTTON_OK)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        return VsShellUtilities.ShowMessageBox(package, message, "Depos", icon, buttons, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
     }
 
     private sealed class RuntimeFileSystem : IWorkspaceFileSystem

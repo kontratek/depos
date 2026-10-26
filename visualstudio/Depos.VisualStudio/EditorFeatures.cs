@@ -582,7 +582,9 @@ internal sealed class DeposSuggestedActionsSource : ISuggestedActionsSource
         if (documentPath is not null && DeposRuntime.IsNotesPath(documentPath))
         {
             var line = buffer.CurrentSnapshot.GetLineFromPosition(Math.Min(position, buffer.CurrentSnapshot.Length));
-            return runtime.LintNotesBuffer(buffer).Any(finding => finding.Line == line.LineNumber)
+            // Formatting does not help a file that is not read: its warning offers nothing.
+            return runtime.LintNotesBuffer(buffer).Any(finding =>
+                    finding.Line == line.LineNumber && finding.Kind != Notes.ShadowedKind)
                 ? new DeposNormalizeSuggestedAction(documentPath)
                 : null;
         }

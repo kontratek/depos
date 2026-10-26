@@ -22,7 +22,8 @@ try {
   $entry = $archive.GetEntry('extension.vsixmanifest')
   $reader = [System.IO.StreamReader]::new($entry.Open())
   try { $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
-  if ($manifest -notmatch 'Id="dev\.depos\.visualstudio"') { throw 'VSIX identity is wrong.' }
+  # The identity from before Pacmon became Depos: installed copies update to this VSIX.
+  if ($manifest -notmatch 'Id="dev\.pacmon\.visualstudio"') { throw 'VSIX identity is wrong.' }
   if ($manifest -notmatch 'Version="\[17\.0,\)"') { throw 'VSIX does not target Visual Studio 17.0+.' }
   if ($manifest -notmatch '<ProductArchitecture>amd64</ProductArchitecture>' -or
       $manifest -notmatch '<ProductArchitecture>arm64</ProductArchitecture>') {
@@ -74,6 +75,12 @@ try {
   if ($pkgdef -notmatch '"Style"="Tabbed"' -or
       $pkgdef -notmatch '"Window"="3ae79031-e1bc-11d0-8f78-00a0c9110057"') {
     throw 'Depos tool window is not docked with Solution Explorer by default.'
+  }
+  # Visual Studio keeps the package's state and where the tool window is docked
+  # under these GUIDs, the ones from before Pacmon became Depos.
+  if ($pkgdef -notmatch '\\Packages\\\{0d148b7e-b648-46aa-92ef-e401d72ae221\}\]' -or
+      $pkgdef -notmatch '\\ToolWindows\\\{af380955-b17d-4614-a349-bc9e50c29a6e\}\]') {
+    throw 'VSIX does not register the package and tool window GUIDs from before Pacmon became Depos.'
   }
 }
 finally { $archive.Dispose() }

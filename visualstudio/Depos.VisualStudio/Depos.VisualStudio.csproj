@@ -15,11 +15,12 @@
     <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DeposVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\package.json')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</DeposVersion>
-    <VsixId>dev.depos.visualstudio</VsixId>
+    <!-- The identity from before Pacmon became Depos (source.extension.vsixmanifest): installed copies update to this one. -->
+    <VsixId>dev.pacmon.visualstudio</VsixId>
     <VsixVersion>$(DeposVersion)</VsixVersion>
     <VsixPublisher>Kontra</VsixPublisher>
     <VsixDisplayName>Depos — Dependency Notes</VsixDisplayName>
-    <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository.</VsixDescription>
+    <VsixDescription>Why each .NET/NuGet dependency exists, stored as plain Markdown in your repository. Formerly Pacmon.</VsixDescription>
     <AssemblyName>Depos.VisualStudio</AssemblyName>
     <RootNamespace>Depos.VisualStudio</RootNamespace>
     <IntermediateOutputPath>obj\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>

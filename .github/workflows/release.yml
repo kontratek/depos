@@ -308,7 +308,7 @@ jobs:
   # Visual Studio extensions go to their own side of the Visual Studio
   # Marketplace through VsixPublisher, a Windows tool, so this runs on Windows
   # after the job above has pushed the tag. The listing is
-  # marketplace.visualstudio.com/items?itemName=kontra.depos-visualstudio; its
+  # marketplace.visualstudio.com/items?itemName=kontra.pacmon-visualstudio; its
   # page and categories are visualstudio/marketplace/.
   visualstudio-publish:
     needs: [version, release]

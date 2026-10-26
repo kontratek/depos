@@ -8,7 +8,9 @@ namespace Depos.VisualStudio;
 
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
 [InstalledProductRegistration("Depos — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", DeposBuild.Version)]
-[ProvideMenuResource("Menus.ctmenu", 1)]
+// Version 2: the package GUID is the one from before Pacmon became Depos, and a
+// new version makes Visual Studio merge the changed command table again.
+[ProvideMenuResource("Menus.ctmenu", 2)]
 [ProvideToolWindow(
     typeof(DeposToolWindow),
     Style = VsDockStyle.Tabbed,
@@ -19,8 +21,10 @@ namespace Depos.VisualStudio;
 [Guid(PackageGuid)]
 public sealed class DeposPackage : AsyncPackage
 {
-    public const string PackageGuid = "F797BD3C-55F1-4225-8D64-BC10034919EC";
-    public static readonly Guid CommandSet = new("9C0D68A1-5643-4FBD-A674-D9171E992BB0");
+    // From before Pacmon became Depos, as in Depos.vsct: Visual Studio keeps the
+    // package's state and the commands' customizations under these.
+    public const string PackageGuid = "0D148B7E-B648-46AA-92EF-E401D72AE221";
+    public static readonly Guid CommandSet = new("A6EEA79E-0D28-481F-B55F-32E34EC61796");
 
     private static DeposPackage? instance;
 
@@ -93,6 +97,7 @@ public sealed class DeposPackage : AsyncPackage
         AddCommand(service, 0x010A, async () => await Runtime.Depos.ShowConnectionAsync());
         AddCommand(service, 0x010B, async () => await Runtime.Depos.RefreshAsync());
         AddCommand(service, 0x010C, async () => await Runtime.Depos.CopyMcpSetupAsync());
+        AddCommand(service, 0x010D, async () => await Runtime.MoveNotesToDeposAsync());
     }
 
     private void AddCommand(OleMenuCommandService service, int id, Func<Task> execute)

@@ -3,7 +3,8 @@ using Microsoft.VisualStudio.Shell;
 
 namespace Depos.VisualStudio;
 
-[Guid("DB7399A1-CA23-48D4-9741-59644D8B2D3D")]
+// The GUID from before Pacmon became Depos: Visual Studio keeps where the window is docked under it.
+[Guid("AF380955-B17D-4614-A349-BC9E50C29A6E")]
 public sealed class DeposToolWindow : ToolWindowPane
 {
     public DeposToolWindow() : base(null)
