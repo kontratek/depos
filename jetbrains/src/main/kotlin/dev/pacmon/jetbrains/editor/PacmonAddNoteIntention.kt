@@ -36,9 +36,9 @@ class PacmonAddNoteIntention : IntentionAction, PriorityAction {
         val dependency = notes.dependencyAt(manifest, editor.caretModel.offset, lineFallback = true) ?: return false
         val documented = notes.noteFor(manifest, dependency.name) != null
         text = if (documented) {
-            "Edit the Pacmon note for ${dependency.name}"
+            "Edit the Depos note for ${dependency.name}"
         } else {
-            "Add a Pacmon note for ${dependency.name}"
+            "Add a Depos note for ${dependency.name}"
         }
         return true
     }
@@ -53,6 +53,10 @@ class PacmonAddNoteIntention : IntentionAction, PriorityAction {
     }
 
     private companion object {
+        /**
+         * The name from before Pacmon became Depos, kept: the IDE remembers an
+         * intention someone turned off by its family name.
+         */
         const val FAMILY = "Add/edit the Pacmon dependency note"
     }
 }

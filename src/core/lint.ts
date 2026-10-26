@@ -18,7 +18,7 @@ export type LintFinding =
   | { kind: 'wrongHeadingLevel'; line: number; name: string; level: number }
   | { kind: 'missingSpaceAfterHashes'; line: number; name: string }
   | { kind: 'missingFrontmatter'; line: number }
-  /** `format:` names a version this Pacmon does not read. */
+  /** `format:` names a version this Depos does not read. */
   | { kind: 'unknownFormat'; line: number; version: string }
   | { kind: 'missingEcosystem'; line: number }
   | { kind: 'wrongEcosystem'; line: number; actual: string; expected: ManifestKind }

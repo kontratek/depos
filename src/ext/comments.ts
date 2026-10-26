@@ -4,12 +4,13 @@ import { sectionLayers } from '../core/layers';
 import { findSection } from '../core/parseNotes';
 import { isManifest, noteEntryMode, notesFileLabelForManifest } from './config';
 import { logError } from './log';
-import { resolveNotesFileFor } from './resolveNotesFile';
+import { notesDirForManifest, resolveNotesFileFor } from './resolveNotesFile';
+import { notesDirOf } from '../core/template';
 import type { Store } from './state';
 import { upsertNote } from './commands/writeNote';
 
 /**
- * EXPERIMENTAL note-entry surface (pacmon.noteEntry = "comments"):
+ * EXPERIMENTAL note-entry surface (depos.noteEntry = "comments"):
  * dependency lines get a commenting range; the comment thread's multi-line
  * input box writes straight to DEPENDENCY-NOTES.md via the "Save note" button.
  */
@@ -18,7 +19,7 @@ export class NoteComments implements vscode.Disposable {
   private readonly threads = new Map<string, vscode.CommentThread>();
 
   constructor(private readonly store: Store) {
-    this.controller = vscode.comments.createCommentController('pacmon', 'Pacmon Dependency Notes');
+    this.controller = vscode.comments.createCommentController('pacmon', 'Depos Dependency Notes');
     this.controller.commentingRangeProvider = {
       provideCommentingRanges: (doc) => {
         if (noteEntryMode() !== 'comments' || !isManifest(doc.uri)) return [];
@@ -73,7 +74,7 @@ export class NoteComments implements vscode.Disposable {
     const comment: vscode.Comment = {
       body: md,
       mode: vscode.CommentMode.Preview,
-      author: { name: notesFileLabelForManifest(pkgUri) },
+      author: { name: notesFileLabelForManifest(pkgUri, notesUri ? notesDirOf(notesUri.path) : await notesDirForManifest(pkgUri)) },
     };
     thread.comments = [comment];
     thread.label = depName;

@@ -40,7 +40,7 @@ public sealed class PacmonOptionsPage : DialogPage
 
     [Category("Editor")]
     [DisplayName("Package icon")]
-    [Description("Show a clickable Pacmon icon beside each supported package ID.")]
+    [Description("Show a clickable Depos icon beside each supported package ID.")]
     [DefaultValue(true)]
     public bool MarginIcon { get; set; } = true;
 

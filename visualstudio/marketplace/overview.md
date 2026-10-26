@@ -1,22 +1,26 @@
-# Pacmon — Dependency Notes
+# Depos — Dependency Notes
 
-**Your project file says which NuGet packages you depend on. Pacmon adds why.**
+**Your project file says which NuGet packages you depend on. Depos adds why.**
 
 Every package gets a short note: why it is here, what must not change, what to
 check before an upgrade. The note shows in the project file as Quick Info, and
 you write it from there.
 
-Notes are plain Markdown in `.pacmon/nuget/DEPENDENCY-NOTES.md`, next to the
+Notes are plain Markdown in `.depos/nuget/DEPENDENCY-NOTES.md`, next to the
 project they describe. No database, no service, no account: a file that you
 read, diff and commit like any other. AI coding agents read the same file
 before they touch a package.
 
-## What Pacmon reads
+Depos was formerly called Pacmon. Notes in `.pacmon/` folders from that time
+are still read, and a repository that keeps its notes there gets new ones there
+too.
+
+## What Depos reads
 
 Literal `PackageReference Include` items in `.csproj`, `.fsproj` and `.vbproj`
 files, and `PackageVersion Include/Update` plus `GlobalPackageReference Include`
 items in `Directory.Packages.props`. Package IDs match case-insensitively.
-Pacmon reads these files as text and never runs .NET, MSBuild or NuGet, so
+Depos reads these files as text and never runs .NET, MSBuild or NuGet, so
 imports, MSBuild expressions and transitive packages are not evaluated.
 
 ## Features
@@ -27,16 +31,16 @@ imports, MSBuild expressions and transitive packages are not evaluated.
   Quick Info.
 - Ctrl+click on a package ID jumps to its section in the notes file; the Quick
   Action on the line adds or edits the note.
-- Write a note in the Pacmon tool window beside Solution Explorer, in a quick
+- Write a note in the Depos tool window beside Solution Explorer, in a quick
   input box, or in the notes file opened beside the project, with one layer
   for people and one for agents.
 - **Documentation Coverage** lists which packages have a note and which do not.
 - Problems in the notes file are underlined as you write, and
   **Format NuGet Dependency Notes** rewrites the file into canonical form.
 - **Set Up AI Instructions** writes the rules for AI coding agents to
-  `.pacmon/AGENT-RULES.md`.
+  `.depos/AGENT-RULES.md`.
 
-**Tools → Options → Pacmon** chooses what the end of a line shows, which layer
+**Tools → Options → Depos** chooses what the end of a line shows, which layer
 of the note leads, how a note opens, and which notes file a project uses in a
 monorepo.
 
@@ -49,7 +53,7 @@ obligations, maintenance), where it runs (`runtime`), whether it handles
 untrusted input (`exposure`), and a dated `log` of advisories, upgrades and
 rejected proposals. A package added to a project file without a note shows a
 hollow mark and appears in **Documentation Coverage**, so an unreviewed
-dependency stands out. Pacmon makes it visible; it does not block the package.
+dependency stands out. Depos makes it visible; it does not block the package.
 
 ## The notes file
 
@@ -74,18 +78,18 @@ Do not replace with System.Text.Json yet: the partner webhooks depend on its dat
 - exposure: untrusted-input
 ```
 
-The Pacmon extensions for VS Code and the JetBrains IDEs, Rider included, read
+The Depos extensions for VS Code and the JetBrains IDEs, Rider included, read
 the same file, so notes move between editors unchanged. The format is
-documented at [pacmon.dev/format](https://pacmon.dev/format/).
+documented at [depos.dev/format](https://depos.dev/format/).
 
 ## Requirements
 
-Visual Studio 2022 or newer on Windows, x64 or Arm64. Pacmon reads and writes
+Visual Studio 2022 or newer on Windows, x64 or Arm64. Depos reads and writes
 files in your solution and makes no network requests; it does not call any AI
 service.
 
 ## Feedback
 
 Bug reports and feature requests are welcome as
-[GitHub issues](https://github.com/kontratek/pacmon/issues). Pacmon is licensed
+[GitHub issues](https://github.com/kontratek/depos/issues). Depos is licensed
 under the Apache License 2.0.

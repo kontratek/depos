@@ -3,11 +3,11 @@ package dev.pacmon.jetbrains.core
 private data class GleamLine(val text: String, val offset: Int)
 private data class GleamKey(val value: String, val range: SourceRange)
 
-/** Static gleam.toml parser. Pacmon never invokes Gleam or resolves packages. */
+/** Static gleam.toml parser. Depos never invokes Gleam or resolves packages. */
 object GleamManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.GLEAM
     override val fileNames = listOf("gleam.toml")
-    override val notesRelativePath = ".pacmon/gleam/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/gleam/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     private val dependencyScopes = setOf("dependencies", "dev_dependencies")

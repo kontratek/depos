@@ -122,9 +122,8 @@ internal sealed class PacmonRuntime : IDisposable
         return runtime;
     }
 
-    public static bool IsNotesPath(string path) => path.Replace('\\', '/').EndsWith(
-        "/.pacmon/nuget/DEPENDENCY-NOTES.md",
-        StringComparison.OrdinalIgnoreCase);
+    /// <summary>A NuGet notes file under .depos/, or under .pacmon/ in a repository from before Pacmon became Depos.</summary>
+    public static bool IsNotesPath(string path) => NugetManifest.IsNotesPath(path);
 
     public void RegisterBuffer(ITextBuffer buffer)
     {
@@ -180,8 +179,8 @@ internal sealed class PacmonRuntime : IDisposable
             ?? workspace.CreationTarget(manifestPath, root);
         if (!FileExists(notesPath))
         {
-            await WriteDocumentAsync(notesPath, Notes.NewFile());
-            await WriteAgentRulesAsync(root, overwrite: false);
+            await WriteDocumentAsync(notesPath, Notes.NewFile(directoryName: Notes.DirectoryNameOf(notesPath)));
+            await WriteAgentRulesAsync(workspace, root, overwrite: false);
         }
         await OpenDocumentAsync(notesPath, packageName);
     }
@@ -195,7 +194,11 @@ internal sealed class PacmonRuntime : IDisposable
         var root = KnownRootFor(path);
         var workspace = new NugetWorkspace(fileSystem);
         var dependencies = workspace.DependenciesForNotes(path, root, Options.Monorepo);
-        return Notes.Lint(Notes.Parse(buffer.CurrentSnapshot.GetText()), dependencies.Select(item => item.NoteKey));
+        var findings = Notes.Lint(Notes.Parse(buffer.CurrentSnapshot.GetText()), dependencies.Select(item => item.NoteKey));
+        // A .pacmon/ file with a .depos/ one beside it is never read.
+        return workspace.ShadowingNotesPath(path) is { } current
+            ? new[] { Notes.ShadowedFinding(NugetWorkspace.RelativePath(current, root)) }.Concat(findings).ToArray()
+            : findings;
     }
 
     public IReadOnlyList<NoteSection> OrphansForNotesBuffer(ITextBuffer buffer)
@@ -317,9 +320,10 @@ internal sealed class PacmonRuntime : IDisposable
         var workspace = new NugetWorkspace(fileSystem);
         var notesPath = workspace.ResolveNotesPath(manifestPath, root, Options.Monorepo)
             ?? workspace.CreationTarget(manifestPath, root);
-        var original = FileExists(notesPath) ? ReadDocument(notesPath) : Notes.NewFile();
-        await WriteDocumentAsync(notesPath, Notes.UpsertLayers(original, packageName, human, agent));
-        await WriteAgentRulesAsync(root, overwrite: false);
+        var directoryName = Notes.DirectoryNameOf(notesPath);
+        var original = FileExists(notesPath) ? ReadDocument(notesPath) : Notes.NewFile(directoryName: directoryName);
+        await WriteDocumentAsync(notesPath, Notes.UpsertLayers(original, packageName, human, agent, directoryName));
+        await WriteAgentRulesAsync(workspace, root, overwrite: false);
     }
 
     public async Task OpenNotesForActiveManifestAsync()
@@ -336,8 +340,8 @@ internal sealed class PacmonRuntime : IDisposable
         var notesPath = workspace.ResolveNotesPath(path, root, Options.Monorepo) ?? workspace.CreationTarget(path, root);
         if (!FileExists(notesPath))
         {
-            await WriteDocumentAsync(notesPath, Notes.NewFile());
-            await WriteAgentRulesAsync(root, overwrite: false);
+            await WriteDocumentAsync(notesPath, Notes.NewFile(directoryName: Notes.DirectoryNameOf(notesPath)));
+            await WriteAgentRulesAsync(workspace, root, overwrite: false);
         }
         await OpenDocumentAsync(notesPath);
     }
@@ -358,7 +362,7 @@ internal sealed class PacmonRuntime : IDisposable
         }
         if (!IsNotesPath(path))
         {
-            await ShowInfoAsync("Open .pacmon/nuget/DEPENDENCY-NOTES.md first.");
+            await ShowInfoAsync("Open a NuGet DEPENDENCY-NOTES.md first.");
             return;
         }
         var root = KnownRootFor(path);
@@ -392,14 +396,14 @@ internal sealed class PacmonRuntime : IDisposable
         var path = ActiveDocumentPath;
         if (path is null || !IsNotesPath(path))
         {
-            await ShowInfoAsync("Open .pacmon/nuget/DEPENDENCY-NOTES.md first.");
+            await ShowInfoAsync("Open a NuGet DEPENDENCY-NOTES.md first.");
             return;
         }
         await NormalizeNotesAsync(path);
     }
 
     public async Task NormalizeNotesAsync(string path) =>
-        await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path)));
+        await WriteDocumentAsync(path, Notes.Normalize(ReadDocument(path), Notes.DirectoryNameOf(path)));
 
     public async Task SetupAiInstructionsAsync()
     {
@@ -413,18 +417,21 @@ internal sealed class PacmonRuntime : IDisposable
         var root = await RootForAsync(active);
         // Rewritten on every run, as the VS Code extension does, so an old copy
         // gets the current rules.
-        await OpenDocumentAsync(await WriteAgentRulesAsync(root, overwrite: true));
+        await OpenDocumentAsync(await WriteAgentRulesAsync(new NugetWorkspace(fileSystem), root, overwrite: true));
     }
 
     /// <summary>
-    /// .pacmon/AGENT-RULES.md at the workspace root, the rules every notes file's
-    /// header comment points agents to: written when it is missing, and always
-    /// when <paramref name="overwrite"/> is set.
+    /// AGENT-RULES.md at the workspace root, in the repository's notes directory
+    /// (.depos/, or .pacmon/ for a repository that keeps its notes there, with
+    /// the rules' paths there too): the rules every notes file's header comment
+    /// points agents to. Written when it is missing, and always when
+    /// <paramref name="overwrite"/> is set.
     /// </summary>
-    private async Task<string> WriteAgentRulesAsync(string root, bool overwrite)
+    private async Task<string> WriteAgentRulesAsync(NugetWorkspace workspace, string root, bool overwrite)
     {
-        var rulesPath = Path.Combine(root, ".pacmon", "AGENT-RULES.md");
-        if (overwrite || !FileExists(rulesPath)) await WriteDocumentAsync(rulesPath, AgentRules.Text);
+        var directoryName = workspace.NotesDirectoryFor(root);
+        var rulesPath = Path.Combine(root, directoryName, AgentRules.FileName);
+        if (overwrite || !FileExists(rulesPath)) await WriteDocumentAsync(rulesPath, AgentRules.TextIn(directoryName));
         return rulesPath;
     }
 
@@ -502,11 +509,11 @@ internal sealed class PacmonRuntime : IDisposable
         else
         {
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-            var temporary = fullPath + ".pacmon.tmp";
+            var temporary = fullPath + ".depos.tmp";
             File.WriteAllText(temporary, text, new UTF8Encoding(false));
             if (File.Exists(fullPath))
             {
-                var backup = fullPath + ".pacmon.bak";
+                var backup = fullPath + ".depos.bak";
                 try { File.Replace(temporary, fullPath, backup, true); }
                 finally { if (File.Exists(backup)) File.Delete(backup); }
             }
@@ -599,7 +606,7 @@ internal sealed class PacmonRuntime : IDisposable
         VsShellUtilities.ShowMessageBox(
             package,
             message,
-            "Pacmon",
+            "Depos",
             OLEMSGICON.OLEMSGICON_INFO,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);

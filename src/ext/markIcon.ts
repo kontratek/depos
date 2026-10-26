@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 /**
- * The Pacmon mark, as the four images the editor draws before a dependency key.
+ * The Depos mark, as the four images the editor draws before a dependency key.
  *
  * THE SHAPE is `media/pacmon-mark.svg`: three bars on an 8x8 grid, each bar
  * 6 wide and 2 tall, 1-unit gaps, the top bar 2 in from the left. Every edge

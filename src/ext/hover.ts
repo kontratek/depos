@@ -5,6 +5,7 @@ import { findSection } from '../core/parseNotes';
 import { inlineSource, MANIFEST_SELECTOR, notesFileLabelForManifest } from './config';
 import { logError } from './log';
 import { resolveNotesFileFor } from './resolveNotesFile';
+import { notesDirOf } from '../core/template';
 import type { Store } from './state';
 import { S } from './strings';
 import type { OrgContext } from './web/orgContext';
@@ -43,17 +44,19 @@ export function registerHover(store: Store, org: OrgContext): vscode.Disposable 
       if (parts.length === 0 && !orgPart) return undefined;
 
       const md = new vscode.MarkdownString(undefined, true);
-      md.isTrusted = { enabledCommands: ['pacmon.addOrEditNote', 'pacmon.openNotesFile'] };
+      md.isTrusted = { enabledCommands: ['depos.addOrEditNote', 'depos.openNotesFile'] };
       // Org mode: the note is the org note, not a section of the notes file.
       const orgNotes = org.notesFor(doc.uri);
-      const fileLabel = orgNotes ? S.orgNotesLabel(orgNotes.copy.orgName) : notesFileLabelForManifest(doc.uri);
+      const fileLabel = orgNotes
+        ? S.orgNotesLabel(orgNotes.copy.orgName)
+        : notesFileLabelForManifest(doc.uri, notesUri ? notesDirOf(notesUri.path) : undefined);
       md.appendMarkdown(`**${dep.displayName}** ${S.hoverSourceSuffix(fileLabel)}\n\n`);
       if (parts.length > 0) md.appendMarkdown(`${parts.map((p) => p.text).join('\n\n---\n\n')}\n\n`);
       if (orgPart) appendOrg(md, orgPart);
       const arg = encodeURIComponent(JSON.stringify([dep.noteKey]));
       // In org mode the notes file is not used: the package's page in Depos takes its place.
-      const open = orgPart ? `[${S.orgOpenWeb}](${orgPart.link})` : `[${S.hoverOpenFile(fileLabel)}](command:pacmon.openNotesFile)`;
-      md.appendMarkdown(`---\n\n[${S.hoverEditNote}](command:pacmon.addOrEditNote?${arg}) · ${open}`);
+      const open = orgPart ? `[${S.orgOpenWeb}](${orgPart.link})` : `[${S.hoverOpenFile(fileLabel)}](command:depos.openNotesFile)`;
+      md.appendMarkdown(`---\n\n[${S.hoverEditNote}](command:depos.addOrEditNote?${arg}) · ${open}`);
 
       const hit = dep.sourceRanges.find((range) => offset >= range.offset && offset <= range.offset + range.length)
         ?? dep.primaryRange;

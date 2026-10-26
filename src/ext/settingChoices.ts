@@ -1,7 +1,7 @@
 import { INLINE_SOURCES } from '../core/layers';
 
 /**
- * The values the Pacmon view may write for each radio group. Shared by the
+ * The values the Depos view may write for each radio group. Shared by the
  * markup (which radios to draw) and the host (what to accept off the wire):
  * the webview is not trusted to pick setting values on its own.
  */
@@ -26,7 +26,7 @@ export function choiceValues(key: string): readonly string[] | undefined {
  * Markers" writes a workspace value, and a repository may ship any of these in
  * its own `.vscode/settings.json`.
  *
- * Folder values are not considered. Every Pacmon setting is `window`-scoped —
+ * Folder values are not considered. Every Depos setting is `window`-scoped —
  * what VS Code gives a property that declares no scope — and a window-scoped
  * setting cannot be set per folder.
  */

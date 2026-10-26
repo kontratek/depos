@@ -1,7 +1,12 @@
-<idea-plugin url="https://pacmon.dev">
+<idea-plugin url="https://depos.dev">
+    <!-- The id is from before Pacmon became Depos, and stays: it is the plugin's
+         identity on the Marketplace, so installed copies keep updating. -->
     <id>dev.pacmon.jetbrains</id>
-    <name>Pacmon</name>
-    <vendor email="info@pacmon.dev" url="https://pacmon.dev">Kontra</vendor>
+    <name>Depos</name>
+    <vendor email="info@depos.dev" url="https://depos.dev">Kontra</vendor>
+    <!-- Display names for registrations whose ids stay from before the rename:
+         the tool window and the notification group. -->
+    <resource-bundle>messages.DeposBundle</resource-bundle>
 
     <!-- The Marketplace listing is built from the plugin zip: the name and the
          description here, META-INF/pluginIcon.svg next to this file, and the change
@@ -10,19 +15,22 @@
          The url on <idea-plugin> is the homepage link on the plugin's Marketplace
          page, which the vendor's url does not fill. -->
     <description><![CDATA[
-        <p><b>Your dependency manifest says what you depend on. Pacmon adds why.</b></p>
+        <p><b>Your dependency manifest says what you depend on. Depos adds why.</b></p>
         <p>Every dependency gets a short note: why it is here, what must not change,
         what to check before an upgrade. The note shows in <code>package.json</code>,
         <code>Cargo.toml</code>, Maven <code>pom.xml</code>, a Gradle build file, <code>mix.exs</code>,
         <code>gleam.toml</code>, <code>build.zig.zon</code>, <code>pyproject.toml</code>, a pip requirements file, a .NET project file,
         <code>Gemfile</code>, a gemspec, <code>composer.json</code>, <code>Directory.Packages.props</code>, <code>go.mod</code>, <code>vcpkg.json</code>, <code>conanfile.py</code>, or <code>conanfile.txt</code> as quick documentation,
         and you write it from there.</p>
-        <p>Notes are plain Markdown under <code>.pacmon/</code>, separated by ecosystem.
+        <p>Notes are plain Markdown under <code>.depos/</code>, separated by ecosystem.
         No database, no service, no account: files that you read, diff and commit like
-        any other. AI coding agents read the same files before they touch a package.</p>
-        <p>Optionally, sign in to Depos: a folder whose GitHub repository is added to one
-        of your organizations then shows the organization's notes, and marks packages its
-        allowlist denies or has not decided on.</p>
+        any other. AI coding agents read the same files before they touch a package.
+        A repository that keeps its notes under <code>.pacmon/</code>, their directory
+        from before Pacmon became Depos, works as it is, and moves with
+        <b>Move Notes to .depos/</b> once everyone working in it has updated.</p>
+        <p>Optionally, sign in to your organization's Depos server: a folder whose GitHub
+        repository is added to one of your organizations then shows the organization's
+        notes, and marks packages its allowlist denies or has not decided on.</p>
         <ul>
             <li>Five ways into a note from a dependency manifest, each one you turn
             on or off: a mark at the dependency declaration — filled when it has a note,
@@ -30,21 +38,22 @@
             above the dependency, the words at the end of the line, and a lightbulb on
             the caret line. The first line of the note shows at the end of the line;
             the whole note shows as quick documentation.</li>
-            <li>Write a note from the manifest in the Pacmon tool window or
+            <li>Write a note from the manifest in the Depos tool window or
             in a popup over the line, with a layer for people and a layer for agents.</li>
             <li><b>Documentation Coverage</b> lists which dependencies have a note and
             which do not.</li>
             <li>Problems in the notes file are underlined as you write, and
             <b>Format DEPENDENCY-NOTES.md</b> rewrites the file into canonical form.</li>
             <li><b>Set Up AI Instructions</b> writes the rules for AI coding agents to
-            <code>.pacmon/AGENT-RULES.md</code> and points <code>AGENTS.md</code>,
+            <code>.depos/AGENT-RULES.md</code> and points <code>AGENTS.md</code>,
             <code>CLAUDE.md</code> and similar files to it.</li>
         </ul>
-        <p>Pacmon reads and writes files in your project and makes network requests
-        only while you are signed in to Depos; it does not call any AI service. The
+        <p>Depos reads and writes files in your project and makes network requests
+        only while you are signed in; it does not call any AI service. The
         <a href="https://marketplace.visualstudio.com/items?itemName=kontra.pacmon">VS Code
         extension</a> reads the same files, and the format is documented at
-        <a href="https://pacmon.dev/format/">pacmon.dev/format</a>.</p>
+        <a href="https://depos.dev/format/">depos.dev/format</a>.</p>
+        <p>Formerly Pacmon.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -69,7 +78,7 @@
         <projectConfigurable
             parentId="tools"
             id="dev.pacmon.jetbrains.settings"
-            displayName="Pacmon"
+            displayName="Depos"
             instance="dev.pacmon.jetbrains.settings.PacmonConfigurable"/>
         <codeInsight.inlayProvider
             language="JSON"
@@ -94,7 +103,7 @@
              isAvailable() returns false outside a dependency manifest. -->
         <intentionAction>
             <className>dev.pacmon.jetbrains.editor.PacmonAddNoteIntention</className>
-            <category>Pacmon</category>
+            <category>Depos</category>
         </intentionAction>
         <annotator
             language="TEXT"
@@ -111,8 +120,10 @@
         <annotator
             language="TEXT"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonAllowlistAnnotator"/>
-        <!-- The Depos connection: sign-in codes, refused saves, the copied MCP setup. -->
-        <notificationGroup id="Pacmon" displayType="BALLOON"/>
+        <!-- The Depos connection: sign-in codes, refused saves, the copied MCP setup;
+             and the offer to move the notes to .depos/. The id stays from before the
+             rename; Settings | Notifications shows the name from the bundle. -->
+        <notificationGroup id="Pacmon" displayType="BALLOON" key="notification.group.depos"/>
         <!-- Org mode: a banner on DEPENDENCY-NOTES.md, which is not read then. -->
         <editorNotificationProvider implementation="dev.pacmon.jetbrains.editor.PacmonOrgModeNotificationProvider"/>
         <postStartupActivity implementation="dev.pacmon.jetbrains.depos.OrgStartupActivity"/>
@@ -125,6 +136,8 @@
         <lang.documentationProvider
             language="TEXT"
             implementationClass="dev.pacmon.jetbrains.editor.PacmonDocumentationProvider"/>
+        <!-- The id stays from before the rename, so the window keeps its place; its
+             title is toolwindow.stripe.Pacmon in the bundle. -->
         <toolWindow
             id="Pacmon"
             anchor="right"
@@ -132,96 +145,93 @@
             factoryClass="dev.pacmon.jetbrains.ui.PacmonToolWindowFactory"/>
     </extensions>
 
+    <projectListeners>
+        <!-- A notes file under .pacmon/ opened: Move Notes to .depos/, offered once per project. -->
+        <listener
+            class="dev.pacmon.jetbrains.action.MoveNotesSuggestion"
+            topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+
     <actions>
         <action
             id="Pacmon.AddOrEditNote"
             class="dev.pacmon.jetbrains.action.AddOrEditNoteAction"
             text="Add/Edit Dependency Note"
-            description="Add or edit the Pacmon note for this dependency"
+            description="Add or edit the note for this dependency"
             icon="/icons/pacmon.svg">
             <add-to-group group-id="EditorPopupMenu" anchor="first"/>
-        </action>
-        <action
-            id="Pacmon.OpenNotesFile"
-            class="dev.pacmon.jetbrains.action.OpenNotesFileAction"
-            text="Open DEPENDENCY-NOTES.md"
-            description="Open the Pacmon dependency notes file">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.OpenManifest"
-            class="dev.pacmon.jetbrains.action.OpenManifestAction"
-            text="Open Dependency Manifest"
-            description="Open the dependency manifest these notes describe">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
         <action
             id="Pacmon.OpenPackageJson"
             class="dev.pacmon.jetbrains.action.OpenPackageJsonAction"
             text="Open package.json"
             description="Compatibility alias for Open Dependency Manifest"/>
-        <action
-            id="Pacmon.ShowCoverage"
-            class="dev.pacmon.jetbrains.action.ShowCoverageAction"
-            text="Documentation Coverage"
-            description="Every dependency in one list, documented or not">
+        <!-- Tools > Depos: the plugin's actions under its name, as VS Code shows them
+             under "Depos:". The ids are the ones from before Pacmon became Depos, so
+             keymaps that name them still work. -->
+        <group id="Pacmon.ToolsMenu" text="Depos" popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.ToggleNoteMarkers"
-            class="dev.pacmon.jetbrains.action.ToggleNoteMarkersAction"
-            text="Toggle Note Markers"
-            description="Turn the end-of-line note hint off and back on">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.SetupAiInstructions"
-            class="dev.pacmon.jetbrains.action.SetupAiInstructionsAction"
-            text="Set Up AI Instructions"
-            description="Write .pacmon/AGENT-RULES.md and point AGENTS.md, CLAUDE.md and similar files to it">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.NormalizeNotesFile"
-            class="dev.pacmon.jetbrains.action.NormalizeNotesFileAction"
-            text="Format DEPENDENCY-NOTES.md"
-            description="Rewrite the dependency notes file into canonical form">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.Depos.SignIn"
-            class="dev.pacmon.jetbrains.depos.SignInToDeposAction"
-            text="Sign In to Depos"
-            description="Sign in to Depos to use your organization's notes and allowlist">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.Depos.SignOut"
-            class="dev.pacmon.jetbrains.depos.SignOutOfDeposAction"
-            text="Sign Out of Depos"
-            description="End the Depos sign-in and remove the local copy of the notes and allowlist results">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.Depos.ShowConnection"
-            class="dev.pacmon.jetbrains.depos.ShowDeposConnectionAction"
-            text="Show Depos Connection"
-            description="Who you are signed in to Depos as, and the organization of each folder">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.Depos.Refresh"
-            class="dev.pacmon.jetbrains.depos.RefreshOrgNotesAction"
-            text="Refresh Notes from Depos"
-            description="Ask Depos for what changed in the notes and the allowlist">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action
-            id="Pacmon.Depos.CopyMcpSetup"
-            class="dev.pacmon.jetbrains.depos.CopyDeposMcpSetupAction"
-            text="Copy Depos MCP Setup"
-            description="Copy an .mcp.json for AI agents, for the repository of a folder in org mode">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
+            <action
+                id="Pacmon.OpenNotesFile"
+                class="dev.pacmon.jetbrains.action.OpenNotesFileAction"
+                text="Open DEPENDENCY-NOTES.md"
+                description="Open the dependency notes file"/>
+            <action
+                id="Pacmon.OpenManifest"
+                class="dev.pacmon.jetbrains.action.OpenManifestAction"
+                text="Open Dependency Manifest"
+                description="Open the dependency manifest these notes describe"/>
+            <action
+                id="Pacmon.ShowCoverage"
+                class="dev.pacmon.jetbrains.action.ShowCoverageAction"
+                text="Documentation Coverage"
+                description="Every dependency in one list, documented or not"/>
+            <action
+                id="Pacmon.ToggleNoteMarkers"
+                class="dev.pacmon.jetbrains.action.ToggleNoteMarkersAction"
+                text="Toggle Note Markers"
+                description="Turn the end-of-line note hint off and back on"/>
+            <action
+                id="Pacmon.SetupAiInstructions"
+                class="dev.pacmon.jetbrains.action.SetupAiInstructionsAction"
+                text="Set Up AI Instructions"
+                description="Write .depos/AGENT-RULES.md and point AGENTS.md, CLAUDE.md and similar files to it"/>
+            <action
+                id="Pacmon.NormalizeNotesFile"
+                class="dev.pacmon.jetbrains.action.NormalizeNotesFileAction"
+                text="Format DEPENDENCY-NOTES.md"
+                description="Rewrite the dependency notes file into canonical form"/>
+            <action
+                id="Pacmon.MoveNotes"
+                class="dev.pacmon.jetbrains.action.MoveNotesAction"
+                text="Move Notes to .depos/"
+                description="Move the notes from .pacmon/, their directory from before Pacmon became Depos, to .depos/"/>
+            <separator/>
+            <action
+                id="Pacmon.Depos.SignIn"
+                class="dev.pacmon.jetbrains.depos.SignInToDeposAction"
+                text="Sign In"
+                description="Sign in to use your organization's notes and allowlist"/>
+            <action
+                id="Pacmon.Depos.SignOut"
+                class="dev.pacmon.jetbrains.depos.SignOutOfDeposAction"
+                text="Sign Out"
+                description="End the sign-in and remove the local copy of your organization's notes and allowlist results"/>
+            <action
+                id="Pacmon.Depos.ShowConnection"
+                class="dev.pacmon.jetbrains.depos.ShowDeposConnectionAction"
+                text="Show Connection"
+                description="Who you are signed in as, and the organization of each folder"/>
+            <action
+                id="Pacmon.Depos.Refresh"
+                class="dev.pacmon.jetbrains.depos.RefreshOrgNotesAction"
+                text="Refresh Organization Notes"
+                description="Ask the server for what changed in your organization's notes and allowlist"/>
+            <action
+                id="Pacmon.Depos.CopyMcpSetup"
+                class="dev.pacmon.jetbrains.depos.CopyDeposMcpSetupAction"
+                text="Copy MCP Setup"
+                description="Copy an .mcp.json for AI agents, for the repository of a folder in org mode"/>
+        </group>
     </actions>
 </idea-plugin>

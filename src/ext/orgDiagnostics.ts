@@ -17,7 +17,7 @@ import type { OrgContext } from './web/orgContext';
  * Nothing at all while signed out of Depos.
  */
 export class OrgDiagnostics implements vscode.Disposable {
-  private readonly collection = vscode.languages.createDiagnosticCollection('pacmon-org');
+  private readonly collection = vscode.languages.createDiagnosticCollection('depos-org');
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(

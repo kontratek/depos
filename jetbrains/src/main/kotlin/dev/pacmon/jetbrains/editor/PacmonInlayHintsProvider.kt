@@ -23,7 +23,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
- * Three of the five click targets the Pacmon tool window offers, all of them
+ * Three of the five click targets the Depos tool window offers, all of them
  * inlays: the mark at the dependency's manifest-specific anchor (`iconLeft`), the clickable line
  * above the dependency (`codelens`) and the words at the end of the line
  * (`inlayHint`). The other two are not inlays — `link` is a go-to-declaration
@@ -36,7 +36,7 @@ import javax.swing.JPanel
 class PacmonInlayHintsProvider : InlayHintsProvider<NoSettings> {
     override val key = SettingsKey<NoSettings>("pacmon.dependency.icons")
 
-    override val name: String = "Pacmon dependency notes"
+    override val name: String = "Depos dependency notes"
 
     override val previewText: String = """{ "dependencies": { "vue": "^3" } }"""
 

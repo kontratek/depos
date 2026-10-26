@@ -21,7 +21,7 @@ export class StatusBarController implements vscode.Disposable {
 
   constructor(private readonly store: Store) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.item.command = 'pacmon.showCoverage';
+    this.item.command = 'depos.showCoverage';
     this.disposables.push(
       vscode.window.onDidChangeActiveTextEditor(() => void this.refresh()),
       vscode.languages.onDidChangeDiagnostics(() => void this.refresh()),
@@ -68,11 +68,11 @@ export class StatusBarController implements vscode.Disposable {
       // click: a user who turned markers off (and forgot) would otherwise
       // think the extension is broken.
       this.item.text = `$(book) ${documented.length}/${deps.length}${markersOff ? ' $(eye-closed)' : ''}`;
-      this.item.command = markersOff ? 'pacmon.toggleDecorations' : 'pacmon.showCoverage';
+      this.item.command = markersOff ? 'depos.toggleDecorations' : 'depos.showCoverage';
       this.item.backgroundColor = undefined;
       const base = notesUri
-        ? `Pacmon: ${documented.length} of ${deps.length} dependencies documented in ${vscode.workspace.asRelativePath(notesUri)}.`
-        : `Pacmon: no notes file yet — right-click a dependency to add the first note.`;
+        ? `Depos: ${documented.length} of ${deps.length} dependencies documented in ${vscode.workspace.asRelativePath(notesUri)}.`
+        : `Depos: no notes file yet — right-click a dependency to add the first note.`;
       this.item.tooltip = markersOff
         ? `${base}\n\nNote markers are OFF — CLICK to turn them back on.`
         : `${base} Click for coverage.`;
@@ -82,7 +82,7 @@ export class StatusBarController implements vscode.Disposable {
     }
   }
 
-  /** Warnings and errors Pacmon raised on the active notes file; quiet when there are none. */
+  /** Warnings and errors Depos raised on the active notes file; quiet when there are none. */
   private showProblems(uri: vscode.Uri): void {
     const n = vscode.languages
       .getDiagnostics(uri)

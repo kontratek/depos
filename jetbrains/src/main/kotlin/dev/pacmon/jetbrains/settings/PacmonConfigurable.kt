@@ -16,7 +16,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
- * Tools → Pacmon: the same settings the tool window shows, for anyone who
+ * Tools → Depos: the same settings the tool window shows, for anyone who
  * looks for them in Settings first. The tool window is where they are
  * explained; this page is the plain list.
  */
@@ -29,7 +29,7 @@ class PacmonConfigurable(private val project: Project) : Configurable {
     private val deposUrl = JBTextField().apply { emptyText.text = DeposStrings.webUrlPlaceholder }
     private var panel: JPanel? = null
 
-    override fun getDisplayName(): String = "Pacmon"
+    override fun getDisplayName(): String = "Depos"
 
     override fun createComponent(): JComponent {
         val targets = JPanel().apply {
@@ -44,7 +44,7 @@ class PacmonConfigurable(private val project: Project) : Configurable {
             .addLabeledComponent(JBLabel("Note markers:"), decorations)
             .addLabeledComponent(JBLabel("Click targets:"), targets)
             .addSeparator()
-            .addLabeledComponent(JBLabel("Depos address:"), deposUrl)
+            .addLabeledComponent(JBLabel("Server address:"), deposUrl)
             .addComponentToRightColumn(JBLabel(DEPOS_HELP).apply { foreground = com.intellij.util.ui.UIUtil.getContextHelpForeground() })
             .addComponentFillVertically(JPanel(), 0)
             .panel
@@ -97,9 +97,9 @@ class PacmonConfigurable(private val project: Project) : Configurable {
     private fun service(): PacmonProjectService = project.getService(PacmonProjectService::class.java)
 
     private companion object {
-        const val DEPOS_HELP = "<html>For the optional organization connection (Tools → Sign In to Depos, or the Pacmon " +
+        const val DEPOS_HELP = "<html>For the optional organization connection (Tools → Depos → Sign In, or the Depos " +
             "tool window). Signed in, a folder whose GitHub repository is added to one of your organizations uses the " +
-            "organization's notes in Depos instead of its notes files. Pacmon makes network requests only while you are " +
+            "organization's notes in Depos instead of its notes files. Depos makes network requests only while you are " +
             "signed in: for the actions, and to fetch the notes of each folder (at start, when the IDE gets focus, " +
             "and every 5 minutes). Must use https, except for localhost. For every project.</html>"
     }

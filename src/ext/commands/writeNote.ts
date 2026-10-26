@@ -6,7 +6,7 @@ import {
   replaceHumanBodyInText,
   replaceSectionLayersInText,
 } from '../../core/serialize';
-import { newNotesFileContent } from '../../core/template';
+import { newNotesFileContent, notesDirOf } from '../../core/template';
 import { manifestAdapterForPath } from '../../core/manifest';
 import { agentRulesText } from '../agentRules';
 import { agentRulesUriFor, clearResolverCache, creationTargetFor, resolveNotesFileFor } from '../resolveNotesFile';
@@ -45,15 +45,16 @@ export async function writeNotesText(notesUri: vscode.Uri, newText: string): Pro
 }
 
 /**
- * `.pacmon/AGENT-RULES.md` at the workspace root: the rules agents read before
- * they write, a copy of the extension's own `assets/AGENT-RULES.md`. Created
- * alongside the first note; rewritten only when asked to (`overwrite`).
+ * `.depos/AGENT-RULES.md` at the workspace root (`.pacmon/` in a repository not
+ * moved yet): the rules agents read before they write, a copy of the
+ * extension's own `assets/AGENT-RULES.md`. Created alongside the first note;
+ * rewritten only when asked to (`overwrite`).
  */
 export async function ensureAgentRules(
   anchor: vscode.Uri,
   opts: { overwrite?: boolean } = {},
 ): Promise<vscode.Uri | undefined> {
-  const uri = agentRulesUriFor(anchor);
+  const uri = await agentRulesUriFor(anchor);
   if (!uri) return undefined;
   if (!opts.overwrite) {
     try {
@@ -64,11 +65,11 @@ export async function ensureAgentRules(
     }
   }
   await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(uri, '..'));
-  await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(await agentRulesText()));
+  await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(await agentRulesText(notesDirOf(uri.path))));
   return uri;
 }
 
-/** Every write into `.pacmon/` also makes sure the agent rules are there: a
+/** Every write into the notes directory also makes sure the agent rules are there: a
  *  repository can arrive with a notes file but no AGENT-RULES.md (written by hand,
  *  or cloned from a team that never ran the setup command). */
 async function settle(store: Store, notesUri: vscode.Uri): Promise<vscode.Uri> {
@@ -104,8 +105,8 @@ async function onDisk(uri: vscode.Uri): Promise<boolean> {
   }
 }
 
-/** First write next to a package.json: the `.pacmon/` directory and the notes
- *  file with its one section. The agent rules follow in `settle`. */
+/** First write next to a manifest: the notes directory and the notes file with
+ *  its one section. The agent rules follow in `settle`. */
 async function createNotesFile(
   notesUri: vscode.Uri,
   manifestUri: vscode.Uri,
@@ -116,7 +117,7 @@ async function createNotesFile(
   await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(notesUri, '..'));
   await vscode.workspace.fs.writeFile(
     notesUri,
-    new TextEncoder().encode(newNotesFileContent('\n', name, body, ecosystem)),
+    new TextEncoder().encode(newNotesFileContent('\n', name, body, ecosystem, notesDirOf(notesUri.path))),
   );
   clearResolverCache(); // the walk-up cache still says "nothing here"
 }

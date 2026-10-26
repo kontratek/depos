@@ -1,22 +1,24 @@
 import * as vscode from 'vscode';
-import { upsertAiInstructions } from '../../core/template';
-import { AGENT_RULES_REL_PATH } from '../config';
+import { agentRulesRelPath, upsertAiInstructions } from '../../core/template';
+import { notesDirForFolder } from '../resolveNotesFile';
 import type { Store } from '../state';
 import { S } from '../strings';
 import { ensureAgentRules } from './writeNote';
 
-const TARGETS = ['AGENTS.md', 'CLAUDE.md', '.cursor/rules/dependency-notes.md', '.github/copilot-instructions.md'];
+/** The instruction files agents read, which get the pointer block. */
+export const AI_INSTRUCTION_TARGETS = ['AGENTS.md', 'CLAUDE.md', '.cursor/rules/dependency-notes.md', '.github/copilot-instructions.md'];
+const TARGETS = AI_INSTRUCTION_TARGETS;
 
 interface TargetItem extends vscode.QuickPickItem {
   rel: string;
 }
 
 /**
- * Two writes: `.pacmon/AGENT-RULES.md` is rewritten from the extension's copy
- * (the rules and the field list, owned by Pacmon), and the instruction files
- * agents already read get a short pointer to it between markers. `targetsArg`
- * names those files without the picker (tests, scripts); only the known ones
- * are accepted.
+ * Two writes: `.depos/AGENT-RULES.md` (`.pacmon/` in a repository not moved yet)
+ * is rewritten from the extension's copy (the rules and the field list, owned
+ * by Depos), and the instruction files agents already read get a short pointer
+ * to it between markers. `targetsArg` names those files without the picker
+ * (tests, scripts); only the known ones are accepted.
  */
 export async function setupAiInstructions(store: Store, targetsArg?: readonly string[]): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -43,8 +45,9 @@ export async function setupAiInstructions(store: Store, targetsArg?: readonly st
     targets = picked.map((p) => p.rel);
   }
 
+  const notesDir = await notesDirForFolder(folder.uri);
   await ensureAgentRules(folder.uri, { overwrite: true });
-  const written: string[] = [AGENT_RULES_REL_PATH];
+  const written: string[] = [agentRulesRelPath(notesDir)];
   for (const rel of targets) {
     const parts = rel.split('/');
     const uri = vscode.Uri.joinPath(folder.uri, ...parts);
@@ -52,7 +55,7 @@ export async function setupAiInstructions(store: Store, targetsArg?: readonly st
       await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(folder.uri, ...parts.slice(0, -1)));
     }
     const existing = (await store.getText(uri)) ?? '';
-    const updated = upsertAiInstructions(existing);
+    const updated = upsertAiInstructions(existing, notesDir);
     await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(updated));
     written.push(rel);
   }

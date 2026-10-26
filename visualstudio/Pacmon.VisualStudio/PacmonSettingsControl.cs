@@ -50,7 +50,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
             noteEntries,
             new[]
             {
-                Choice(NoteEntryMode.ToolWindow, "Tool window", "A multi-line Markdown editor in the Pacmon tool window."),
+                Choice(NoteEntryMode.ToolWindow, "Tool window", "A multi-line Markdown editor in the Depos tool window."),
                 Choice(NoteEntryMode.QuickInput, "Quick input", "A one-line input box for fast human notes."),
                 Choice(NoteEntryMode.OpenBeside, "Open beside", "Create the section and open the Markdown notes file beside the manifest."),
             },
@@ -100,7 +100,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         actions.Children.Add(normalizeNotes);
         actions.Children.Add(ActionButton(
             "Set up AI instructions",
-            "Write Pacmon’s agent rules and connect the workspace instruction files.",
+            "Write the Depos agent rules and connect the workspace instruction files.",
             setupAiAction));
         content.Children.Add(Section("Actions", null, actions));
 
@@ -209,7 +209,7 @@ internal sealed class PacmonSettingsControl : ScrollViewer
         packageIcon.Content = ToggleBody(
             "Icon before the dependency",
             "click",
-            "The Pacmon mark is filled when a note exists and hollow when it does not.",
+            "The Depos mark is filled when a note exists and hollow when it does not.",
             PreviewWithMark());
         navigation.Content = ToggleBody(
             "The package name",
@@ -452,7 +452,7 @@ internal sealed class DependencyPickerDialog : DialogWindow
 
     public DependencyPickerDialog(CoverageContext context)
     {
-        Title = "Pacmon — Search dependencies";
+        Title = "Depos — Search dependencies";
         Width = 540;
         Height = 460;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;

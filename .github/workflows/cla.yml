@@ -26,7 +26,7 @@ jobs:
           # must exist on main before the first external pull request.
           # Versioned by name: a new CLA text gets a new file and a new
           # signatures path, so everyone signs again.
-          path-to-document: https://github.com/kontratek/pacmon/blob/main/CLA-v1.md
+          path-to-document: https://github.com/kontratek/depos/blob/main/CLA-v1.md
           path-to-signatures: signatures/v1/cla.json
           # Signatures live on their own branch, so main can stay protected and
           # a signature commit does not trigger CI. Push it once:

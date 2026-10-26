@@ -71,7 +71,7 @@ jobs:
           if echo " $ALLOWED " | grep -qF " $ACTOR "; then
             echo "Authorized: $ACTOR"
           else
-            echo "::error::'$ACTOR' may not publish Pacmon (allowlist: $ALLOWED)."
+            echo "::error::'$ACTOR' may not publish Depos (allowlist: $ALLOWED)."
             exit 1
           fi
 
@@ -278,7 +278,7 @@ jobs:
       - name: Submit to the JetBrains Marketplace
         env:
           JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN }}
-          PLUGIN_ID: 34295 # plugins.jetbrains.com/plugin/34295-pacmon
+          PLUGIN_ID: 34295 # plugins.jetbrains.com/plugin/34295
           VERSION: ${{ needs.version.outputs.version }}
         working-directory: jetbrains
         run: |

@@ -5,13 +5,13 @@ lang: en
 
 <!-- Each "## name" below is a package from package.json. The text right under the
   heading is written by people. "### Agent notes" and everything below it is written
-  by AI agents — rules in .pacmon/AGENT-RULES.md. -->
+  by AI agents — rules in .depos/AGENT-RULES.md. -->
 
 # Dependency Notes
 
 Team rules: every runtime dependency gets a line from a person saying why it is
 here; a pinned version says who pinned it and why. Keep the first line short — it
-shows next to the dependency in `package.json`. Agents: read `.pacmon/AGENT-RULES.md`
+shows next to the dependency in `package.json`. Agents: read `.depos/AGENT-RULES.md`
 before touching a package.
 
 ## @acme/telemetry

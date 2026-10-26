@@ -18,14 +18,14 @@ import java.awt.Dimension
  * `noteEntry` setting, the same two first-class choices the VS Code extension
  * offers:
  *
- * - `panel`: the note editor in the Pacmon tool window, which stays open as you
+ * - `panel`: the note editor in the Depos tool window, which stays open as you
  *   move from dependency to dependency.
  * - `peek`: the same editor in a popup over the dependency line, closest to
  *   VS Code's embedded peek editor — it comes up where you are looking and
  *   goes away when you are done.
  *
  * Both write through the same panel, so both autosave into
- * `.pacmon/DEPENDENCY-NOTES.md` the same way.
+ * `.depos/DEPENDENCY-NOTES.md` the same way.
  */
 object NoteEditor {
     fun open(project: Project, dependency: DependencyRef, editor: Editor? = null) {

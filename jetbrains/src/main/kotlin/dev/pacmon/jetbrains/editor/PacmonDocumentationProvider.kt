@@ -9,7 +9,6 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.impl.FakePsiElement
 import dev.pacmon.jetbrains.core.NotesCore
-import dev.pacmon.jetbrains.core.ManifestRegistry
 import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.depos.OrgContext
 import dev.pacmon.jetbrains.service.PacmonProjectService
@@ -63,8 +62,7 @@ class PacmonDocumentationProvider : AbstractDocumentationProvider() {
             }
             if (note != null && layers.isNotEmpty()) {
                 val source = note.orgName?.let(DeposStrings::orgNotesLabel)
-                    ?: ManifestRegistry.forPath(manifest.path)?.notesRelativePath
-                    ?: NotesCore.NOTES_RELATIVE_PATH
+                    ?: service.notesRelativePathFor(manifest)
                 section("Source", StringUtil.escapeXmlEntities(source))
             }
             append(DocumentationMarkup.SECTIONS_END)

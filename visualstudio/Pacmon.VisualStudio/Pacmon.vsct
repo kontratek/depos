@@ -14,11 +14,11 @@
     <Buttons>
       <Button guid="guidPacmonCommands" id="ShowPacmon" priority="0x0100" type="Button">
         <Parent guid="guidPacmonCommands" id="PacmonMenuGroup" />
-        <Strings><ButtonText>Pacmon Dependency Notes</ButtonText></Strings>
+        <Strings><ButtonText>Depos Dependency Notes</ButtonText></Strings>
       </Button>
       <Button guid="guidPacmonCommands" id="AddOrEditNote" priority="0x0100" type="Button">
         <Parent guid="guidPacmonCommands" id="PacmonEditorGroup" />
-        <Strings><ButtonText>Pacmon: Add/Edit Dependency Note</ButtonText></Strings>
+        <Strings><ButtonText>Depos: Add/Edit Dependency Note</ButtonText></Strings>
       </Button>
       <Button guid="guidPacmonCommands" id="OpenNotes" priority="0x0200" type="Button">
         <Parent guid="guidPacmonCommands" id="PacmonMenuGroup" />

@@ -39,7 +39,7 @@ object DependencyPicker {
     fun show(project: Project, manifestFile: VirtualFile? = null, editor: Editor? = null) {
         val manifest = manifestFile?.takeIf { it.isValid } ?: PacmonCommands.defaultManifest(project)
         if (manifest == null) {
-            Messages.showInfoMessage(project, "No supported dependency manifest found in this project.", "Pacmon")
+            Messages.showInfoMessage(project, "No supported dependency manifest found in this project.", "Depos")
             return
         }
         val notes = project.getService(PacmonProjectService::class.java)
@@ -53,7 +53,7 @@ object DependencyPicker {
             )
         }
         if (items.isEmpty()) {
-            Messages.showInfoMessage(project, "This dependency manifest has no supported dependencies.", "Pacmon")
+            Messages.showInfoMessage(project, "This dependency manifest has no supported dependencies.", "Depos")
             return
         }
 

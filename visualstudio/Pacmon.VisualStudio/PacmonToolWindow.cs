@@ -8,7 +8,7 @@ public sealed class PacmonToolWindow : ToolWindowPane
 {
     public PacmonToolWindow() : base(null)
     {
-        Caption = "Pacmon Dependency Notes";
+        Caption = "Depos Dependency Notes";
         var control = new PacmonToolWindowControl();
         control.CaptionChanged += caption => Caption = caption;
         Content = control;

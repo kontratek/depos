@@ -53,7 +53,7 @@ export function renderHtml(): string {
     background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
     font-size: .85em;
   }
-  /* Pacmon green (the mark's colors), for the dependency section and an allowed package. */
+  /* Depos green (the mark's colors), for the dependency section and an allowed package. */
   .pill.green { background: #00662f; color: #ffffff; }
   body.vscode-dark .pill.green,
   body.vscode-high-contrast:not(.vscode-high-contrast-light) .pill.green { background: #00ff66; color: #0a0a0a; }

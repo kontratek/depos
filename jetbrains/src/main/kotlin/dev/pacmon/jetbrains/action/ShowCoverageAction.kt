@@ -9,7 +9,7 @@ import dev.pacmon.jetbrains.ui.DependencyPicker
 /**
  * The searchable list of every dependency, documented or not, exactly as the
  * VS Code command of the same name shows it. The running totals live in the
- * Pacmon tool window; this is the list you pick from.
+ * Depos tool window; this is the list you pick from.
  */
 class ShowCoverageAction : AnAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT

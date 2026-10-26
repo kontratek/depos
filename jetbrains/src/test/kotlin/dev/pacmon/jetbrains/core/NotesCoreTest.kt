@@ -172,4 +172,67 @@ class NotesCoreTest {
         val created = NotesCore.newNotesFile("vue", "Frontend", "- purpose: UI\n- runtime: client")
         assertTrue(created.contains("## vue\n\nFrontend\n\n### Agent notes\n\n- purpose: UI\n- runtime: client\n"))
     }
+
+    // ── The notes directory: the cases of "template: the notes directory" in
+    //    src/test/unit/template.test.ts ───────────────────────────────────────
+
+    @Test
+    fun `notes directory is depos, with pacmon from before the rename still known`() {
+        assertEquals(".depos", NotesCore.NOTES_DIRECTORY)
+        assertEquals(".pacmon", NotesCore.LEGACY_NOTES_DIRECTORY)
+        assertEquals(listOf(".depos", ".pacmon"), NotesCore.NOTES_DIRECTORIES)
+        assertEquals(".depos/DEPENDENCY-NOTES.md", NotesCore.NOTES_RELATIVE_PATH)
+        assertEquals(".depos/AGENT-RULES.md", NotesCore.AGENT_RULES_RELATIVE_PATH)
+        assertEquals(".pacmon/AGENT-RULES.md", NotesCore.agentRulesRelativePath(".pacmon"))
+        assertEquals(".pacmon/cargo/DEPENDENCY-NOTES.md", NotesCore.notesRelativePath(ManifestKind.CARGO, ".pacmon"))
+        assertEquals(".depos/DEPENDENCY-NOTES.md", NotesCore.notesRelativePath(ManifestKind.NPM))
+    }
+
+    @Test
+    fun `reads the directory off a path`() {
+        assertEquals(".depos", NotesCore.notesDirOf("/repo/.depos/DEPENDENCY-NOTES.md"))
+        assertEquals(".pacmon", NotesCore.notesDirOf("/repo/apps/web/.pacmon/cargo/DEPENDENCY-NOTES.md"))
+        assertEquals(".pacmon", NotesCore.notesDirOf("C:\\repo\\.pacmon\\DEPENDENCY-NOTES.md"))
+        assertEquals(".pacmon", NotesCore.notesDirOf(".pacmon/AGENT-RULES.md"))
+        assertEquals(".depos", NotesCore.notesDirOf("/repo/not.pacmon/DEPENDENCY-NOTES.md"))
+    }
+
+    @Test
+    fun `rewrites text written for depos for a repository on pacmon`() {
+        val text = "Notes in `.depos/DEPENDENCY-NOTES.md`; see https://depos.dev/format/."
+        assertEquals(text, NotesCore.inNotesDir(text, ".depos"))
+        assertEquals(
+            "Notes in `.pacmon/DEPENDENCY-NOTES.md`; see https://depos.dev/format/.",
+            NotesCore.inNotesDir(text, ".pacmon"),
+        )
+    }
+
+    @Test
+    fun `finds the depos path beside a pacmon one`() {
+        assertEquals(
+            "/repo/apps/web/.depos/cargo/DEPENDENCY-NOTES.md",
+            NotesCore.inCurrentNotesDir("/repo/apps/web/.pacmon/cargo/DEPENDENCY-NOTES.md"),
+        )
+        assertEquals("C:/repo/.depos/DEPENDENCY-NOTES.md", NotesCore.inCurrentNotesDir("C:\\repo\\.pacmon\\DEPENDENCY-NOTES.md"))
+        assertNull(NotesCore.inCurrentNotesDir("/repo/.depos/DEPENDENCY-NOTES.md"))
+        assertNull(NotesCore.inCurrentNotesDir("/repo/not.pacmon/DEPENDENCY-NOTES.md"))
+    }
+
+    @Test
+    fun `names the AGENT-RULES md beside the notes file in its header, and keeps it there`() {
+        assertTrue(NotesCore.newNotesFile("vue", "x").contains("rules in .depos/AGENT-RULES.md"))
+        val fresh = NotesCore.newNotesFile("a", "x", dir = ".pacmon")
+        assertTrue(fresh.contains("rules in .pacmon/AGENT-RULES.md"))
+        // Formatting a .pacmon/ file never moves its header to .depos/: two
+        // versions in one team would otherwise rewrite it in turn on every save.
+        assertEquals(fresh, NotesCore.normalizeText(fresh, dir = ".pacmon"))
+        assertTrue(NotesCore.normalizeText(fresh).contains("rules in .depos/AGENT-RULES.md"))
+        val cargo = NotesCore.newNotesFile("serde", "Serialization.", ecosystem = ManifestKind.CARGO, dir = ".pacmon")
+        assertTrue(cargo.contains("rules in .pacmon/AGENT-RULES.md"))
+        assertEquals(cargo, NotesCore.normalizeText(cargo, ManifestKind.CARGO, ".pacmon"))
+        assertTrue(NotesCore.formatCommentLines(ManifestKind.CARGO).joinToString("\n").contains("rules in .depos/AGENT-RULES.md"))
+        assertTrue(
+            NotesCore.formatCommentLines(ManifestKind.NPM, ".pacmon").joinToString("\n").contains("rules in .pacmon/AGENT-RULES.md"),
+        )
+    }
 }

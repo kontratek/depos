@@ -14,7 +14,7 @@ import dev.pacmon.jetbrains.settings.Decorations
 import dev.pacmon.jetbrains.settings.NoteButtons
 
 /**
- * The five click targets and the three note-marker choices the Pacmon tool
+ * The five click targets and the three note-marker choices the Depos tool
  * window offers, each drawn only when it is turned on — the JetBrains side of
  * the VS Code extension's `pacmon.noteButtons` and `pacmon.decorations`.
  */
@@ -167,7 +167,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
         service().setNoteButtons(listOf(NoteButtons.LIGHTBULB))
         myFixture.editor.caretModel.moveToOffset(dependency.primaryRange.offset + 1)
         assertTrue(intention.isAvailable(project, myFixture.editor, myFixture.file))
-        assertEquals("Add a Pacmon note for vue", intention.text)
+        assertEquals("Add a Depos note for vue", intention.text)
 
         myFixture.editor.caretModel.moveToOffset(0)
         assertFalse(intention.isAvailable(project, myFixture.editor, myFixture.file))
@@ -190,7 +190,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             "package.json",
             """{ "dependencies": { "vue": "^3" } }""",
         )
-        myFixture.tempDirFixture.createFile(".pacmon/DEPENDENCY-NOTES.md", "## vue\n\nFrontend framework\n")
+        myFixture.tempDirFixture.createFile(".depos/DEPENDENCY-NOTES.md", "## vue\n\nFrontend framework\n")
         myFixture.configureFromExistingVirtualFile(packageJson)
         val line = myFixture.editor.document.getLineNumber(
             DependencyPsi.all(myFixture.file).single().primaryRange.offset,
@@ -222,7 +222,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             "<Project><PackageReference Include=\"newtonsoft.json\" /></Project>",
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/nuget/DEPENDENCY-NOTES.md",
+            ".depos/nuget/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: nuget\nlang: en\n---\n# Dependency Notes\n\n## NEWTONSOFT.JSON\n\nJSON serialization\n",
         )
         val documentation = PacmonDocumentationProvider()
@@ -261,7 +261,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
     fun testEveryEcosystemUsesTheSameInlayLinkAndDecorationSurfaces() {
         val cargo = myFixture.tempDirFixture.createFile("Cargo.toml", "[dependencies]\nserde = \"1\"\n")
         myFixture.tempDirFixture.createFile(
-            ".pacmon/cargo/DEPENDENCY-NOTES.md",
+            ".depos/cargo/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: cargo\nlang: en\n---\n# Dependency Notes\n\n## serde\n\nSerialization\n",
         )
         myFixture.configureFromExistingVirtualFile(cargo)
@@ -283,7 +283,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/maven/DEPENDENCY-NOTES.md",
+            ".depos/maven/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: maven\nlang: en\n---\n# Dependency Notes\n\n## org.example:core\n\nCore library\n",
         )
         myFixture.configureFromExistingVirtualFile(pom)
@@ -317,7 +317,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/gradle/DEPENDENCY-NOTES.md",
+            ".depos/gradle/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: gradle\nlang: en\n---\n# Dependency Notes\n\n## org.slf4j:slf4j-api\n\nLogging facade\n",
         )
         myFixture.configureFromExistingVirtualFile(gradle)
@@ -345,7 +345,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             "defmodule Demo.MixProject do\n  defp deps, do: [{:phoenix, \"~> 1.8\"}]\nend",
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/mix/DEPENDENCY-NOTES.md",
+            ".depos/mix/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: mix\nlang: en\n---\n# Dependency Notes\n\n## phoenix\n\nWeb framework\n",
         )
         myFixture.configureFromExistingVirtualFile(mix)
@@ -376,7 +376,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             ".{ .dependencies = .{ .known_folders = .{ .path = \"../known-folders\" } } }",
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/zig/DEPENDENCY-NOTES.md",
+            ".depos/zig/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: zig\nlang: en\n---\n# Dependency Notes\n\n## known_folders\n\nFilesystem paths\n",
         )
         myFixture.configureFromExistingVirtualFile(manifest)
@@ -406,7 +406,7 @@ class PacmonClickTargetsTest : BasePlatformTestCase() {
             "[dependencies]\ngleam_stdlib = \">= 0.44.0 and < 2.0.0\"",
         )
         myFixture.tempDirFixture.createFile(
-            ".pacmon/gleam/DEPENDENCY-NOTES.md",
+            ".depos/gleam/DEPENDENCY-NOTES.md",
             "---\nformat: dependency-notes/2\necosystem: gleam\nlang: en\n---\n# Dependency Notes\n\n## gleam_stdlib\n\nStandard library\n",
         )
         myFixture.configureFromExistingVirtualFile(manifest)

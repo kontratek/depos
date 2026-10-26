@@ -44,13 +44,17 @@ public sealed class VisualStudioModelTests
     }
 
     [DataTestMethod]
+    [DataRow("C:\\repo\\.depos\\nuget\\DEPENDENCY-NOTES.md")]
+    [DataRow("C:/repo/.depos/nuget/DEPENDENCY-NOTES.md")]
     [DataRow("C:\\repo\\.pacmon\\nuget\\DEPENDENCY-NOTES.md")]
     [DataRow("C:/repo/.pacmon/nuget/DEPENDENCY-NOTES.md")]
     public void RecognizesOnlyNugetNotesPath(string path) => Assert.IsTrue(PacmonRuntime.IsNotesPath(path));
 
-    [TestMethod]
-    public void RejectsOtherEcosystemNotesPath() =>
-        Assert.IsFalse(PacmonRuntime.IsNotesPath("C:/repo/.pacmon/cargo/DEPENDENCY-NOTES.md"));
+    [DataTestMethod]
+    [DataRow("C:/repo/.pacmon/cargo/DEPENDENCY-NOTES.md")]
+    [DataRow("C:/repo/.depos/cargo/DEPENDENCY-NOTES.md")]
+    [DataRow("C:/repo/nuget/DEPENDENCY-NOTES.md")]
+    public void RejectsOtherEcosystemNotesPath(string path) => Assert.IsFalse(PacmonRuntime.IsNotesPath(path));
 
     [TestMethod]
     public void InlineAdornmentAnchorsPreviewAtTheOpeningTagsLineEnd()

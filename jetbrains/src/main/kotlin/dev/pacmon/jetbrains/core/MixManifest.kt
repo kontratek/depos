@@ -14,7 +14,7 @@ private data class MixToken(
 object MixManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.MIX
     override val fileNames = listOf("mix.exs")
-    override val notesRelativePath = ".pacmon/mix/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/mix/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     private val openToClose = mapOf('(' to ')', '[' to ']', '{' to '}')

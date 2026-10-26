@@ -4,7 +4,7 @@ import java.net.URI
 import java.net.URISyntaxException
 
 /**
- * The address of Depos, from the "Depos address" setting. A port of
+ * The address of the Depos server, from the "Server address" setting. A port of
  * `src/ext/web/serverUrl.ts`: only the origin is kept, and plain http is allowed
  * only for this machine.
  */
@@ -41,4 +41,12 @@ object DeposServerUrl {
 
     /** `host[:port]` of an origin, for the status line. */
     fun host(origin: String): String = origin.substringAfter("://")
+
+    private val pacmonOrigin = Regex("^https://(?:www\\.)?pacmon\\.dev(?=/|$)", RegexOption.IGNORE_CASE)
+
+    /**
+     * depos.dev was pacmon.dev before Pacmon became Depos: an address saved then
+     * still works. A port of `renamedServerUrl` (`src/ext/web/serverUrl.ts`).
+     */
+    fun renamed(url: String): String = url.replace(pacmonOrigin, "https://depos.dev")
 }

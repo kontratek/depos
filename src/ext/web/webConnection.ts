@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
+import { setting, updateSetting } from '../settings';
 import { logError, logInfo } from '../log';
 import { S } from '../strings';
 import { pollForToken, requestDeviceCode, type HttpFetch } from './deviceFlow';
 import { githubFullName, remoteUrlFromGitConfig } from './gitRemote';
-import { DEFAULT_WEB_URL, parseServerUrl } from './serverUrl';
+import { DEFAULT_WEB_URL, parseServerUrl, renamedServerUrl } from './serverUrl';
 
 /**
- * The optional connection to Depos (`pacmon.depos.url`), the web app that holds an
+ * The optional connection to Depos (`depos.url`), the web app that holds an
  * organization's org notes. With the setting empty, or while signed out, nothing here
  * makes a network request. Signed in, the commands and org mode (orgContext.ts) make
  * requests. The token lives in SecretStorage, keyed by the server origin, and is never
@@ -39,7 +40,7 @@ export type SendResult =
   | { kind: 'ok'; status: number; body: unknown }
   | { kind: 'status'; status: number; message?: string };
 
-/** What the Pacmon view shows. Read from settings and secret storage only: no request. */
+/** What the Depos view shows. Read from settings and secret storage only: no request. */
 export interface WebStatus {
   /** Host of the configured server; undefined when the setting is empty or not valid. */
   host?: string;
@@ -51,7 +52,7 @@ export interface WebStatus {
 export class WebConnection implements vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<void>();
   private readonly listener: vscode.Disposable;
-  /** Fires when a token is stored or removed, so the Pacmon view can redraw. */
+  /** Fires when a token is stored or removed, so the Depos view can redraw. */
   readonly onDidChange = this.emitter.event;
 
   constructor(private readonly secrets: vscode.SecretStorage) {
@@ -78,7 +79,6 @@ export class WebConnection implements vscode.Disposable {
 
   /** The configured origin, after telling the user what is wrong with it. */
   private async origin(promptIfEmpty: boolean): Promise<string | undefined> {
-    const config = vscode.workspace.getConfiguration('pacmon');
     let raw = configuredUrl();
     if (!raw?.trim() && promptIfEmpty) {
       raw = await vscode.window.showInputBox({
@@ -88,7 +88,7 @@ export class WebConnection implements vscode.Disposable {
       });
       if (!raw?.trim()) return undefined;
       const parsed = parseServerUrl(raw);
-      if (parsed.ok) await config.update('depos.url', parsed.origin, vscode.ConfigurationTarget.Global);
+      if (parsed.ok) await updateSetting('url', parsed.origin, vscode.ConfigurationTarget.Global);
     }
     const parsed = parseServerUrl(raw);
     if (parsed.ok) return parsed.origin;
@@ -275,7 +275,7 @@ export class WebConnection implements vscode.Disposable {
 
 /** The setting; the local default when it is unset. An explicit empty value asks at sign-in. */
 function configuredUrl(): string | undefined {
-  return vscode.workspace.getConfiguration('pacmon').get<string>('depos.url', DEFAULT_WEB_URL);
+  return renamedServerUrl(setting<string>('url', DEFAULT_WEB_URL));
 }
 
 /** `owner/name` of the folder's GitHub remote. Follows a `.git` file (worktree, submodule). */

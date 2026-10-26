@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { affectsSetting } from './settings';
 import type { DepEntry } from '../core/model';
 import { findSection } from '../core/parseNotes';
 import { isManifest, MANIFEST_SELECTOR, type NoteButton, noteButtonEnabled } from './config';
@@ -10,11 +11,11 @@ import { S } from './strings';
 
 /**
  * Ways to reach a dependency's note straight from package.json, chosen with
- * `pacmon.noteButtons` (and from the Pacmon view in the activity bar).
+ * `depos.noteButtons` (and from the Depos view in the activity bar).
  *
  * ON BY DEFAULT — the pair that won the 2026-09-04 comparison:
  *
- *   iconLeft  the Pacmon mark at the dependency's manifest-specific anchor —
+ *   iconLeft  the Depos mark at the dependency's manifest-specific anchor —
  *             before the name in npm/Cargo, before `<dependency>` in Maven,
  *             and before the configuration call in Gradle;
  *             filled when it has a note, hollow when it does not — with the words
@@ -60,10 +61,10 @@ import { S } from './strings';
  * retargeting an open panel. It took clicks the user meant for the text.
  * The Comments API gutter "+" was never a candidate: its button cannot be
  * rebound to a command, so it always opens a comment thread rather than the
- * note editor. It remains available as `pacmon.noteEntry: "comments"`.
+ * note editor. It remains available as `depos.noteEntry: "comments"`.
  *
  * NOTE that `iconLeft`, `codelens` and `inlayHint` mark dependencies with no
- * note yet — the one thing Pacmon otherwise never does, and why these are
+ * note yet — the one thing Depos otherwise never does, and why these are
  * switchable. `link` and `lightbulb` do not: a link is drawn over every
  * dependency name alike and only its tooltip tells the two apart, and the bulb
  * shows only on the line the cursor is on.
@@ -94,7 +95,7 @@ function markType(uris: { light: vscode.Uri; dark: vscode.Uri }): vscode.TextEdi
 /** Every affordance fires the same command, so they differ only in shape. */
 function noteCommand(name: string, documented: boolean): vscode.Command {
   return {
-    command: 'pacmon.addOrEditNote',
+    command: 'depos.addOrEditNote',
     title: documented ? S.buttonEdit : S.buttonAdd,
     tooltip: S.buttonTooltip(name),
     arguments: [name],
@@ -133,7 +134,7 @@ export class NoteButtons implements vscode.Disposable {
       vscode.window.onDidChangeActiveTextEditor(() => this.refreshIcons()),
       vscode.window.onDidChangeVisibleTextEditors(() => this.refreshIcons()),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('pacmon.noteButtons')) this.onChanged();
+        if (affectsSetting(e, 'noteButtons')) this.onChanged();
       }),
 
       vscode.languages.registerCodeLensProvider(MANIFEST_SELECTOR, {
@@ -218,7 +219,7 @@ export class NoteButtons implements vscode.Disposable {
           const args = encodeURIComponent(JSON.stringify([d.noteKey]));
           const link = new vscode.DocumentLink(
             new vscode.Range(start, end),
-            vscode.Uri.parse(`command:pacmon.addOrEditNote?${args}`),
+            vscode.Uri.parse(`command:depos.addOrEditNote?${args}`),
           );
           link.tooltip = has(d) ? S.buttonEdit : S.buttonAdd;
           return link;
@@ -242,10 +243,10 @@ export class NoteButtons implements vscode.Disposable {
         const iconPos = doc.positionAt(d.iconRange.offset);
         const documented = has(d);
         const hover = new vscode.MarkdownString(undefined, true);
-        hover.isTrusted = { enabledCommands: ['pacmon.addOrEditNote'] };
+        hover.isTrusted = { enabledCommands: ['depos.addOrEditNote'] };
         const arg = encodeURIComponent(JSON.stringify([d.noteKey]));
         hover.appendMarkdown(
-          `[${documented ? S.buttonEdit : S.buttonAdd}](command:pacmon.addOrEditNote?${arg}) — ${d.displayName}`,
+          `[${documented ? S.buttonEdit : S.buttonAdd}](command:depos.addOrEditNote?${arg}) — ${d.displayName}`,
         );
         return {
           documented,
@@ -295,7 +296,7 @@ export class NoteButtons implements vscode.Disposable {
       if (!dep) return;
       if (sel.active.character > doc.positionAt(dep.iconRange.offset).character) return;
 
-      await vscode.commands.executeCommand('pacmon.addOrEditNote', dep.noteKey);
+      await vscode.commands.executeCommand('depos.addOrEditNote', dep.noteKey);
     } catch (err) {
       logError('noteButtons.iconLeft.click', err);
     }

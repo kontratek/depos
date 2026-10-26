@@ -1,6 +1,6 @@
 # Releasing
 
-Pacmon is published by the Release workflow, never from a laptop. Merging a pull
+Depos is published by the Release workflow, never from a laptop. Merging a pull
 request publishes nothing; a release is a button. The run raises the version,
 names the CHANGELOG's "Unreleased" section, runs the whole test suite, builds one
 VS Code VSIX, one JetBrains plugin zip and one Visual Studio VSIX, pushes the

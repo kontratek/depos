@@ -8,7 +8,7 @@ import { join } from 'node:path';
 // write there too; on a shared directory the two corrupt each other. The copy
 // also keeps the checked-in fixtures exactly as committed.
 function copyOf(fixture) {
-  const dir = mkdtempSync(join(tmpdir(), `pacmon-${fixture}-`));
+  const dir = mkdtempSync(join(tmpdir(), `depos-${fixture}-`));
   cpSync(join('fixtures', fixture), dir, { recursive: true });
   return dir;
 }

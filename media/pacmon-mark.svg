@@ -1,4 +1,4 @@
-<!-- The Pacmon mark: three bars on an 8x8 grid. Bars are 6x2, gaps are 1,
+<!-- The Depos mark: three bars on an 8x8 grid. Bars are 6x2, gaps are 1,
      the top bar sits 2 in from the left. Every edge lands on a whole unit,
      so the mark is pixel-crisp at any multiple of 8 px.
      Colour comes from the consumer: currentColor, or a substituted fill. -->

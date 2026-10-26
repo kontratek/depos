@@ -29,7 +29,7 @@ function decodeInterpreted(value: string): string {
   });
 }
 
-/** A small, tolerant go.mod lexer. Pacmon reads manifests as text and never invokes Go. */
+/** A small, tolerant go.mod lexer. Depos reads manifests as text and never invokes Go. */
 function goLines(text: string): GoLine[] {
   const out: GoLine[] = [];
   let offset = 0;

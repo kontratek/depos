@@ -8,7 +8,7 @@ import { findSection } from '../core/parseNotes';
 import { notesFileLabelForManifest } from './config';
 import { logError } from './log';
 import { renderHtml } from './notePanelHtml';
-import { resolveNotesFileFor } from './resolveNotesFile';
+import { notesDirForManifest, resolveNotesFileFor } from './resolveNotesFile';
 import type { Store } from './state';
 import { S } from './strings';
 import { upsertNoteLayers } from './commands/writeNote';
@@ -102,7 +102,7 @@ function clock(): string {
 }
 
 /**
- * PRIMARY note-entry surface (pacmon.noteEntry = "panel"): a webview opens
+ * PRIMARY note-entry surface (depos.noteEntry = "panel"): a webview opens
  * BESIDE package.json for one dependency's note. Each layer is shown rendered
  * and edited in place: click to write, Esc when done, saved as you type. The
  * human text is the main box; the agent block sits below it, folded — unless
@@ -227,7 +227,7 @@ export class NotePanel implements vscode.Disposable {
           break;
         }
         case 'openFile':
-          await vscode.commands.executeCommand('pacmon.openNotesFile');
+          await vscode.commands.executeCommand('depos.openNotesFile');
           break;
         case 'openWeb': {
           // The link is built here, never taken from the webview.
@@ -306,7 +306,11 @@ export class NotePanel implements vscode.Disposable {
     const target = this.current;
     if (!target || !this.panel) return;
     const token = this.loadToken;
-    const [humanHtml, agentHtml] = await Promise.all([renderMarkdown(this.live.human), renderMarkdown(this.live.agent)]);
+    const [humanHtml, agentHtml, notesDir] = await Promise.all([
+      renderMarkdown(this.live.human),
+      renderMarkdown(this.live.agent),
+      notesDirForManifest(target.pkgUri),
+    ]);
     if (token !== this.loadToken || this.current !== target || !this.panel) return;
     const orgNotes = this.org.notesFor(target.pkgUri);
     void this.panel.webview.postMessage({
@@ -316,7 +320,7 @@ export class NotePanel implements vscode.Disposable {
       depSection: target.depSection ?? '',
       hint: orgNotes
         ? S.panelTargetSuffix(S.orgNotesLabel(orgNotes.copy.orgName))
-        : S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri)),
+        : S.panelTargetSuffix(notesFileLabelForManifest(target.pkgUri, notesDir)),
       // Org mode: only org admins change org notes; the server checks it too.
       readOnly: orgNotes !== undefined && !orgNotes.copy.canEdit,
       readOnlyHint: S.orgNoteReadOnly,

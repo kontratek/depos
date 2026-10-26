@@ -1,19 +1,19 @@
 {
   "name": "pacmon",
-  "displayName": "Pacmon — Dependency Notes",
-  "description": "Why each dependency exists, as a note next to JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet or C/C++ package manifests. Plain Markdown in your repo; AI agents read and write it too.",
+  "displayName": "Depos — Dependency Notes",
+  "description": "Why each dependency exists, as a note next to JavaScript, Rust, JVM, Elixir, Gleam, Zig, Python, Ruby, PHP/Composer, Go, .NET/NuGet or C/C++ package manifests. Plain Markdown in your repo; AI agents read and write it too. Formerly Pacmon.",
   "version": "0.10.0",
   "publisher": "kontra",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kontratek/pacmon.git"
+    "url": "https://github.com/kontratek/depos.git"
   },
   "bugs": {
-    "url": "https://github.com/kontratek/pacmon/issues"
+    "url": "https://github.com/kontratek/depos/issues"
   },
-  "homepage": "https://pacmon.dev",
+  "homepage": "https://depos.dev",
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -70,7 +70,8 @@
     "conanfile.txt",
     "documentation",
     "notes",
-    "dependency management"
+    "dependency management",
+    "pacmon"
   ],
   "activationEvents": [
     "onLanguage:json",
@@ -80,6 +81,20 @@
     "onLanguage:elixir",
     "onLanguage:zig",
     "onLanguage:ruby",
+    "workspaceContains:**/.depos/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/cargo/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/maven/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/gradle/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/mix/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/gleam/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/zig/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/python/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/ruby/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/nuget/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/go/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/vcpkg/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/conan/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.depos/composer/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/cargo/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/maven/DEPENDENCY-NOTES.md",
@@ -87,8 +102,10 @@
     "workspaceContains:**/.pacmon/mix/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/gleam/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/zig/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.pacmon/python/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/ruby/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/nuget/DEPENDENCY-NOTES.md",
+    "workspaceContains:**/.pacmon/go/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/vcpkg/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/conan/DEPENDENCY-NOTES.md",
     "workspaceContains:**/.pacmon/composer/DEPENDENCY-NOTES.md",
@@ -114,7 +131,7 @@
     "workspaceContains:**/conanfile.py",
     "workspaceContains:**/conanfile.txt",
     "workspaceContains:**/composer.json",
-    "onView:pacmon.settings"
+    "onView:depos.settings"
   ],
   "main": "./dist/extension.js",
   "browser": "./dist/extension.web.js",
@@ -122,130 +139,135 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": true,
-      "description": "Pacmon only reads and writes documentation files inside the workspace. It never executes code and never accesses the network."
+      "description": "Depos reads and writes only documentation files inside the workspace and never runs code. It makes network requests only while you are signed in to your organization."
     },
     "virtualWorkspaces": true
   },
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
-        "id": "pacmon.orgNotes",
+        "id": "depos.orgNotes",
         "label": "Depos notes"
       }
     ],
     "commands": [
       {
-        "command": "pacmon.addOrEditNote",
+        "command": "depos.addOrEditNote",
         "title": "Add/Edit Dependency Note",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.depos.signIn",
-        "title": "Sign In to Depos",
-        "category": "Pacmon"
+        "command": "depos.signIn",
+        "title": "Sign In",
+        "category": "Depos"
       },
       {
-        "command": "pacmon.depos.signOut",
-        "title": "Sign Out of Depos",
-        "category": "Pacmon"
+        "command": "depos.signOut",
+        "title": "Sign Out",
+        "category": "Depos"
       },
       {
-        "command": "pacmon.depos.showConnection",
-        "title": "Show Depos Connection",
-        "category": "Pacmon"
+        "command": "depos.showConnection",
+        "title": "Show Connection",
+        "category": "Depos"
       },
       {
-        "command": "pacmon.depos.refresh",
-        "title": "Refresh Notes from Depos",
-        "category": "Pacmon"
+        "command": "depos.refresh",
+        "title": "Refresh Organization Notes",
+        "category": "Depos"
       },
       {
-        "command": "pacmon.openNotesFile",
+        "command": "depos.openNotesFile",
         "title": "Open DEPENDENCY-NOTES.md",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.openManifest",
+        "command": "depos.openManifest",
         "title": "Open Dependency Manifest",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.openPackageJson",
+        "command": "depos.openPackageJson",
         "title": "Open package.json",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.normalizeNotesFile",
+        "command": "depos.normalizeNotesFile",
         "title": "Format DEPENDENCY-NOTES.md",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.showCoverage",
+        "command": "depos.moveNotes",
+        "title": "Move Notes to .depos/",
+        "category": "Depos"
+      },
+      {
+        "command": "depos.showCoverage",
         "title": "Documentation Coverage",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.setupAiInstructions",
+        "command": "depos.setupAiInstructions",
         "title": "Set Up AI Instructions",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.toggleDecorations",
+        "command": "depos.toggleDecorations",
         "title": "Toggle Note Markers",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.saveNoteComment",
+        "command": "depos.saveNoteComment",
         "title": "Save note",
-        "category": "Pacmon"
+        "category": "Depos"
       },
       {
-        "command": "pacmon.resetView",
+        "command": "depos.resetView",
         "title": "Reset to Defaults",
-        "category": "Pacmon",
+        "category": "Depos",
         "icon": "$(discard)"
       },
       {
-        "command": "pacmon.openSettings",
-        "title": "Open Pacmon Settings",
-        "category": "Pacmon",
+        "command": "depos.openSettings",
+        "title": "Open Depos Settings",
+        "category": "Depos",
         "icon": "$(gear)"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "pacmon.addOrEditNote",
+          "command": "depos.addOrEditNote",
           "when": "(resourceFilename == package.json || resourceFilename == Cargo.toml || resourceFilename == pom.xml || resourceFilename == build.gradle || resourceFilename == build.gradle.kts || resourceFilename == mix.exs || resourceFilename == gleam.toml || resourceFilename == build.zig.zon || resourceFilename == pyproject.toml || resourceFilename == Gemfile || resourceFilename == gems.rb || resourceFilename == go.mod || resourceFilename == Directory.Packages.props || resourceFilename == vcpkg.json || resourceFilename == conanfile.py || resourceFilename == conanfile.txt || resourceFilename == composer.json || resourceFilename =~ /^requirements.*\\.txt$/ || resourcePath =~ /[\\\\/]requirements[\\\\/].*\\.txt$/ || resourceExtname =~ /^\\.(cs|fs|vb)proj$/ || resourceExtname == .gemspec) && editorTextFocus",
           "group": "1_modification@100"
         }
       ],
       "comments/commentThread/context": [
         {
-          "command": "pacmon.saveNoteComment",
+          "command": "depos.saveNoteComment",
           "group": "inline",
           "when": "commentController == pacmon"
         }
       ],
       "view/title": [
         {
-          "command": "pacmon.resetView",
-          "when": "view == pacmon.settings",
+          "command": "depos.resetView",
+          "when": "view == depos.settings",
           "group": "navigation@1"
         },
         {
-          "command": "pacmon.openSettings",
-          "when": "view == pacmon.settings",
+          "command": "depos.openSettings",
+          "when": "view == depos.settings",
           "group": "navigation@2"
         }
       ],
       "commandPalette": [
         {
-          "command": "pacmon.openPackageJson",
+          "command": "depos.openPackageJson",
           "when": "false"
         },
         {
-          "command": "pacmon.saveNoteComment",
+          "command": "depos.saveNoteComment",
           "when": "false"
         }
       ]
@@ -253,16 +275,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "pacmon",
-          "title": "Pacmon",
+          "id": "depos",
+          "title": "Depos",
           "icon": "media/pacmon.svg"
         }
       ]
     },
     "views": {
-      "pacmon": [
+      "depos": [
         {
-          "id": "pacmon.settings",
+          "id": "depos.settings",
           "name": "Dependency Notes",
           "type": "webview",
           "icon": "media/pacmon.svg"
@@ -270,15 +292,15 @@
       ]
     },
     "configuration": {
-      "title": "Pacmon",
+      "title": "Depos",
       "properties": {
-        "pacmon.depos.url": {
+        "depos.url": {
           "type": "string",
           "default": "http://localhost:3000",
           "scope": "application",
-          "markdownDescription": "Address of Depos, for the optional organization connection (`Pacmon: Sign In to Depos`, or the Pacmon view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of its notes files. Pacmon makes network requests only while you are signed in: for the commands, and to fetch the notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is a local Depos until there is a public one."
+          "markdownDescription": "Address of Depos, for the optional organization connection (`Depos: Sign In`, or the Depos view). Signed in, a folder whose GitHub repository is added to one of your organizations uses the organization's notes in Depos instead of its notes files. Depos makes network requests only while you are signed in: for the commands, and to fetch the notes of each workspace folder (at start, when the window gets focus, and every 5 minutes). Must use `https`, except for `localhost`. The default is a local Depos until there is a public one."
         },
-        "pacmon.decorations": {
+        "depos.decorations": {
           "type": "string",
           "enum": [
             "preview",
@@ -288,7 +310,7 @@
           "default": "preview",
           "description": "End-of-line hint on dependency manifest lines that have a note: 'preview' shows a one-line preview, 'badge' shows a marker, and 'off' disables it."
         },
-        "pacmon.inlineSource": {
+        "depos.inlineSource": {
           "type": "string",
           "enum": [
             "human-first",
@@ -305,7 +327,7 @@
           ],
           "markdownDescription": "Which layer of a note shows next to the dependency in its manifest and leads its hover. Every note has two layers: the text people write right under `## name`, and the `### Agent notes` block AI agents fill in. The hover always shows both — this picks their order and the one-line preview."
         },
-        "pacmon.noteEntry": {
+        "depos.noteEntry": {
           "type": "string",
           "enum": [
             "panel",
@@ -324,7 +346,7 @@
           ],
           "description": "How notes are entered from a dependency manifest."
         },
-        "pacmon.noteButtons": {
+        "depos.noteButtons": {
           "type": "array",
           "items": {
             "type": "string",
@@ -336,7 +358,7 @@
               "lightbulb"
             ],
             "enumDescriptions": [
-              "The Pacmon mark at the start of the dependency declaration — filled when the dependency has a note, hollow when it does not — with the words in the hover. Plain click, and the mouse turns into a hand over it.",
+              "The Depos mark at the start of the dependency declaration — filled when the dependency has a note, hollow when it does not — with the words in the hover. Plain click, and the mouse turns into a hand over it.",
               "The package name itself opens its note on Ctrl+click. Adds nothing to the file.",
               "A clickable line above each dependency. Unmissable, and it roughly doubles the apparent height of the manifest.",
               "The words spelled out at the end of the line, where they compete with the note preview. Needs Ctrl+click.",
@@ -348,7 +370,73 @@
             "iconLeft",
             "link"
           ],
-          "markdownDescription": "Clickable ways into a dependency's note from its manifest. Toggle these in the **Pacmon** view in the activity bar. Set to `[]` to remove all of them — the right-click menu and the `Pacmon: Add/Edit Dependency Note` command always work. Note that `iconLeft`, `codelens` and `inlayHint` mark dependencies that have no note yet — the one thing Pacmon otherwise never does. `link` and `lightbulb` do not."
+          "markdownDescription": "Clickable ways into a dependency's note from its manifest. Toggle these in the **Depos** view in the activity bar. Set to `[]` to remove all of them — the right-click menu and the `Depos: Add/Edit Dependency Note` command always work. Note that `iconLeft`, `codelens` and `inlayHint` mark dependencies that have no note yet — the one thing Depos otherwise never does. `link` and `lightbulb` do not."
+        },
+        "depos.monorepo": {
+          "type": "string",
+          "enum": [
+            "nearest",
+            "rootOnly"
+          ],
+          "default": "nearest",
+          "description": "Which ecosystem-specific notes file applies to a manifest: the nearest one walking up to the workspace root, or only the one at the workspace root."
+        },
+        "pacmon.depos.url": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "scope": "application",
+          "markdownDeprecationMessage": "Renamed to `#depos.url#` when Pacmon became Depos. Still read when `#depos.url#` is not set."
+        },
+        "pacmon.decorations": {
+          "type": "string",
+          "enum": [
+            "preview",
+            "badge",
+            "off"
+          ],
+          "default": "preview",
+          "markdownDeprecationMessage": "Renamed to `#depos.decorations#` when Pacmon became Depos. Still read when `#depos.decorations#` is not set."
+        },
+        "pacmon.inlineSource": {
+          "type": "string",
+          "enum": [
+            "human-first",
+            "ai-first",
+            "human-only",
+            "ai-only"
+          ],
+          "default": "human-first",
+          "markdownDeprecationMessage": "Renamed to `#depos.inlineSource#` when Pacmon became Depos. Still read when `#depos.inlineSource#` is not set."
+        },
+        "pacmon.noteEntry": {
+          "type": "string",
+          "enum": [
+            "panel",
+            "peek",
+            "input",
+            "inputBeside",
+            "comments"
+          ],
+          "default": "panel",
+          "markdownDeprecationMessage": "Renamed to `#depos.noteEntry#` when Pacmon became Depos. Still read when `#depos.noteEntry#` is not set."
+        },
+        "pacmon.noteButtons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "iconLeft",
+              "link",
+              "codelens",
+              "inlayHint",
+              "lightbulb"
+            ]
+          },
+          "default": [
+            "iconLeft",
+            "link"
+          ],
+          "markdownDeprecationMessage": "Renamed to `#depos.noteButtons#` when Pacmon became Depos. Still read when `#depos.noteButtons#` is not set."
         },
         "pacmon.monorepo": {
           "type": "string",
@@ -357,7 +445,7 @@
             "rootOnly"
           ],
           "default": "nearest",
-          "description": "Which ecosystem-specific notes file applies to a manifest: the nearest one walking up to the workspace root, or only the one at the workspace root."
+          "markdownDeprecationMessage": "Renamed to `#depos.monorepo#` when Pacmon became Depos. Still read when `#depos.monorepo#` is not set."
         }
       }
     }

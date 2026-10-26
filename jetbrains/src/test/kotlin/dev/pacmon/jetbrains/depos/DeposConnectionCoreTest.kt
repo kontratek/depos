@@ -32,6 +32,25 @@ class DeposConnectionCoreTest {
     }
 
     @Test
+    fun `an address saved before Pacmon became Depos reads as depos dev`() {
+        assertEquals("https://depos.dev", DeposServerUrl.renamed("https://pacmon.dev"))
+        assertEquals("https://depos.dev/", DeposServerUrl.renamed("https://www.pacmon.dev/"))
+        assertEquals("https://depos.dev", DeposServerUrl.renamed("HTTPS://PACMON.DEV"))
+    }
+
+    @Test
+    fun `every other address is left alone`() {
+        for (url in listOf("https://depos.dev", "http://localhost:3000", "https://pacmon.dev.example.com", "https://notpacmon.dev", "")) {
+            assertEquals(url, url, DeposServerUrl.renamed(url))
+        }
+    }
+
+    @Test
+    fun `the client id is the one Depos accepts for this plugin`() {
+        assertEquals("depos-jetbrains", DeviceFlow.CLIENT_ID)
+    }
+
+    @Test
     fun `the origin remote wins over an earlier one`() {
         val config = "[core]\r\n\tbare = false\r\n[remote \"upstream\"]\r\n\turl = git@github.com:up/stream.git\r\n" +
             "[remote \"origin\"]\r\n\turl = https://github.com/kontratek/pacmon.git\r\n\turl = https://github.com/other/one.git\r\n"
@@ -93,7 +112,7 @@ class DeposConnectionCoreTest {
     fun `the device code is asked for with this plugin's client id`() {
         val http = FakeHttp(mutableListOf(HttpAnswer(200, """{"device_code":"dev","user_code":"ABCD-EFGH","verification_uri":"https://d/device","expires_in":600,"interval":5}""")))
         val code = DeviceFlow.requestDeviceCode(http, "https://d")
-        assertEquals("https://d/api/auth/device/code" to """{"client_id":"pacmon-jetbrains"}""", http.requests.single())
+        assertEquals("https://d/api/auth/device/code" to """{"client_id":"depos-jetbrains"}""", http.requests.single())
         assertEquals("ABCD-EFGH", code.userCode)
         assertEquals("https://d/device", code.verificationUriComplete)
     }
@@ -120,7 +139,7 @@ class DeposConnectionCoreTest {
         assertEquals(DeviceFlow.PollResult.Token("tok"), DeviceFlow.pollForToken(http, "https://d", code(), clock))
         assertEquals(listOf(5000L, 5000L, 10000L), clock.sleeps)
         assertEquals(
-            """{"grant_type":"urn:ietf:params:oauth:grant-type:device_code","device_code":"dev","client_id":"pacmon-jetbrains"}""",
+            """{"grant_type":"urn:ietf:params:oauth:grant-type:device_code","device_code":"dev","client_id":"depos-jetbrains"}""",
             http.requests.last().second,
         )
     }

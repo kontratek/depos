@@ -1,8 +1,8 @@
 # Dependency notes — rules for AI agents
 
-<!-- .pacmon/AGENT-RULES.md is copied into this repository by Pacmon; do not edit it.
-  "Pacmon: Set Up AI Instructions" refreshes it. The format reference is
-  https://pacmon.dev/format/ -->
+<!-- .depos/AGENT-RULES.md is copied into this repository by Depos; do not edit it.
+  "Depos: Set Up AI Instructions" refreshes it. The format reference is
+  https://depos.dev/format/ -->
 
 ## Org mode
 
@@ -17,7 +17,7 @@ Without these tools, follow the rest of this file.
 
 ## Before you touch a dependency
 
-Its notes are beside the manifest you are changing: npm uses `.pacmon/DEPENDENCY-NOTES.md`, Rust uses `.pacmon/cargo/DEPENDENCY-NOTES.md`, Maven uses `.pacmon/maven/DEPENDENCY-NOTES.md`, Gradle uses `.pacmon/gradle/DEPENDENCY-NOTES.md`, Mix uses `.pacmon/mix/DEPENDENCY-NOTES.md`, Gleam uses `.pacmon/gleam/DEPENDENCY-NOTES.md`, Zig uses `.pacmon/zig/DEPENDENCY-NOTES.md`, Python uses `.pacmon/python/DEPENDENCY-NOTES.md`, Ruby uses `.pacmon/ruby/DEPENDENCY-NOTES.md`, PHP/Composer uses `.pacmon/composer/DEPENDENCY-NOTES.md`, Go uses `.pacmon/go/DEPENDENCY-NOTES.md`, .NET/NuGet uses `.pacmon/nuget/DEPENDENCY-NOTES.md`, vcpkg uses `.pacmon/vcpkg/DEPENDENCY-NOTES.md`, and Conan uses `.pacmon/conan/DEPENDENCY-NOTES.md`. In a monorepo, use the nearest file for the same ecosystem, walking up. Read two things first: the free text between `# Dependency Notes` and the first section (this repository's own rules), then the dependency's `## <name>` section.
+Its notes are beside the manifest you are changing: npm uses `.depos/DEPENDENCY-NOTES.md`, Rust uses `.depos/cargo/DEPENDENCY-NOTES.md`, Maven uses `.depos/maven/DEPENDENCY-NOTES.md`, Gradle uses `.depos/gradle/DEPENDENCY-NOTES.md`, Mix uses `.depos/mix/DEPENDENCY-NOTES.md`, Gleam uses `.depos/gleam/DEPENDENCY-NOTES.md`, Zig uses `.depos/zig/DEPENDENCY-NOTES.md`, Python uses `.depos/python/DEPENDENCY-NOTES.md`, Ruby uses `.depos/ruby/DEPENDENCY-NOTES.md`, PHP/Composer uses `.depos/composer/DEPENDENCY-NOTES.md`, Go uses `.depos/go/DEPENDENCY-NOTES.md`, .NET/NuGet uses `.depos/nuget/DEPENDENCY-NOTES.md`, vcpkg uses `.depos/vcpkg/DEPENDENCY-NOTES.md`, and Conan uses `.depos/conan/DEPENDENCY-NOTES.md`. In a monorepo, use the nearest file for the same ecosystem, walking up. Read two things first: the free text between `# Dependency Notes` and the first section (this repository's own rules), then the dependency's `## <name>` section.
 
 - **Adding a package:** open its section in the same commit, with at least `purpose:`. Say what you considered and why this one, in `alternatives:` or `log:`.
 - **Upgrading:** read its `constraint:` and `verify:` lines, then run what `verify:` says. Log the attempt with its outcome even if you reverted it — the next agent must not repeat it.
@@ -53,7 +53,7 @@ Text written by people. Do not touch it.
   - `vcpkg.json`: the lower-cased port name in `dependencies` or a feature's `dependencies` — `## fmt`, `## openssl`
   - `conanfile.py` or `conanfile.txt`: the lower-cased package name before the first `/` of the reference — `## zlib`, `## openssl`
 - **The text right under the heading is written by people.** Never edit or delete it. Treat it as one of your sources — alongside the code, the git history, the registry and your own reasoning. If your block disagrees with it, the human text wins: fix your block and add a `log:` line saying so.
-- **`### Agent notes` is yours.** Lower-case keys, one fact per line, keys may repeat (several `constraint:` or `log:` lines are normal). Keys outside the vocabulary below are flagged by Pacmon; if something fits none of them, write it as `note:` — never invent a key.
+- **`### Agent notes` is yours.** Lower-case keys, one fact per line, keys may repeat (several `constraint:` or `log:` lines are normal). Keys outside the vocabulary below are flagged by Depos; if something fits none of them, write it as `note:` — never invent a key.
 - One `## name` section per direct dependency, in alphabetical order. `##` is reserved for dependencies; inside a section the only heading is `### Agent notes`.
 - Never write an empty field or a dash placeholder. If you have nothing true to say, leave the field out.
 - Write judgments, not measurements.
@@ -89,7 +89,7 @@ Add these only when they are true and non-obvious:
 | `links:` | Sources? | changelog, docs, upstream issue, registry page — the specific ones, not the obvious |
 | `note:` | Anything else the next agent must know? | free text that fits no other field — one thought per line, never a measurement |
 
-A section whose `status:` starts with `removed` is kept on purpose for a package that left its manifest; Pacmon does not flag it as an orphan.
+A section whose `status:` starts with `removed` is kept on purpose for a package that left its manifest; Depos does not flag it as an orphan.
 
 ## Example
 

@@ -62,7 +62,7 @@ function decodeString(value: string): string {
   return out;
 }
 
-/** A small, tolerant ZON lexer. Pacmon reads manifests as text and never invokes Zig. */
+/** A small, tolerant ZON lexer. Depos reads manifests as text and never invokes Zig. */
 function tokenize(text: string): Token[] {
   const tokens: Token[] = [];
   let cursor = 0;

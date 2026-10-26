@@ -88,14 +88,14 @@ describe('settings view html', () => {
     const html = renderHtml();
     const commands = [...html.matchAll(/data-command="([^"]+)"/g)].map((m) => m[1]).sort();
     expect(commands).toEqual([
-      'pacmon.depos.showConnection',
-      'pacmon.depos.signIn',
-      'pacmon.depos.signOut',
-      'pacmon.normalizeNotesFile',
-      'pacmon.openManifest',
-      'pacmon.openNotesFile',
-      'pacmon.setupAiInstructions',
-      'pacmon.showCoverage',
+      'depos.normalizeNotesFile',
+      'depos.openManifest',
+      'depos.openNotesFile',
+      'depos.setupAiInstructions',
+      'depos.showConnection',
+      'depos.showCoverage',
+      'depos.signIn',
+      'depos.signOut',
     ]);
   });
 
@@ -128,7 +128,7 @@ describe('settings view html', () => {
 
   it('offers the Depos sign-in, and draws both states from the posted state', () => {
     const html = renderHtml();
-    for (const id of ['pacmon.depos.signIn', 'pacmon.depos.showConnection', 'pacmon.depos.signOut']) {
+    for (const id of ['depos.signIn', 'depos.showConnection', 'depos.signOut']) {
       expect(html, `no button for ${id}`).toContain(`data-command="${id}"`);
     }
     // Both groups start hidden: the server address and the sign-in state arrive by

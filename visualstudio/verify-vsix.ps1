@@ -58,8 +58,8 @@ try {
   }
   if ($pkgdef -notmatch '"Style"="Tabbed"' -or
       $pkgdef -notmatch '"Window"="3ae79031-e1bc-11d0-8f78-00a0c9110057"') {
-    throw 'Pacmon tool window is not docked with Solution Explorer by default.'
+    throw 'Depos tool window is not docked with Solution Explorer by default.'
   }
 }
 finally { $archive.Dispose() }
-"$vsix is a valid VSIX for Pacmon $version."
+"$vsix is a valid VSIX for Depos $version."

@@ -7,13 +7,16 @@ using Pacmon.Core;
 namespace Pacmon.VisualStudio;
 
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-[InstalledProductRegistration("Pacmon — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", "0.4.0")]
+[InstalledProductRegistration("Depos — Dependency Notes", "Dependency notes for .NET/NuGet manifests.", "0.4.0")]
 [ProvideMenuResource("Menus.ctmenu", 1)]
 [ProvideToolWindow(
     typeof(PacmonToolWindow),
     Style = VsDockStyle.Tabbed,
     Window = "3ae79031-e1bc-11d0-8f78-00a0c9110057")]
-[ProvideOptionPage(typeof(PacmonOptionsPage), "Pacmon", "General", 0, 0, true)]
+// "Depos" is only the category shown in Tools > Options: the settings are kept
+// under the page's type name (DialogPage\Pacmon.VisualStudio.PacmonOptionsPage),
+// so the class and its namespace keep their names.
+[ProvideOptionPage(typeof(PacmonOptionsPage), "Depos", "General", 0, 0, true)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
 [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
 [Guid(PackageGuid)]
@@ -44,7 +47,7 @@ public sealed class PacmonPackage : AsyncPackage
     {
         await JoinableTaskFactory.SwitchToMainThreadAsync();
         var window = await ShowToolWindowAsync(typeof(PacmonToolWindow), 0, true, DisposalToken);
-        if (window is null) throw new InvalidOperationException("Pacmon tool window could not be created.");
+        if (window is null) throw new InvalidOperationException("Depos tool window could not be created.");
         if (window.Content is PacmonToolWindowControl control)
         {
             if (string.IsNullOrWhiteSpace(manifestPath) && string.IsNullOrWhiteSpace(packageName))

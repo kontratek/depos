@@ -1,11 +1,11 @@
 package dev.pacmon.jetbrains.core
 
-/** Static Python dependency parsers. Pacmon never invokes Python, pip, Poetry, uv, or a build backend. */
+/** Static Python dependency parsers. Depos never invokes Python, pip, Poetry, uv, or a build backend. */
 object PythonManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.PYTHON
     override val fileNames = listOf("pyproject.toml", "requirements.txt")
     override val discoveryGlobs = listOf("**/pyproject.toml", "**/requirements*.txt", "**/requirements/**/*.txt")
-    override val notesRelativePath = ".pacmon/python/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/python/DEPENDENCY-NOTES.md"
 
     override fun matchesPath(path: String): Boolean {
         val normalized = path.replace('\\', '/')

@@ -69,6 +69,19 @@ object ManifestRegistry {
 
     fun forKind(kind: ManifestKind): ManifestAdapter = adapters.first { it.kind == kind }
 
+    /** The adapter's notes path under [dir]: `notesRelativePath` names the current directory. */
+    fun notesRelativePathIn(adapter: ManifestAdapter, dir: String): String =
+        if (dir == NotesCore.NOTES_DIRECTORY) adapter.notesRelativePath
+        else "$dir/${adapter.notesRelativePath.substring(NotesCore.NOTES_DIRECTORY.length + 1)}"
+
+    /** The ecosystem whose notes file the path is, under either notes directory. */
+    fun notesKindOfPath(path: String): ManifestKind? {
+        val normalized = path.replace('\\', '/')
+        return adapters.firstOrNull { adapter ->
+            NotesCore.NOTES_DIRECTORIES.any { dir -> normalized.endsWith("/${notesRelativePathIn(adapter, dir)}") }
+        }?.kind
+    }
+
     fun dependencyAtOffset(dependencies: List<DependencyEntry>, offset: Int): DependencyEntry? =
         dependencies.firstOrNull { dependency -> dependency.sourceRanges.any { it.contains(offset) } }
 
@@ -100,7 +113,7 @@ internal fun dependencyEntry(
 object NpmManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.NPM
     override val fileNames = listOf("package.json")
-    override val notesRelativePath = ".pacmon/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
 
     private val dependencySections = setOf(
@@ -125,7 +138,7 @@ object NpmManifestAdapter : ManifestAdapter {
 object ComposerManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.COMPOSER
     override val fileNames = listOf("composer.json")
-    override val notesRelativePath = ".pacmon/composer/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/composer/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
 
     private val dependencySections = listOf("require", "require-dev")
@@ -162,7 +175,7 @@ object ComposerManifestAdapter : ManifestAdapter {
 object VcpkgManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.VCPKG
     override val fileNames = listOf("vcpkg.json")
-    override val notesRelativePath = ".pacmon/vcpkg/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/vcpkg/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw).lowercase()
 
     private val packageName = Regex("^[A-Za-z0-9][A-Za-z0-9-]*$")
@@ -365,7 +378,7 @@ private class JsonReader(private val text: String) {
 object CargoManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.CARGO
     override val fileNames = listOf("Cargo.toml")
-    override val notesRelativePath = ".pacmon/cargo/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/cargo/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     private data class KeyPart(val value: String, val range: SourceRange)
@@ -592,7 +605,7 @@ object CargoManifestAdapter : ManifestAdapter {
 object MavenManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.MAVEN
     override val fileNames = listOf("pom.xml")
-    override val notesRelativePath = ".pacmon/maven/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/maven/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     override fun extractDependencies(text: String): List<DependencyEntry> {

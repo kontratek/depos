@@ -70,14 +70,14 @@ function radioRow(key: string, value: string, label: string): string {
 
 /** 16px stroke icons, inline so nothing is loaded from disk. */
 const ACTION_ICONS: Record<string, string> = {
-  'pacmon.openNotesFile': '<path d="M4 2h6l3 3v9H4z"/><path d="M10 2v3h3"/><path d="M6 8h5M6 11h3"/>',
-  'pacmon.openManifest': '<path d="M8 1.6l5.5 3v6.8L8 14.4 2.5 11.4V4.6z"/><path d="M2.6 4.7L8 7.6l5.4-2.9M8 7.6v6.8"/>',
-  'pacmon.showCoverage': '<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/>',
-  'pacmon.normalizeNotesFile': '<path d="M2.5 3.5h11M2.5 6.5h7M2.5 9.5h11M2.5 12.5h7"/>',
-  'pacmon.setupAiInstructions': '<path d="M8 2l1.4 3.6L13 7l-3.6 1.4L8 12l-1.4-3.6L3 7l3.6-1.4z"/><path d="M12.5 10.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
-  'pacmon.depos.signIn': '<path d="M9.5 2.5h3v11h-3"/><path d="M2.5 8h7M7 5.5L9.5 8 7 10.5"/>',
-  'pacmon.depos.showConnection': '<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.3 3.4 2.3 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.7 5.9 5.7 8s.7 3.9 2.3 5.5"/>',
-  'pacmon.depos.signOut': '<path d="M6.5 2.5h-3v11h3"/><path d="M6.5 8h7M11 5.5L13.5 8 11 10.5"/>',
+  'depos.openNotesFile': '<path d="M4 2h6l3 3v9H4z"/><path d="M10 2v3h3"/><path d="M6 8h5M6 11h3"/>',
+  'depos.openManifest': '<path d="M8 1.6l5.5 3v6.8L8 14.4 2.5 11.4V4.6z"/><path d="M2.6 4.7L8 7.6l5.4-2.9M8 7.6v6.8"/>',
+  'depos.showCoverage': '<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/>',
+  'depos.normalizeNotesFile': '<path d="M2.5 3.5h11M2.5 6.5h7M2.5 9.5h11M2.5 12.5h7"/>',
+  'depos.setupAiInstructions': '<path d="M8 2l1.4 3.6L13 7l-3.6 1.4L8 12l-1.4-3.6L3 7l3.6-1.4z"/><path d="M12.5 10.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
+  'depos.signIn': '<path d="M9.5 2.5h3v11h-3"/><path d="M2.5 8h7M7 5.5L9.5 8 7 10.5"/>',
+  'depos.showConnection': '<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.3 3.4 2.3 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.7 5.9 5.7 8s.7 3.9 2.3 5.5"/>',
+  'depos.signOut': '<path d="M6.5 2.5h-3v11h3"/><path d="M6.5 8h7M11 5.5L13.5 8 11 10.5"/>',
 };
 
 function actionButton(command: string, label: string, help: string, nameId?: string): string {
@@ -218,11 +218,11 @@ export function renderHtml(): string {
     <h2>${esc(S.viewGroupWeb)}</h2>
     <p class="lede" id="webText"></p>
     <div class="actions" id="webSignedOut" hidden>
-      ${actionButton('pacmon.depos.signIn', S.viewWebSignIn, S.viewWebSignInHelp)}
+      ${actionButton('depos.signIn', S.viewWebSignIn, S.viewWebSignInHelp)}
     </div>
     <div class="actions" id="webSignedIn" hidden>
-      ${actionButton('pacmon.depos.showConnection', S.viewWebShow, S.viewWebShowHelp)}
-      ${actionButton('pacmon.depos.signOut', S.viewWebSignOut, S.viewWebSignOutHelp)}
+      ${actionButton('depos.showConnection', S.viewWebShow, S.viewWebShowHelp)}
+      ${actionButton('depos.signOut', S.viewWebSignOut, S.viewWebSignOutHelp)}
     </div>
   </section>
 
@@ -261,11 +261,11 @@ export function renderHtml(): string {
   <section>
     <h2>${esc(S.viewGroupActions)}</h2>
     <div class="actions">
-      ${actionButton('pacmon.openNotesFile', S.viewOpenNotes(NOTES_REL_PATH), S.viewOpenNotesHelp, 'openNotesLabel')}
-      ${actionButton('pacmon.openManifest', S.viewOpenPackage, S.viewOpenPackageHelp)}
-      ${actionButton('pacmon.showCoverage', S.viewSearch, S.viewSearchHelp)}
-      ${actionButton('pacmon.normalizeNotesFile', S.viewFormat, S.viewFormatHelp)}
-      ${actionButton('pacmon.setupAiInstructions', S.viewAiSetup, S.viewAiSetupHelp)}
+      ${actionButton('depos.openNotesFile', S.viewOpenNotes(NOTES_REL_PATH), S.viewOpenNotesHelp, 'openNotesLabel')}
+      ${actionButton('depos.openManifest', S.viewOpenPackage, S.viewOpenPackageHelp)}
+      ${actionButton('depos.showCoverage', S.viewSearch, S.viewSearchHelp)}
+      ${actionButton('depos.normalizeNotesFile', S.viewFormat, S.viewFormatHelp)}
+      ${actionButton('depos.setupAiInstructions', S.viewAiSetup, S.viewAiSetupHelp)}
     </div>
   </section>
 

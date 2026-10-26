@@ -7,7 +7,7 @@ import { parseNotes } from '../../core/parseNotes';
 import { normalizeText } from '../../core/serialize';
 
 const read = (rel: string): string => readFileSync(new URL(`../../../docs/example-repo/${rel}`, import.meta.url), 'utf8');
-const notes = read('.pacmon/DEPENDENCY-NOTES.md');
+const notes = read('.depos/DEPENDENCY-NOTES.md');
 const deps = extractDeps(read('package.json'));
 
 describe('docs/example-repo', () => {

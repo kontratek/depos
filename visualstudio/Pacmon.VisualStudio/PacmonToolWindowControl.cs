@@ -276,7 +276,7 @@ public sealed class PacmonToolWindowControl : UserControl
         titleRow.Children.Add(settingsButton);
         var title = new StackPanel { Orientation = Orientation.Horizontal };
         title.Children.Add(new PacmonMarkControl { Documented = true, Width = 16, Height = 16, Margin = new Thickness(0, 2, 7, 0) });
-        title.Children.Add(new TextBlock { Text = "Pacmon", FontSize = 18, FontWeight = FontWeights.SemiBold });
+        title.Children.Add(new TextBlock { Text = "Depos", FontSize = 18, FontWeight = FontWeights.SemiBold });
         titleRow.Children.Add(title);
         header.Children.Add(titleRow);
         return header;
@@ -533,8 +533,8 @@ public sealed class PacmonToolWindowControl : UserControl
         var lintCount = context.Notes is null ? 0 : Notes.Lint(context.Notes, context.Dependencies.Select(item => item.NoteKey)).Count;
         var problemCount = lintCount + context.Analysis.Orphans.Count;
         CaptionChanged?.Invoke(problemCount == 0
-            ? $"Pacmon — {documented.Count}/{context.Dependencies.Count}"
-            : $"Pacmon — {documented.Count}/{context.Dependencies.Count}, {problemCount} problems");
+            ? $"Depos — {documented.Count}/{context.Dependencies.Count}"
+            : $"Depos — {documented.Count}/{context.Dependencies.Count}, {problemCount} problems");
     }
 
     private void ShowSettingsView()
@@ -544,7 +544,7 @@ public sealed class PacmonToolWindowControl : UserControl
         viewHost.Content = settingsView;
         settingsButton.Visibility = Visibility.Collapsed;
         saveStatus.Text = string.Empty;
-        CaptionChanged?.Invoke("Pacmon — Settings");
+        CaptionChanged?.Invoke("Depos — Settings");
     }
 
     private void ShowDetailView()
@@ -575,7 +575,7 @@ public sealed class PacmonToolWindowControl : UserControl
         if (!enabled)
         {
             packageTitle.Text = "Select a dependency in a supported NuGet manifest.";
-            packageScope.Text = "Use the Pacmon mark or Add/Edit Dependency Note command.";
+            packageScope.Text = "Use the Depos mark or Add/Edit Dependency Note command.";
             notesPath.Text = string.Empty;
             human.Visibility = Visibility.Collapsed;
             agentBox.Visibility = Visibility.Collapsed;

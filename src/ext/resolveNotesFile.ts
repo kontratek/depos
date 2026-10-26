@@ -1,19 +1,35 @@
 import * as vscode from 'vscode';
-import { MANIFEST_ADAPTERS, manifestAdapterForKind, manifestAdapterForPath } from '../core/manifest';
+import {
+  MANIFEST_ADAPTERS,
+  manifestAdapterForKind,
+  manifestAdapterForPath,
+  notesKindOfPath,
+  notesRelativePathIn,
+} from '../core/manifest';
 import type { DependencyEntry, ManifestKind } from '../core/model';
 import { uniqueNugetDependencies } from '../core/nuget-manifest';
 import { uniqueRubyDependencies } from '../core/ruby-manifest';
-import { AGENT_RULES_REL_PATH } from '../core/template';
+import {
+  AGENT_RULES_FILE_NAME,
+  LEGACY_NOTES_DIR,
+  NOTES_DIR,
+  NOTES_DIRS,
+  NOTES_FILE_NAME,
+  notesDirOf,
+  type NotesDir,
+} from '../core/template';
 import { monorepoMode, uriBasename } from './config';
 
-const DISCOVERY_EXCLUDE = '**/{node_modules,target,.gradle,_build,deps,zig-pkg,.zig-cache,zig-cache,zig-out,.venv,venv,.tox,.nox,site-packages,dist,build,bin,obj,vendor,testdata,.bundle,.conan,.conan2,vcpkg_installed,.git}/**';
+export const DISCOVERY_EXCLUDE = '**/{node_modules,target,.gradle,_build,deps,zig-pkg,.zig-cache,zig-cache,zig-out,.venv,venv,.tox,.nox,site-packages,dist,build,bin,obj,vendor,testdata,.bundle,.conan,.conan2,vcpkg_installed,.git}/**';
 
 const existsCache = new Map<string, boolean>();
 const manifestsForNotesCache = new Map<string, Promise<vscode.Uri[]>>();
+const notesDirCache = new Map<string, Promise<NotesDir>>();
 
 export function clearResolverCache(): void {
   existsCache.clear();
   manifestsForNotesCache.clear();
+  notesDirCache.clear();
 }
 
 async function exists(uri: vscode.Uri): Promise<boolean> {
@@ -67,13 +83,47 @@ async function manifestOwnerDirectoryForResolution(uri: vscode.Uri): Promise<vsc
   return directOwner;
 }
 
-export function notesUriIn(dir: vscode.Uri, kind: ManifestKind = 'npm'): vscode.Uri {
-  return vscode.Uri.joinPath(dir, ...manifestAdapterForKind(kind).notesRelativePath.split('/'));
+export function notesUriIn(dir: vscode.Uri, kind: ManifestKind = 'npm', notesDir: NotesDir = NOTES_DIR): vscode.Uri {
+  return vscode.Uri.joinPath(dir, ...notesRelativePathIn(manifestAdapterForKind(kind), notesDir).split('/'));
 }
 
 export function notesKind(uri: vscode.Uri): ManifestKind | undefined {
-  const normalized = uri.path.replace(/\\/g, '/');
-  return MANIFEST_ADAPTERS.find((adapter) => normalized.endsWith(`/${adapter.notesRelativePath}`))?.kind;
+  return notesKindOfPath(uri.path);
+}
+
+/**
+ * The notes directory new files go to in a workspace folder, decided once for
+ * the whole repository: `.depos/` when anything is there (AGENT-RULES.md or a
+ * notes file), else `.pacmon/` when anything is there, else `.depos/`. A
+ * repository that keeps its notes in `.pacmon/` stays there whole — the first
+ * note of a new ecosystem or of a new monorepo package included — until the
+ * move command moves all of it: a teammate on an older version reads `.pacmon/`
+ * only, and must not lose sight of half of the notes.
+ */
+export function notesDirForFolder(folder: vscode.Uri): Promise<NotesDir> {
+  const key = folder.toString();
+  let pending = notesDirCache.get(key);
+  if (!pending) {
+    pending = (async () => {
+      for (const dir of NOTES_DIRS) {
+        if (await notesDirInUse(folder, dir)) return dir;
+      }
+      return NOTES_DIR;
+    })();
+    notesDirCache.set(key, pending);
+  }
+  return pending;
+}
+
+async function notesDirInUse(folder: vscode.Uri, dir: NotesDir): Promise<boolean> {
+  // Every write puts AGENT-RULES.md at the root, so this answers for most repositories.
+  if (await exists(vscode.Uri.joinPath(folder, dir, AGENT_RULES_FILE_NAME))) return true;
+  const found = await vscode.workspace.findFiles(
+    new vscode.RelativePattern(folder, `**/${dir}/**/${NOTES_FILE_NAME}`),
+    DISCOVERY_EXCLUDE,
+    1,
+  );
+  return found.length > 0;
 }
 
 /** The manifest beside the directory that owns a notes file. */
@@ -93,9 +143,11 @@ export function packageJsonFor(notesUri: vscode.Uri): vscode.Uri {
   return manifestForNotes(notesUri) ?? vscode.Uri.joinPath(notesUri, '..', '..', 'package.json');
 }
 
-export function agentRulesUriFor(anyUri: vscode.Uri): vscode.Uri | undefined {
+/** AGENT-RULES.md at the workspace root, in the repository's notes directory. */
+export async function agentRulesUriFor(anyUri: vscode.Uri): Promise<vscode.Uri | undefined> {
   const folder = vscode.workspace.getWorkspaceFolder(anyUri) ?? vscode.workspace.workspaceFolders?.[0];
-  return folder ? vscode.Uri.joinPath(folder.uri, ...AGENT_RULES_REL_PATH.split('/')) : undefined;
+  if (!folder) return undefined;
+  return vscode.Uri.joinPath(folder.uri, await notesDirForFolder(folder.uri), AGENT_RULES_FILE_NAME);
 }
 
 /**
@@ -119,15 +171,12 @@ export async function resolveNotesFileFor(manifestUri: vscode.Uri): Promise<vsco
   const adapter = manifestAdapterForPath(manifestUri.path);
   const folder = vscode.workspace.getWorkspaceFolder(manifestUri);
   if (!adapter || !folder) return undefined;
-  if (monorepoMode() === 'rootOnly') {
-    const candidate = notesUriIn(folder.uri, adapter.kind);
-    return (await exists(candidate)) ? candidate : undefined;
-  }
+  if (monorepoMode() === 'rootOnly') return notesFileIn(folder.uri, adapter.kind);
   let dir = await manifestOwnerDirectoryForResolution(manifestUri);
   const rootPath = folder.uri.path.replace(/\/+$/, '');
   for (let i = 0; i < 64; i++) {
-    const candidate = notesUriIn(dir, adapter.kind);
-    if (await exists(candidate)) return candidate;
+    const found = await notesFileIn(dir, adapter.kind);
+    if (found) return found;
     const dirPath = dir.path.replace(/\/+$/, '');
     if (dirPath === rootPath || dirPath.length <= rootPath.length) break;
     dir = parentDir(dir);
@@ -135,9 +184,50 @@ export async function resolveNotesFileFor(manifestUri: vscode.Uri): Promise<vsco
   return undefined;
 }
 
+/** The notes file of `kind` in one directory: `.depos/` first, then `.pacmon/`. */
+async function notesFileIn(dir: vscode.Uri, kind: ManifestKind): Promise<vscode.Uri | undefined> {
+  for (const notesDir of NOTES_DIRS) {
+    const candidate = notesUriIn(dir, kind, notesDir);
+    if (await exists(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+/**
+ * The same path in the current notes directory, for anything under `.pacmon/`:
+ * `apps/web/.pacmon/cargo/DEPENDENCY-NOTES.md` → `apps/web/.depos/cargo/…`.
+ */
+export function inCurrentNotesDir(uri: vscode.Uri): vscode.Uri | undefined {
+  const at = uri.path.lastIndexOf(`/${LEGACY_NOTES_DIR}/`);
+  if (at === -1) return undefined;
+  return uri.with({ path: `${uri.path.slice(0, at)}/${NOTES_DIR}/${uri.path.slice(at + LEGACY_NOTES_DIR.length + 2)}` });
+}
+
+/** For a notes file under `.pacmon/`: the `.depos/` file beside it that is read instead, if there is one. */
+export async function shadowingNotesFile(notesUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+  const current = inCurrentNotesDir(notesUri);
+  if (!current) return undefined;
+  try {
+    await vscode.workspace.fs.stat(current);
+    return current;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Where a manifest's notes are: the directory of its notes file, or the one a first note would go to. */
+export async function notesDirForManifest(manifestUri: vscode.Uri): Promise<NotesDir> {
+  const resolved = await resolveNotesFileFor(manifestUri);
+  if (resolved) return notesDirOf(resolved.path);
+  const folder = vscode.workspace.getWorkspaceFolder(manifestUri);
+  return folder ? notesDirForFolder(folder.uri) : NOTES_DIR;
+}
+
 export async function creationTargetFor(manifestUri: vscode.Uri): Promise<vscode.Uri> {
   const adapter = manifestAdapterForPath(manifestUri.path);
-  return notesUriIn(await manifestOwnerDirectoryForResolution(manifestUri), adapter?.kind ?? 'npm');
+  const folder = vscode.workspace.getWorkspaceFolder(manifestUri);
+  const notesDir = folder ? await notesDirForFolder(folder.uri) : NOTES_DIR;
+  return notesUriIn(await manifestOwnerDirectoryForResolution(manifestUri), adapter?.kind ?? 'npm', notesDir);
 }
 
 export async function defaultManifest(store: {

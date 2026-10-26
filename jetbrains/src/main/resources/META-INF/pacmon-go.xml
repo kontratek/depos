@@ -7,7 +7,7 @@
         <intentionAction>
             <language>vgo</language>
             <className>dev.pacmon.jetbrains.editor.PacmonAddNoteIntention</className>
-            <category>Pacmon</category>
+            <category>Depos</category>
         </intentionAction>
         <lang.documentationProvider
             language="vgo"

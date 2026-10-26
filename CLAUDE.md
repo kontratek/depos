@@ -1,4 +1,4 @@
-# Pacmon — working rules
+# Depos — working rules
 
 `docs/format.md` is the authority on the notes format. Nothing is derived from it mechanically; these follow it by hand, in the same commit as any format change:
 

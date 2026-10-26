@@ -573,7 +573,9 @@ internal sealed class PacmonSuggestedActionsSource : ISuggestedActionsSource
         if (documentPath is not null && PacmonRuntime.IsNotesPath(documentPath))
         {
             var line = buffer.CurrentSnapshot.GetLineFromPosition(Math.Min(position, buffer.CurrentSnapshot.Length));
-            return runtime.LintNotesBuffer(buffer).Any(finding => finding.Line == line.LineNumber)
+            // Formatting does not help a file that is not read: its warning offers nothing.
+            return runtime.LintNotesBuffer(buffer).Any(finding =>
+                    finding.Line == line.LineNumber && finding.Kind != Notes.ShadowedKind)
                 ? new PacmonNormalizeSuggestedAction(documentPath)
                 : null;
         }
@@ -595,7 +597,7 @@ internal sealed class PacmonSuggestedAction : ISuggestedAction
 
     public string DisplayText => $"Add/Edit dependency note for {dependency.DisplayName}";
     public ImageMoniker IconMoniker => KnownMonikers.Note;
-    public string IconAutomationText => "Pacmon dependency note";
+    public string IconAutomationText => "Depos dependency note";
     public string InputGestureText => string.Empty;
     public bool HasActionSets => false;
     public bool HasPreview => false;

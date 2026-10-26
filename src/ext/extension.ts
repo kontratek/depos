@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { affectsSetting } from './settings';
 import { AgentBlockLenses } from './agentBlockLenses';
 import { setExtensionRoot } from './agentRules';
 import { fixAgentNotes, registerFixProviders } from './codeActions';
@@ -27,12 +28,14 @@ import { OrgContext, OrgNoteError, ORG_NOTES_SCHEME } from './web/orgContext';
 import { registerOrgMcp } from './web/orgMcp';
 import { S } from './strings';
 import { WebConnection } from './web/webConnection';
+import { MOVE_NOTES_COMMAND, moveNotesToDepos, setMoveNotesState } from './commands/moveNotes';
 
 export function activate(context: vscode.ExtensionContext): void {
   setExtensionRoot(context.extensionUri);
+  setMoveNotesState(context.workspaceState);
   // activate() does no IO: providers are registered, state is built lazily
   // when a relevant editor first appears.
-  logInfo(`Pacmon ${context.extension.packageJSON.version as string} activated (${vscode.env.appName})`);
+  logInfo(`Depos ${context.extension.packageJSON.version as string} activated (${vscode.env.appName})`);
   const store = new Store();
   const rememberActiveManifest = (): void => {
     const uri = vscode.window.activeTextEditor?.document.uri;
@@ -133,7 +136,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('pacmon')) {
+      if (affectsSetting(e)) {
         clearResolverCache();
         store.invalidateAll();
       }
@@ -141,58 +144,87 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Every command is wrapped: a failing command must never die silently
-  // (errors land in Output → Pacmon plus a brief status bar note).
+  // (errors land in Output → Depos plus a brief status bar note).
   const command = (id: string, fn: (...args: unknown[]) => Promise<void> | void): vscode.Disposable =>
     vscode.commands.registerCommand(id, async (...args: unknown[]) => {
       try {
         await fn(...args);
       } catch (e) {
         logError(`command.${id}`, e);
-        vscode.window.setStatusBarMessage('Pacmon: command failed — see Output → Pacmon', 5000);
+        vscode.window.setStatusBarMessage('Depos: command failed — see Output → Depos', 5000);
       }
     });
 
   context.subscriptions.push(
-    command('pacmon.addOrEditNote', (nameArg, bodyArg) => {
+    command('depos.addOrEditNote', (nameArg, bodyArg) => {
       // Editor context menus invoke commands with a Uri argument — only accept
       // real strings as the package name / body.
       const name = typeof nameArg === 'string' ? nameArg : undefined;
       const body = typeof bodyArg === 'string' ? bodyArg : undefined;
       return addOrEditNote(store, notePanel, name, body);
     }),
-    command('pacmon.resetView', () => resetView()),
-    command('pacmon.openSettings', () => openSettings(context.extension.id)),
-    command('pacmon.openNotesFile', () => openNotesFile(store)),
-    command('pacmon.openManifest', () => openManifest(store)),
-    command('pacmon.openPackageJson', () => openManifest(store)),
-    command('pacmon.normalizeNotesFile', () => normalizeNotesFile(store)),
-    command('pacmon.showCoverage', () => showCoverage(store, notePanel)),
-    command('pacmon.setupAiInstructions', (targets) =>
+    command('depos.resetView', () => resetView()),
+    command('depos.openSettings', () => openSettings(context.extension.id)),
+    command('depos.openNotesFile', () => openNotesFile(store)),
+    command('depos.openManifest', () => openManifest(store)),
+    command('depos.openPackageJson', () => openManifest(store)),
+    command('depos.normalizeNotesFile', () => normalizeNotesFile(store)),
+    command('depos.showCoverage', () => showCoverage(store, notePanel)),
+    command('depos.setupAiInstructions', (targets) =>
       // Programmatic callers (tests, scripts) may name the files to write.
       setupAiInstructions(
         store,
         Array.isArray(targets) ? targets.filter((t): t is string => typeof t === 'string') : undefined,
       ),
     ),
-    command('pacmon.toggleDecorations', () =>
+    command('depos.toggleDecorations', () =>
       toggleDecorations(context, () => {
         decorations.refreshVisible();
         statusBar.refreshNow();
       }),
     ),
-    command('pacmon.saveNoteComment', (reply) => noteComments.saveFromReply(reply as vscode.CommentReply)),
+    command('depos.saveNoteComment', (reply) => noteComments.saveFromReply(reply as vscode.CommentReply)),
     // Behind the code lens above an agent block; not in the palette.
-    command('pacmon.fixAgentNotes', (uri) => fixAgentNotes(uri)),
+    command('depos.fixAgentNotes', (uri) => fixAgentNotes(uri)),
+    // The notes' move from .pacmon/ (before Pacmon became Depos) to .depos/.
+    command(MOVE_NOTES_COMMAND, (opts) =>
+      moveNotesToDepos(store, typeof opts === 'object' && opts !== null && (opts as { confirmed?: unknown }).confirmed === true),
+    ),
   );
 
-  // Optional Depos connection (pacmon.depos.url). Network only while signed in.
+  // Optional Depos connection (depos.url). Network only while signed in.
   context.subscriptions.push(
-    command('pacmon.depos.signIn', () => web.signIn()),
-    command('pacmon.depos.signOut', () => web.signOut()),
-    command('pacmon.depos.showConnection', () => web.showConnection()),
-    command('pacmon.depos.refresh', () => orgContext.refresh()),
+    command('depos.signIn', () => web.signIn()),
+    command('depos.signOut', () => web.signOut()),
+    command('depos.showConnection', () => web.showConnection()),
+    command('depos.refresh', () => orgContext.refresh()),
   );
+
+  // The ids from before Pacmon became Depos, for keybindings that name them.
+  // Not contributed, so the palette shows each command once.
+  for (const [legacy, current] of LEGACY_COMMANDS) {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(legacy, (...args: unknown[]) => vscode.commands.executeCommand(current, ...args)),
+    );
+  }
 }
+
+const LEGACY_COMMANDS: ReadonlyArray<readonly [legacy: string, current: string]> = [
+  ['pacmon.addOrEditNote', 'depos.addOrEditNote'],
+  ['pacmon.openNotesFile', 'depos.openNotesFile'],
+  ['pacmon.openManifest', 'depos.openManifest'],
+  ['pacmon.openPackageJson', 'depos.openPackageJson'],
+  ['pacmon.normalizeNotesFile', 'depos.normalizeNotesFile'],
+  ['pacmon.showCoverage', 'depos.showCoverage'],
+  ['pacmon.setupAiInstructions', 'depos.setupAiInstructions'],
+  ['pacmon.toggleDecorations', 'depos.toggleDecorations'],
+  ['pacmon.resetView', 'depos.resetView'],
+  ['pacmon.openSettings', 'depos.openSettings'],
+  ['pacmon.depos.signIn', 'depos.signIn'],
+  ['pacmon.depos.signOut', 'depos.signOut'],
+  ['pacmon.depos.showConnection', 'depos.showConnection'],
+  ['pacmon.depos.refresh', 'depos.refresh'],
+];
 
 export function deactivate(): void {
   // Nothing to clean up beyond context.subscriptions.

@@ -6,7 +6,8 @@ import { dependencyAtOffset } from '../../core/manifest';
 import { findSection, parseNotes } from '../../core/parseNotes';
 import { isManifest, noteEntryMode, notesFileLabelForManifest } from '../config';
 import type { NotePanel } from '../notePanel';
-import { defaultManifest, orgModeNotesUri, resolveNotesFileFor } from '../resolveNotesFile';
+import { defaultManifest, notesDirForManifest, orgModeNotesUri, resolveNotesFileFor } from '../resolveNotesFile';
+import { notesDirOf } from '../../core/template';
 import type { Store } from '../state';
 import { S } from '../strings';
 import { ensureSection, upsertNote } from './writeNote';
@@ -59,7 +60,7 @@ async function openPeek(
   const bodyLine = Math.min(section.bodyStart, Math.max(notes.lines.length - 1, 0));
   const target = new vscode.Location(notesUri, new vscode.Range(bodyLine, 0, bodyLine, 0));
   await vscode.commands.executeCommand('editor.action.peekLocations', pkgUri, anchor, [target], 'peek');
-  vscode.window.setStatusBarMessage(S.peekHint(notesFileLabelForManifest(pkgUri)), 5000);
+  vscode.window.setStatusBarMessage(S.peekHint(notesFileLabelForManifest(pkgUri, notesDirOf(notesUri.path))), 5000);
   return true;
 }
 
@@ -114,7 +115,7 @@ export async function addOrEditNote(
     }
   }
   if (!name) return;
-  const fileLabel = notesFileLabelForManifest(pkgUri);
+  const fileLabel = notesFileLabelForManifest(pkgUri, await notesDirForManifest(pkgUri));
 
   // Primary experience: the note editor beside package.json. Needs no anchor in
   // the editor, so it works from the command palette and coverage list too.

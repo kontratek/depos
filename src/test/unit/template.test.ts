@@ -4,9 +4,16 @@ import {
   AGENT_RULES_REL_PATH,
   AI_FORMAT_COMMENT_LINES,
   DEFAULT_FRONTMATTER_LINES,
+  LEGACY_NOTES_DIR,
+  NOTES_DIR,
+  NOTES_DIRS,
   NOTES_REL_PATH,
+  agentRulesRelPath,
   aiInstructionsBlock,
+  formatCommentLines,
+  inNotesDir,
   newNotesFileContent,
+  notesDirOf,
   upsertAiInstructions,
 } from '../../core/template';
 
@@ -90,8 +97,8 @@ describe('template: frontmatter and header', () => {
 describe('template: pointer block for the user’s agent files', () => {
   const between = (text: string): string[] => {
     const lines = text.split('\n');
-    const start = lines.findIndex((l) => l.includes('pacmon:start'));
-    const end = lines.findIndex((l) => l.includes('pacmon:end'));
+    const start = lines.findIndex((l) => l.includes('depos:start'));
+    const end = lines.findIndex((l) => l.includes('depos:end'));
     return lines.slice(start + 1, end);
   };
 
@@ -103,25 +110,34 @@ describe('template: pointer block for the user’s agent files', () => {
     expect(text).toContain(AGENT_RULES_REL_PATH);
     expect(text).toContain('### Agent notes');
     expect(text).toContain('status: removed');
-    expect(text).toContain('.pacmon/mix/DEPENDENCY-NOTES.md');
-    expect(text).toContain('.pacmon/zig/DEPENDENCY-NOTES.md');
-    expect(text).toContain('.pacmon/nuget/DEPENDENCY-NOTES.md');
-    expect(text).toContain('.pacmon/ruby/DEPENDENCY-NOTES.md');
-    expect(text).toContain('.pacmon/composer/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.depos/mix/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.depos/zig/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.depos/nuget/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.depos/ruby/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.depos/composer/DEPENDENCY-NOTES.md');
+    expect(text).not.toContain('.pacmon/');
+  });
+
+  it('names the repository’s own directory when it still keeps its notes in .pacmon/', () => {
+    const text = between(aiInstructionsBlock('.pacmon')).join('\n');
+    expect(text).toContain('.pacmon/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.pacmon/cargo/DEPENDENCY-NOTES.md');
+    expect(text).toContain('.pacmon/AGENT-RULES.md');
+    expect(text).not.toContain('.depos/');
   });
 
   it('appends the block once and replaces it on re-run', () => {
     const first = upsertAiInstructions('# AGENTS\n\nexisting\n');
-    expect(first).toContain('pacmon:start');
+    expect(first).toContain('depos:start');
     const second = upsertAiInstructions(first);
-    expect(second.match(/pacmon:start/g)).toHaveLength(1);
+    expect(second.match(/depos:start/g)).toHaveLength(1);
     expect(second).toContain('existing');
     expect(between(second)).toHaveLength(3);
   });
 
   it('works on empty files', () => {
     const out = upsertAiInstructions('');
-    expect(out.startsWith('<!-- pacmon:start -->')).toBe(true);
+    expect(out.startsWith('<!-- depos:start -->')).toBe(true);
     expect(out.endsWith('\n')).toBe(true);
   });
 
@@ -131,5 +147,70 @@ describe('template: pointer block for the user’s agent files', () => {
     expect(out).not.toContain('deps-notes');
     expect(out).not.toContain('\nold\n');
     expect(between(out)).toHaveLength(3);
+  });
+
+  it('replaces the block Pacmon wrote, in place', () => {
+    const old = '# AGENTS\n\nbefore\n\n<!-- pacmon:start -->\nold\n<!-- pacmon:end -->\n\nafter\n';
+    const out = upsertAiInstructions(old);
+    expect(out).not.toContain('pacmon:');
+    expect(out).not.toContain('\nold\n');
+    expect(out.indexOf('before')).toBeLessThan(out.indexOf('depos:start'));
+    expect(out.indexOf('depos:end')).toBeLessThan(out.indexOf('after'));
+    expect(between(out)).toHaveLength(3);
+  });
+
+  it('comes back to one block when an older version added its own', () => {
+    // A teammate on Pacmon ran the setup after this file got the Depos block:
+    // Pacmon did not know the new markers and appended a block of its own.
+    const mixed = `# AGENTS\n\nintro\n\n${aiInstructionsBlock()}\n\nmiddle\n\n<!-- pacmon:start -->\nold\n<!-- pacmon:end -->\n`;
+    const out = upsertAiInstructions(mixed);
+    expect(out.match(/depos:start/g)).toHaveLength(1);
+    expect(out).not.toContain('pacmon:');
+    expect(out).toBe(`# AGENTS\n\nintro\n\n${aiInstructionsBlock()}\n\nmiddle\n`);
+  });
+
+  it('keeps CRLF files CRLF around a removed block', () => {
+    const mixed = `intro\r\n\r\n<!-- depos:start -->\r\nx\r\n<!-- depos:end -->\r\n\r\nmiddle\r\n\r\n<!-- pacmon:start -->\r\nold\r\n<!-- pacmon:end -->\r\n\r\nend\r\n`;
+    const out = upsertAiInstructions(mixed);
+    expect(out).toContain('\r\n\r\nmiddle\r\n\r\nend\r\n');
+    expect(out).not.toContain('pacmon:');
+  });
+});
+
+describe('template: the notes directory', () => {
+  it('is .depos/, with .pacmon/ from before the rename still known', () => {
+    expect(NOTES_DIR).toBe('.depos');
+    expect(LEGACY_NOTES_DIR).toBe('.pacmon');
+    expect(NOTES_DIRS).toEqual(['.depos', '.pacmon']);
+    expect(NOTES_REL_PATH).toBe('.depos/DEPENDENCY-NOTES.md');
+    expect(AGENT_RULES_REL_PATH).toBe('.depos/AGENT-RULES.md');
+    expect(agentRulesRelPath('.pacmon')).toBe('.pacmon/AGENT-RULES.md');
+  });
+
+  it('reads the directory off a path', () => {
+    expect(notesDirOf('/repo/.depos/DEPENDENCY-NOTES.md')).toBe('.depos');
+    expect(notesDirOf('/repo/apps/web/.pacmon/cargo/DEPENDENCY-NOTES.md')).toBe('.pacmon');
+    expect(notesDirOf('C:\\repo\\.pacmon\\DEPENDENCY-NOTES.md')).toBe('.pacmon');
+    expect(notesDirOf('.pacmon/AGENT-RULES.md')).toBe('.pacmon');
+    expect(notesDirOf('/repo/not.pacmon/DEPENDENCY-NOTES.md')).toBe('.depos');
+  });
+
+  it('rewrites text written for .depos/ for a repository on .pacmon/', () => {
+    const text = 'Notes in `.depos/DEPENDENCY-NOTES.md`; see https://depos.dev/format/.';
+    expect(inNotesDir(text, '.depos')).toBe(text);
+    expect(inNotesDir(text, '.pacmon')).toBe('Notes in `.pacmon/DEPENDENCY-NOTES.md`; see https://depos.dev/format/.');
+  });
+
+  it('names the AGENT-RULES.md beside the notes file in its header, and keeps it there', () => {
+    const fresh = newNotesFileContent('\n', 'a', 'x', undefined, '.pacmon');
+    expect(fresh).toContain('rules in .pacmon/AGENT-RULES.md');
+    // Formatting a .pacmon/ file never moves its header to .depos/: two
+    // versions in one team would otherwise rewrite it in turn on every save.
+    expect(normalizeText(fresh, '.pacmon')).toBe(fresh);
+    expect(normalizeText(fresh)).toContain('rules in .depos/AGENT-RULES.md');
+    const cargo = newNotesFileContent('\n', 'serde', 'Serialization.', 'cargo', '.pacmon');
+    expect(cargo).toContain('rules in .pacmon/AGENT-RULES.md');
+    expect(normalizeText(cargo, '.pacmon')).toBe(cargo);
+    expect(formatCommentLines('cargo').join('\n')).toContain('rules in .depos/AGENT-RULES.md');
   });
 });

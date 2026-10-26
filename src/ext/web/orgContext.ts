@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { affectsSetting } from '../settings';
 import { manifestAdapterForPath } from '../../core/manifest';
 import type { ManifestKind } from '../../core/model';
 import { logError, logInfo } from '../log';
@@ -18,7 +19,7 @@ const CACHE_PREFIX = 'pacmon.depos.org:';
 const NOTES_DIR = 'org-notes';
 
 /** Notes files of org mode: built from the org notes, read-only, never on disk. */
-export const ORG_NOTES_SCHEME = 'pacmon-org';
+export const ORG_NOTES_SCHEME = 'depos-org';
 
 /** What Depos answered for a folder's repository, kept for a start while offline. */
 interface Cached {
@@ -77,7 +78,7 @@ export class OrgContext implements vscode.Disposable {
       web.onDidChange(() => void this.refresh()),
       vscode.workspace.onDidChangeWorkspaceFolders(() => void this.refresh()),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('pacmon.depos.url')) void this.refresh();
+        if (affectsSetting(e, 'url')) void this.refresh();
       }),
       vscode.window.onDidChangeWindowState((state) => {
         if (state.focused && Date.now() - this.lastRun > FOCUS_MIN_GAP_MS) void this.refresh();

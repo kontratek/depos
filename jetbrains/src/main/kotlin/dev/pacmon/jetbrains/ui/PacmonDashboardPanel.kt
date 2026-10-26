@@ -27,6 +27,7 @@ import dev.pacmon.jetbrains.depos.DeposConnection
 import dev.pacmon.jetbrains.depos.DeposConnectionListener
 import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import dev.pacmon.jetbrains.settings.PacmonConfigurable
 import com.intellij.ui.dsl.builder.Row
 import dev.pacmon.jetbrains.settings.Decorations
 import dev.pacmon.jetbrains.settings.InlineSources
@@ -45,13 +46,13 @@ import javax.swing.Scrollable
 import kotlin.math.roundToInt
 
 /**
- * The Pacmon tool window's front page: the same six sections the VS Code
+ * The Depos tool window's front page: the same six sections the VS Code
  * extension's activity-bar view has, in the same order and with the same
  * words — coverage, the click targets, the note editor, the note markers, the
  * inline note source, and the actions.
  *
  * Everything here writes straight through to [PacmonProjectService]; the
- * Settings page under Tools → Pacmon is the same settings again, for anyone
+ * Settings page under Tools → Depos is the same settings again, for anyone
  * who looks there first.
  */
 class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()) {
@@ -93,13 +94,13 @@ class PacmonDashboardPanel(private val project: Project) : JPanel(BorderLayout()
 
     private val content = panel {
         row {
-            label("Pacmon: Dependency Notes")
+            label("Depos: Dependency Notes")
                 .bold()
                 .applyToComponent { font = font.deriveFont(font.size2D + 2f) }
                 .resizableColumn()
             link("Reset") { resetToDefaults() }
                 .applyToComponent { toolTipText = "Reset everything in this view to its default" }
-            link("Settings") { ShowSettingsUtil.getInstance().showSettingsDialog(project, "Pacmon") }
+            link("Settings") { ShowSettingsUtil.getInstance().showSettingsDialog(project, PacmonConfigurable::class.java) }
         }
 
         group("COVERAGE") {

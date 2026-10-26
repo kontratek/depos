@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { affectsSetting, clearSetting, inspectSetting, updateSetting } from './settings';
 import { analyze } from '../core/analyze';
 import {
   ALL_NOTE_BUTTONS,
@@ -19,7 +20,7 @@ import type { Store } from './state';
 import { S } from './strings';
 import type { WebConnection } from './web/webConnection';
 
-const VIEW_ID = 'pacmon.settings';
+const VIEW_ID = 'depos.settings';
 
 /** The settings this view owns: what it writes, and what "Reset to Defaults" clears. */
 const VIEW_KEYS = ['noteButtons', 'noteEntry', 'decorations', 'inlineSource'] as const;
@@ -33,18 +34,18 @@ interface Incoming {
 
 /** Commands the view may run — the id off the wire is never trusted. */
 const ALLOWED_COMMANDS = new Set([
-  'pacmon.openNotesFile',
-  'pacmon.openManifest',
-  'pacmon.showCoverage',
-  'pacmon.normalizeNotesFile',
-  'pacmon.setupAiInstructions',
-  'pacmon.depos.signIn',
-  'pacmon.depos.showConnection',
-  'pacmon.depos.signOut',
+  'depos.openNotesFile',
+  'depos.openManifest',
+  'depos.showCoverage',
+  'depos.normalizeNotesFile',
+  'depos.setupAiInstructions',
+  'depos.signIn',
+  'depos.showConnection',
+  'depos.signOut',
 ]);
 
 /**
- * The Pacmon view in the activity bar: turn the in-editor affordances on and
+ * The Depos view in the activity bar: turn the in-editor affordances on and
  * off, pick where a note is written, and reach the four commands — without
  * hunting through Settings.
  *
@@ -69,7 +70,7 @@ export class SettingsView implements vscode.WebviewViewProvider, vscode.Disposab
       web.onDidChange(() => void this.postState()),
       vscode.window.registerWebviewViewProvider(VIEW_ID, this),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('pacmon')) void this.postState();
+        if (affectsSetting(e)) void this.postState();
       }),
       store.onDidChange(() => void this.postState()),
       vscode.window.onDidChangeActiveTextEditor(() => void this.postState()),
@@ -152,12 +153,13 @@ export class SettingsView implements vscode.WebviewViewProvider, vscode.Disposab
    *  `writeScope`. User settings otherwise, so a preference set here follows
    *  you from project to project. */
   private async write(key: string, value: unknown): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('pacmon');
+    // Either name counts: a `pacmon.` value in the workspace is outranked only
+    // by a `depos.` value in the workspace.
     const target =
-      writeScope(cfg.inspect(key)) === 'workspace'
+      writeScope(inspectSetting(key)) === 'workspace'
         ? vscode.ConfigurationTarget.Workspace
         : vscode.ConfigurationTarget.Global;
-    await cfg.update(key, value, target);
+    await updateSetting(key, value, target);
   }
 
   private async postState(): Promise<void> {
@@ -233,12 +235,12 @@ export class SettingsView implements vscode.WebviewViewProvider, vscode.Disposab
  * one thing a reset must not do.
  */
 export async function resetView(): Promise<void> {
-  const cfg = vscode.workspace.getConfiguration('pacmon');
   // Writing workspace settings at all needs a folder open.
   const inWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
   for (const key of VIEW_KEYS) {
-    await cfg.update(key, undefined, vscode.ConfigurationTarget.Global);
-    if (inWorkspace) await cfg.update(key, undefined, vscode.ConfigurationTarget.Workspace);
+    // Under both names, or a `pacmon.` value from before the rename would stand.
+    await clearSetting(key, vscode.ConfigurationTarget.Global);
+    if (inWorkspace) await clearSetting(key, vscode.ConfigurationTarget.Workspace);
   }
 }
 

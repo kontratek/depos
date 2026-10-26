@@ -5,9 +5,9 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 
 /**
- * Rewrites `.pacmon/DEPENDENCY-NOTES.md` into `docs/format.md`'s canonical
+ * Rewrites `.depos/DEPENDENCY-NOTES.md` into `docs/format.md`'s canonical
  * form — the JetBrains counterpart of the VS Code extension's
- * "Pacmon: Format DEPENDENCY-NOTES.md" command.
+ * "Depos: Format DEPENDENCY-NOTES.md" command.
  */
 class NormalizeNotesFileAction : AnAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT

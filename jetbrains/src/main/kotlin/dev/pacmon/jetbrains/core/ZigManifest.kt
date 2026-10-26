@@ -1,10 +1,10 @@
 package dev.pacmon.jetbrains.core
 
-/** Static build.zig.zon parser. Pacmon never invokes Zig or evaluates build.zig. */
+/** Static build.zig.zon parser. Depos never invokes Zig or evaluates build.zig. */
 object ZigManifestAdapter : ManifestAdapter {
     override val kind = ManifestKind.ZIG
     override val fileNames = listOf("build.zig.zon")
-    override val notesRelativePath = ".pacmon/zig/DEPENDENCY-NOTES.md"
+    override val notesRelativePath = ".depos/zig/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
     private enum class TokenKind { IDENTIFIER, STRING, SYMBOL }

@@ -8,6 +8,23 @@ public static class Notes
     public const string FormatVersion = "dependency-notes/2";
     public const string Ecosystem = "nuget";
     public const string FileName = "DEPENDENCY-NOTES.md";
+
+    /// <summary>Everything Depos owns lives beside the dependency manifest under this directory.</summary>
+    public const string DirectoryName = ".depos";
+
+    /// <summary>
+    /// The directory's name from before Pacmon became Depos. Still read, and still
+    /// written in a repository that keeps its notes there: a repository moves to
+    /// .depos/ all at once, never one file at a time.
+    /// </summary>
+    public const string LegacyDirectoryName = ".pacmon";
+
+    /// <summary>Where notes may live, in the order they are looked for at each directory level.</summary>
+    public static IReadOnlyList<string> DirectoryNames { get; } = new[] { DirectoryName, LegacyDirectoryName };
+
+    /// <summary>The kind of <see cref="ShadowedFinding"/>.</summary>
+    public const string ShadowedKind = "shadowedNotesFile";
+
     public const string Title = "# Dependency Notes";
     public const string AgentHeading = "### Agent notes";
     public const string GeneratedHeading = "### Generated";
@@ -38,17 +55,48 @@ public static class Notes
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex VersionPattern = new("^v?\\d+(\\.\\d+)*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex TitlePattern = new("^#(?!#)\\s+", RegexOptions.Compiled);
+    private static readonly Regex LegacyDirectoryPattern = new("(^|/)\\.pacmon/", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>The notes directory a path sits in: the legacy name under .pacmon/, the current one otherwise.</summary>
+    public static string DirectoryNameOf(string path) =>
+        LegacyDirectoryPattern.IsMatch(path.Replace('\\', '/')) ? LegacyDirectoryName : DirectoryName;
+
+    /// <summary>
+    /// Text written for the current directory (AGENT-RULES.md), as it reads in a
+    /// repository that keeps its notes under <paramref name="directoryName"/>.
+    /// </summary>
+    public static string InDirectory(string text, string directoryName) =>
+        Checked(directoryName) == DirectoryName ? text : text.Replace(DirectoryName + "/", directoryName + "/");
+
+    internal static string Checked(string directoryName) =>
+        DirectoryNames.Contains(directoryName, StringComparer.Ordinal)
+            ? directoryName
+            : throw new ArgumentException($"Not a notes directory: {directoryName}", nameof(directoryName));
 
     /// <summary>
     /// The header comment belongs to the format: new files get it and Normalize
-    /// rewrites it, in the words src/core/template.ts uses for every v2 file.
+    /// rewrites it, in the words src/core/template.ts uses for every v2 file. It
+    /// names the AGENT-RULES.md of the directory the file sits in, so the caller
+    /// derives <paramref name="directoryName"/> from the file's path, never from a
+    /// setting: Normalize rewrites the comment on every format, and two versions of
+    /// the extension in one team must not take turns changing it.
     /// </summary>
-    private static readonly string[] HeaderCommentLines =
+    private static string[] HeaderCommentLines(string directoryName) => new[]
     {
         $"<!-- Each \"## name\" below is a package from the {Ecosystem} dependency manifest.",
         $"  The text under it is written by people. \"{AgentHeading}\" and everything below",
-        "  it is written by AI agents — rules in .pacmon/AGENT-RULES.md. -->",
+        $"  it is written by AI agents — rules in {AgentRules.RelativePath(directoryName)}. -->",
     };
+
+    /// <summary>
+    /// The warning on a .pacmon/ notes file with a .depos/ file beside it at the
+    /// same level, which is read instead (docs/format.md). The words are the
+    /// VS Code extension's; <paramref name="currentPath"/> names the .depos/ file.
+    /// </summary>
+    public static LintFinding ShadowedFinding(string currentPath) => new(
+        ShadowedKind,
+        0,
+        $"Ignored: {currentPath} is read instead of this file. Move what is still needed there, then delete this file.");
 
     private static readonly (string Key, string Value)[] FrontmatterDefaults =
     {
@@ -202,7 +250,7 @@ public static class Notes
 
     public static IReadOnlyList<LintFinding> LintAgentText(string agent)
     {
-        const string packageName = "pacmon-preview";
+        const string packageName = "depos-preview";
         var model = Parse(NewFile(packageName, string.Empty, agent));
         return Lint(model, new[] { packageName }).Where(IsAgentFinding).ToArray();
     }
@@ -233,14 +281,22 @@ public static class Notes
         return string.Join("\n", lines);
     }
 
-    public static string NewFile(string? packageName = null, string? human = null, string? agent = null)
+    /// <summary>
+    /// A new notes file. <paramref name="directoryName"/> is the notes directory
+    /// the file goes to (<see cref="DirectoryNameOf"/> its path).
+    /// </summary>
+    public static string NewFile(
+        string? packageName = null,
+        string? human = null,
+        string? agent = null,
+        string directoryName = DirectoryName)
     {
         var builder = new StringBuilder();
         builder.AppendLine("---");
         foreach (var (key, value) in FrontmatterDefaults) builder.AppendLine($"{key}: {value}");
         builder.AppendLine("---");
         builder.AppendLine();
-        foreach (var line in HeaderCommentLines) builder.AppendLine(line);
+        foreach (var line in HeaderCommentLines(directoryName)) builder.AppendLine(line);
         builder.AppendLine();
         builder.AppendLine(Title);
         if (!string.IsNullOrWhiteSpace(packageName))
@@ -251,7 +307,16 @@ public static class Notes
         return builder.ToString();
     }
 
-    public static string UpsertLayers(string input, string packageName, string human, string agent)
+    /// <summary>
+    /// Writes a package's section. <paramref name="directoryName"/> is the notes
+    /// directory of the file, for the header comment of an empty one.
+    /// </summary>
+    public static string UpsertLayers(
+        string input,
+        string packageName,
+        string human,
+        string agent,
+        string directoryName = DirectoryName)
     {
         var model = Parse(input);
         var section = FindSection(model, packageName);
@@ -266,7 +331,7 @@ public static class Notes
         if (section is null)
         {
             var baseText = input.TrimEnd('\r', '\n');
-            if (baseText.Length == 0) baseText = NewFile().TrimEnd('\r', '\n');
+            if (baseText.Length == 0) baseText = NewFile(directoryName: directoryName).TrimEnd('\r', '\n');
             return baseText + eol + eol + replacement + eol;
         }
 
@@ -283,8 +348,11 @@ public static class Notes
     /// keys appended when missing; the format's header comment and title; the
     /// introduction; then every section in name order, duplicates included and in
     /// their original order, each body kept as written. Nothing else changes.
+    /// <paramref name="directoryName"/> is the notes directory the file sits in
+    /// (<see cref="DirectoryNameOf"/> its path): the header comment names the
+    /// AGENT-RULES.md there.
     /// </summary>
-    public static string Normalize(string input)
+    public static string Normalize(string input, string directoryName = DirectoryName)
     {
         var model = Parse(input);
         var lines = model.Lines;
@@ -317,7 +385,7 @@ public static class Notes
         if (cursor < lines.Count && TitlePattern.IsMatch(lines[cursor])) cursor++;
 
         output.Add(string.Empty);
-        output.AddRange(HeaderCommentLines);
+        output.AddRange(HeaderCommentLines(directoryName));
         output.Add(string.Empty);
         output.Add(Title);
         var firstHeading = model.Sections.Select(section => section.HeadingLine).Where(line => line >= cursor).DefaultIfEmpty(lines.Count).Min();
