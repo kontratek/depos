@@ -15,6 +15,15 @@ const pkg = JSON.stringify(
 );
 
 describe('extractDeps', () => {
+  it('keeps the version as written, and none when it is not a string', () => {
+    const deps = extractDeps('{"dependencies":{"express":"^4.18.0","odd":1,"alias":"npm:real@^2"}}');
+    expect(deps.map((d) => [d.name, d.versionSpec])).toEqual([
+      ['express', '^4.18.0'],
+      ['odd', undefined],
+      ['alias', 'npm:real@^2'],
+    ]);
+  });
+
   it('collects all four dependency sections, not scripts', () => {
     const deps = extractDeps(pkg);
     expect(deps.map((d) => `${d.section}:${d.name}`).sort()).toEqual(

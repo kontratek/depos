@@ -28,7 +28,9 @@ export function extractNpmDependencies(text: string): DependencyEntry[] {
     for (const entry of valNode.children ?? []) {
       const k = entry.children?.[0];
       if (k && typeof k.value === 'string') {
-        out.push(dependencyEntry(k.value, section, { offset: k.offset, length: k.length }));
+        const dependency = dependencyEntry(k.value, section, { offset: k.offset, length: k.length });
+        const spec = entry.children?.[1]?.value;
+        out.push(typeof spec === 'string' ? { ...dependency, versionSpec: spec } : dependency);
       }
     }
   }

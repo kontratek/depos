@@ -72,6 +72,8 @@ export interface DependencyEntry {
   displayName: string;
   /** Manifest-specific dependency scope. */
   scope: string;
+  /** The version as the manifest writes it. Only the npm reader gives one so far. */
+  versionSpec?: string;
   /** Range used for line decorations and placement. */
   primaryRange: SourceRange;
   /** Range before which the Depos icon is rendered. */
