@@ -701,23 +701,43 @@ internal sealed class DeposRuntime : IDisposable
         if (!NugetManifest.MatchesPath(path)) return problems;
         foreach (var dependency in NugetManifest.ExtractDependencies(snapshot.GetText(), path))
         {
-            // Looked up in the local copy, so a line just typed is judged at once.
-            if (Depos.Sync.Allowlist(path, dependency.NoteKey) is not { } allowlist || !allowlist.Result.IsViolation) continue;
+            // Looked up in the local copy, so a line just typed is judged at once. The version
+            // rule is Depos's judgement of its last scan, so an unpushed update does not clear it.
+            if (Depos.Sync.Allowlist(path, dependency.NoteKey) is not { } allowlist) continue;
+            string message;
+            string code;
+            if (allowlist.Result.Kind == OrgResultKind.Denied)
+            {
+                message = DeposStrings.OrgDenied(dependency.DisplayName, allowlist.OrgName);
+                code = "org-denied";
+            }
+            else if (allowlist.Result.Kind == OrgResultKind.Unlisted)
+            {
+                message = DeposStrings.OrgUnlisted(dependency.DisplayName, allowlist.OrgName);
+                code = "org-not-listed";
+            }
+            else if (Depos.Sync.OutdatedVersion(path, dependency.NoteKey) is { InstalledVersion: { } installed, LatestVersion: { } latest, UpdateKind: { } kind }
+                && DeposStrings.OrgBehind(kind) is { } behind)
+            {
+                message = DeposStrings.OrgOutdated(dependency.DisplayName, allowlist.OrgName, installed, latest, behind);
+                code = "org-outdated";
+            }
+            else
+            {
+                continue;
+            }
             var range = dependency.PrimaryRange;
             var start = Math.Max(0, Math.Min(range.Offset, snapshot.Length));
             var length = Math.Max(0, Math.Min(range.Length, snapshot.Length - start));
             var line = snapshot.GetLineFromPosition(start);
-            var denied = allowlist.Result.Kind == OrgResultKind.Denied;
             problems.Add(new DeposProblem(
                 start,
                 length,
                 line.LineNumber,
                 start - line.Start.Position,
-                denied
-                    ? DeposStrings.OrgDenied(dependency.DisplayName, allowlist.OrgName, allowlist.Result.Reason)
-                    : DeposStrings.OrgUnlisted(dependency.DisplayName, allowlist.OrgName),
+                message,
                 allowlist.Result.Mode == PolicyMode.Enforce ? DeposSeverity.Error : DeposSeverity.Warning,
-                denied ? "org-denied" : "org-not-listed"));
+                code));
         }
         return problems;
     }

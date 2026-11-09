@@ -221,17 +221,30 @@ export const S = {
   webFolderNoRemote: (folder: string) => `${folder}: no GitHub remote`,
   // Org mode: the notes in Depos are the notes (docs/format.md, "The organization layer").
   orgDiagSource: 'Depos (organization)',
-  orgDenied: (name: string, org: string, reason: string) =>
-    reason ? `${name} is denied in ${org}. Reason: ${reason}` : `${name} is denied in ${org}.`,
+  orgDenied: (name: string, org: string) => `${name} is denied in ${org}.`,
   orgUnlisted: (name: string, org: string) => `${name} is not listed in the allowlist of ${org}.`,
+  orgOutdated: (name: string, org: string, installed: string, latest: string, behind: string) =>
+    `${name} ${installed} is ${behind} behind the newest version, ${latest}. The version rule of ${org} does not allow this.`,
+  orgResultOutdated: 'Outdated',
+  orgOutdatedLine: (mode: string) => `Version rule: not met (${mode})`,
+  orgBehind: { major: 'a major version', minor: 'a minor version', patch: 'a patch version' } as Record<string, string>,
+  orgVersionLine: (installed: string | null, latest: string | null, behind: string | undefined) =>
+    [
+      installed && `Installed at last scan: ${installed}`,
+      latest && `Latest: ${latest}${behind ? ` (${behind} behind)` : ''}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  orgRiskLevel: { high: 'High', medium: 'Medium', low: 'Low', unknown: 'Unknown' } as Record<string, string>,
+  orgRiskLine: (level: string, version: string) => `Risk: ${level} (${version})`,
+  orgRiskBadge: (level: string) => `${level} risk`,
+  orgBadgeDepos: 'Depos',
   orgResultAllowed: 'Allowed',
   orgResultDenied: 'Denied',
   orgResultUnlisted: 'Not listed',
   orgModeAudit: 'Audit',
   orgModeEnforce: 'Enforce',
   orgAllowlistLine: (result: string, mode: string) => `Allowlist: ${result} (${mode})`,
-  orgReason: (reason: string) => `Reason: ${reason}`,
-  orgExpires: (date: string) => `Expires ${date}`,
   orgReceived: (time: string) => `Updated from Depos at ${time}`,
   orgOpenWeb: 'Open in Depos',
   orgNotesLabel: (org: string) => `notes of ${org} in Depos`,

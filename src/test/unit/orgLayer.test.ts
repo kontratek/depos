@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { OrgLayer, isViolation, parseOrgContext, type OrgContextData } from '../../ext/web/orgLayer';
-import { orgView } from '../../ext/web/orgView';
+import { OrgLayer, isViolation, parseOrgContext, type OrgContextData, type OrgPackageVersion } from '../../ext/web/orgLayer';
+import { orgLines, orgPayloadOf, orgView } from '../../ext/web/orgView';
 
 /** The allowlist layer (docs/format.md, "The organization layer"): the server's answer, checked, and looked up. */
+
+function version(noteKey: string, over: Partial<OrgPackageVersion> = {}): OrgPackageVersion {
+  return { ecosystem: 'npm', noteKey, installedVersion: '1.0.0', latestVersion: '1.0.0', updateKind: 'current', outdated: false, risk: null, ...over };
+}
 
 function answer(overrides: Partial<OrgContextData> = {}): OrgContextData {
   return {
@@ -13,15 +17,35 @@ function answer(overrides: Partial<OrgContextData> = {}): OrgContextData {
       {
         ecosystem: 'npm',
         mode: 'enforce',
+        versionRule: 'major',
         decisions: [
-          { noteKey: 'express', decision: 'allow', reason: 'Baseline: in use', expiresAt: '2099-01-01T00:00:00.000Z' },
-          { noteKey: 'left-pad', decision: 'deny', reason: 'Unmaintained', expiresAt: null },
-          { noteKey: '@scope/pkg', decision: 'allow', reason: '', expiresAt: null },
+          { noteKey: 'express', decision: 'allow' },
+          { noteKey: 'left-pad', decision: 'deny' },
+          { noteKey: '@scope/pkg', decision: 'allow' },
         ],
       },
-      { ecosystem: 'python', mode: 'audit', decisions: [{ noteKey: 'django-rest', decision: 'allow', reason: '', expiresAt: null }] },
+      { ecosystem: 'python', mode: 'audit', versionRule: 'off', decisions: [{ noteKey: 'django-rest', decision: 'allow' }] },
+    ],
+    packages: [
+      version('express', { installedVersion: '4.18.2', latestVersion: '5.1.0', updateKind: 'major', outdated: true, risk: { level: 'medium', version: '4.18.2' } }),
+      version('left-pad', { installedVersion: '1.0.0', latestVersion: '2.0.0', updateKind: 'major', outdated: true }),
+      version('@scope/pkg', { installedVersion: '2.1.0', latestVersion: '2.3.0', updateKind: 'minor' }),
     ],
     ...overrides,
+  };
+}
+
+/** What a Depos before the version rule answers, with the empty reason and expiry it sent then. */
+function oldAnswer(): unknown {
+  const old = answer();
+  delete old.packages;
+  return {
+    ...old,
+    policies: old.policies.map((p) => {
+      const policy = { ...p, decisions: p.decisions.map((d) => ({ ...d, reason: '', expiresAt: null })) };
+      delete policy.versionRule;
+      return policy;
+    }),
   };
 }
 
@@ -40,8 +64,8 @@ describe('parseOrgContext', () => {
       { ...answer(), dependencyPagePath: 'https://evil.example/x' },
       { ...answer(), dependencyPagePath: '//evil.example/x' },
       { ...answer(), policies: [{ ecosystem: 'npm', mode: 'block', decisions: [] }] },
-      { ...answer(), policies: [{ ecosystem: 'npm', mode: 'audit', decisions: [{ noteKey: 'a', decision: 'maybe', reason: '', expiresAt: null }] }] },
-      { ...answer(), policies: [{ ecosystem: 'npm', mode: 'audit', decisions: [{ noteKey: 'a', decision: 'deny', reason: 'x'.repeat(100_001), expiresAt: null }] }] },
+      { ...answer(), policies: [{ ecosystem: 'npm', mode: 'audit', decisions: [{ noteKey: 'a', decision: 'maybe' }] }] },
+      { ...answer(), policies: [{ ecosystem: 'npm', mode: 'audit', decisions: [{ noteKey: 'x'.repeat(1_001), decision: 'deny' }] }] },
     ];
     for (const value of bad) expect(parseOrgContext(value)).toBeUndefined();
   });
@@ -50,26 +74,39 @@ describe('parseOrgContext', () => {
     const parsed = parseOrgContext({ ...answer(), id: 42, orgNotes: [], organization: { ...answer().organization, id: 1 } });
     expect(parsed).toEqual(answer());
   });
+
+  it('reads an older Depos: no version rule, no versions, an empty reason and expiry', () => {
+    const parsed = parseOrgContext(oldAnswer());
+    expect(parsed?.policies.map((p) => [p.ecosystem, p.versionRule, p.decisions.length])).toEqual([['npm', 'off', 3], ['python', 'off', 1]]);
+    expect(parsed?.packages).toEqual([]);
+  });
+
+  it('keeps the allowlist when a version entry or value is not understood', () => {
+    const parsed = parseOrgContext({
+      ...answer(),
+      policies: [{ ...answer().policies[0]!, versionRule: 'minor-only' }],
+      packages: [
+        { ...version('express'), installedVersion: 42 },
+        { ...version('zod'), updateKind: 'sideways', risk: { level: 'severe', version: '1.0.0' } },
+        null,
+      ],
+    });
+    expect(parsed?.policies[0]?.versionRule).toBe('off');
+    expect(parsed?.packages).toEqual([version('zod', { updateKind: null })]);
+  });
 });
 
 describe('OrgLayer', () => {
   const layer = new OrgLayer(answer());
 
   it('finds the decided result of a package in a governed ecosystem', () => {
-    expect(layer.result('npm', 'express')).toEqual({ kind: 'allowed', mode: 'enforce', reason: 'Baseline: in use', expiresAt: '2099-01-01T00:00:00.000Z' });
-    expect(layer.result('npm', 'left-pad')).toEqual({ kind: 'denied', mode: 'enforce', reason: 'Unmaintained', expiresAt: null });
+    expect(layer.result('npm', 'express')).toEqual({ kind: 'allowed', mode: 'enforce' });
+    expect(layer.result('npm', 'left-pad')).toEqual({ kind: 'denied', mode: 'enforce' });
   });
 
   it('treats any other package of a governed ecosystem as Not listed', () => {
     expect(layer.result('npm', 'lodash')).toEqual({ kind: 'unlisted', mode: 'enforce' });
     expect(isViolation(layer.result('npm', 'lodash'))).toBe(true);
-  });
-
-  it('reads a decision that has expired since the copy was received as Not listed', () => {
-    const after = Date.parse('2099-01-01T00:00:00.000Z');
-    expect(layer.result('npm', 'express', after - 1)?.kind).toBe('allowed');
-    expect(layer.result('npm', 'express', after)).toEqual({ kind: 'unlisted', mode: 'enforce' });
-    expect(layer.result('npm', 'left-pad', after)?.kind).toBe('denied');
   });
 
   it('shows nothing for an ecosystem that is not audited', () => {
@@ -80,10 +117,27 @@ describe('OrgLayer', () => {
   it('matches names the way Depos stores them', () => {
     expect(layer.result('npm', 'Express')?.kind).toBe('allowed');
     expect(layer.result('python', 'Django_Rest')?.kind).toBe('allowed');
+    expect(layer.version('npm', 'Express')?.installedVersion).toBe('4.18.2');
   });
 
   it('keeps the slashes of a scoped name in the page path', () => {
     expect(layer.dependencyPath('npm', '@scope/pkg')).toBe(`/dashboard/${'O'.repeat(26)}/dependencies/npm/%40scope/pkg`);
+  });
+
+  it('marks an Allowed package that breaks the version rule, and a Denied one only for being denied', () => {
+    expect(layer.isOutdated('npm', 'express')).toBe(true);
+    expect(layer.isOutdated('npm', 'left-pad')).toBe(false);
+    expect(layer.isOutdated('npm', '@scope/pkg')).toBe(false);
+    expect(layer.isOutdated('npm', 'lodash')).toBe(false);
+  });
+
+  it('reads a copy saved before the version rule', () => {
+    const saved = answer();
+    delete saved.packages;
+    const old = new OrgLayer(saved);
+    expect(old.version('npm', 'express')).toBeUndefined();
+    expect(old.isOutdated('npm', 'express')).toBe(false);
+    expect(old.result('npm', 'express')?.kind).toBe('allowed');
   });
 });
 
@@ -92,18 +146,44 @@ describe('orgView', () => {
   const time = () => '10:00';
 
   it('describes the allowlist result, with a link to the package page', () => {
-    expect(orgView(org, 'npm', 'express', time)).toEqual({
-      allowlist: { tone: 'allowed', result: 'Allowed', mode: 'Enforce', reason: 'Baseline: in use', expires: '2099-01-01' },
-      link: `https://depos.example.com/dashboard/${'O'.repeat(26)}/dependencies/npm/express`,
+    expect(orgView(org, 'npm', '@scope/pkg', time)).toEqual({
+      allowlist: { tone: 'allowed', result: 'Allowed', mode: 'Enforce' },
+      version: 'Installed at last scan: 2.1.0 · Latest: 2.3.0 (a minor version behind)',
+      link: `https://depos.example.com/dashboard/${'O'.repeat(26)}/dependencies/npm/%40scope/pkg`,
       received: 'Updated from Depos at 10:00',
     });
   });
 
-  it('shows Not listed without a reason', () => {
+  it('shows Not listed', () => {
     expect(orgView(org, 'npm', 'lodash', time)?.allowlist).toEqual({ tone: 'unlisted', result: 'Not listed', mode: 'Enforce' });
   });
 
-  it('is undefined when the ecosystem is not audited', () => {
+  it('says when the version rule is not met, with the versions and the risk', () => {
+    const view = orgView(org, 'npm', 'express', time)!;
+    expect(orgLines(view)).toEqual([
+      'Allowlist: Allowed (Enforce)',
+      'Version rule: not met (Enforce)',
+      'Installed at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)',
+      'Risk: Medium (4.18.2)',
+      'Updated from Depos at 10:00',
+    ]);
+    expect(orgPayloadOf(view)).toEqual({
+      tone: 'outdated',
+      text: 'Outdated',
+      detail: 'Allowlist: Allowed (Enforce)\nVersion rule: not met (Enforce)\nInstalled at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)\nRisk: Medium (4.18.2)',
+      openWeb: 'Open in Depos',
+    });
+  });
+
+  it('shows versions and risk in an ecosystem that is not audited', () => {
+    const layer = new OrgLayer(answer({ policies: [], packages: [version('express', { risk: { level: 'high', version: '1.0.0' } })] }));
+    const view = orgView({ ...org, layer }, 'npm', 'express', time)!;
+    expect(view.allowlist).toBeUndefined();
+    expect(orgPayloadOf(view)).toMatchObject({ tone: 'neutral', text: 'High risk' });
+    expect(orgLines(view, false)).toEqual(['Installed at last scan: 1.0.0 · Latest: 1.0.0', 'Risk: High (1.0.0)']);
+  });
+
+  it('is undefined when the ecosystem is not audited and Depos knows no version', () => {
     expect(orgView(org, 'cargo', 'serde', time)).toBeUndefined();
   });
 });

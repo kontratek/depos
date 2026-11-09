@@ -1,6 +1,6 @@
 import { normalizeNameForEcosystem } from '../../core/match';
 import type { ManifestKind } from '../../core/model';
-import { isObject, LIMITS, list, lookupKey, str } from './json';
+import { isObject, list, lookupKey, str } from './json';
 
 /**
  * The allowlist layer of one repository, as Depos sends it (docs/format.md, "The
@@ -9,37 +9,81 @@ import { isObject, LIMITS, list, lookupKey, str } from './json';
  *
  * Depos decides every allowlist result. This module only looks a package up: a
  * governed ecosystem lists its decided packages, every other package of it is Not
- * listed, and an ecosystem that is not listed is not audited.
+ * listed, and an ecosystem that is not listed is not audited. The same goes for the
+ * version rule: Depos says which packages break it, on the versions of its last scan.
  */
 
 export type PolicyMode = 'audit' | 'enforce';
+export type VersionRule = 'off' | 'major' | 'any';
+export type UpdateKind = 'current' | 'patch' | 'minor' | 'major' | 'ahead';
+export type RiskLevel = 'high' | 'medium' | 'low' | 'unknown';
 
 export interface OrgDecision {
   noteKey: string;
   decision: 'allow' | 'deny';
-  reason: string;
-  expiresAt: string | null;
+}
+
+/** How a package of the repository stands against its newest version, at Depos's last scan. */
+export interface OrgPackageVersion {
+  ecosystem: string;
+  noteKey: string;
+  installedVersion: string | null;
+  latestVersion: string | null;
+  /** null when the two cannot be compared. */
+  updateKind: UpdateKind | null;
+  /** Behind further than the version rule allows: a violation. */
+  outdated: boolean;
+  risk: { level: RiskLevel; version: string } | null;
 }
 
 export interface OrgContextData {
   organization: { ulid: string; name: string };
   repository: { ulid: string; fullName: string };
   dependencyPagePath: string;
-  policies: Array<{ ecosystem: string; mode: PolicyMode; decisions: OrgDecision[] }>;
+  /** `versionRule` and `packages` are missing from a copy saved before 0.12, and from an older Depos. */
+  policies: Array<{ ecosystem: string; mode: PolicyMode; versionRule?: VersionRule; decisions: OrgDecision[] }>;
+  packages?: OrgPackageVersion[];
 }
 
-export type OrgResult =
-  | { kind: 'allowed' | 'denied'; mode: PolicyMode; reason: string; expiresAt: string | null }
-  | { kind: 'unlisted'; mode: PolicyMode };
+export interface OrgResult {
+  kind: 'allowed' | 'denied' | 'unlisted';
+  mode: PolicyMode;
+}
 
+const VERSION_RULES: readonly string[] = ['off', 'major', 'any'];
+const UPDATE_KINDS: readonly string[] = ['current', 'patch', 'minor', 'major', 'ahead'];
+const RISK_LEVELS: readonly string[] = ['high', 'medium', 'low', 'unknown'];
+
+/**
+ * Decisions have no reason or expiry any more. Depos still sends empty ones for
+ * older releases; they are not read, and an answer without them is accepted.
+ */
 function decisionOf(v: unknown): OrgDecision | undefined {
-  if (!isObject(v) || !str(v.noteKey) || !str(v.reason, LIMITS.text)) return undefined;
+  if (!isObject(v) || !str(v.noteKey)) return undefined;
   if (v.decision !== 'allow' && v.decision !== 'deny') return undefined;
-  if (v.expiresAt !== null && !str(v.expiresAt)) return undefined;
-  return { noteKey: v.noteKey, decision: v.decision, reason: v.reason, expiresAt: v.expiresAt };
+  return { noteKey: v.noteKey, decision: v.decision };
 }
 
-/** The answer of `GET /api/extension/repositories/<ulid>/context`, checked; undefined when it has another shape. */
+const optionalText = (v: unknown): string | null | undefined => (v === null || v === undefined ? null : str(v) ? v : undefined);
+
+/** One package's versions; undefined when it has another shape. A value it does not know reads as unknown. */
+function packageVersionOf(v: unknown): OrgPackageVersion | undefined {
+  if (!isObject(v) || !str(v.ecosystem) || !str(v.noteKey)) return undefined;
+  const installedVersion = optionalText(v.installedVersion);
+  const latestVersion = optionalText(v.latestVersion);
+  if (installedVersion === undefined || latestVersion === undefined) return undefined;
+  const updateKind = typeof v.updateKind === 'string' && UPDATE_KINDS.includes(v.updateKind) ? (v.updateKind as UpdateKind) : null;
+  const risk = isObject(v.risk) && str(v.risk.version) && typeof v.risk.level === 'string' && RISK_LEVELS.includes(v.risk.level)
+    ? { level: v.risk.level as RiskLevel, version: v.risk.version }
+    : null;
+  return { ecosystem: v.ecosystem, noteKey: v.noteKey, installedVersion, latestVersion, updateKind, outdated: v.outdated === true, risk };
+}
+
+/**
+ * The answer of `GET /api/extension/repositories/<ulid>/context`, checked; undefined when it has another shape.
+ * The version rule and the versions came later: without them, or with a value this version does not know, the
+ * allowlist still shows. A package entry of another shape is left out on its own.
+ */
 export function parseOrgContext(json: unknown): OrgContextData | undefined {
   if (!isObject(json) || !isObject(json.organization) || !isObject(json.repository)) return undefined;
   const { organization, repository } = json;
@@ -56,13 +100,20 @@ export function parseOrgContext(json: unknown): OrgContextData | undefined {
       if (!decision) return undefined;
       decisions.push(decision);
     }
-    policies.push({ ecosystem: p.ecosystem, mode: p.mode, decisions });
+    const versionRule = typeof p.versionRule === 'string' && VERSION_RULES.includes(p.versionRule) ? (p.versionRule as VersionRule) : 'off';
+    policies.push({ ecosystem: p.ecosystem, mode: p.mode, versionRule, decisions });
+  }
+  const packages: OrgPackageVersion[] = [];
+  for (const raw of list(json.packages) ? json.packages : []) {
+    const pkg = packageVersionOf(raw);
+    if (pkg) packages.push(pkg);
   }
   return {
     organization: { ulid: organization.ulid, name: organization.name },
     repository: { ulid: repository.ulid, fullName: repository.fullName },
     dependencyPagePath: json.dependencyPagePath,
     policies,
+    packages,
   };
 }
 
@@ -73,24 +124,36 @@ export function parseOrgContext(json: unknown): OrgContextData | undefined {
 export class OrgLayer {
   private readonly modes = new Map<string, PolicyMode>();
   private readonly decisions = new Map<string, OrgDecision>();
+  private readonly versions = new Map<string, OrgPackageVersion>();
 
   constructor(readonly data: OrgContextData) {
     for (const p of data.policies) {
       this.modes.set(p.ecosystem, p.mode);
       for (const d of p.decisions) this.decisions.set(lookupKey(p.ecosystem, d.noteKey), d);
     }
+    for (const v of data.packages ?? []) this.versions.set(lookupKey(v.ecosystem, v.noteKey), v);
   }
 
-  /**
-   * undefined: the ecosystem is not audited, nothing is shown. A decision that has
-   * expired since the copy was received reads as Not listed: Depos no longer counts it.
-   */
-  result(ecosystem: ManifestKind, name: string, now: number = Date.now()): OrgResult | undefined {
+  /** undefined: the ecosystem is not audited, nothing is shown. */
+  result(ecosystem: ManifestKind, name: string): OrgResult | undefined {
     const mode = this.modes.get(ecosystem);
     if (!mode) return undefined;
     const d = this.decisions.get(lookupKey(ecosystem, normalizeNameForEcosystem(name, ecosystem)));
-    if (!d || (d.expiresAt !== null && Date.parse(d.expiresAt) <= now)) return { kind: 'unlisted', mode };
-    return { kind: d.decision === 'deny' ? 'denied' : 'allowed', mode, reason: d.reason, expiresAt: d.expiresAt };
+    if (!d) return { kind: 'unlisted', mode };
+    return { kind: d.decision === 'deny' ? 'denied' : 'allowed', mode };
+  }
+
+  /** The package's versions and risk at Depos's last scan; undefined when Depos knows none. */
+  version(ecosystem: ManifestKind, name: string): OrgPackageVersion | undefined {
+    return this.versions.get(lookupKey(ecosystem, normalizeNameForEcosystem(name, ecosystem)));
+  }
+
+  /**
+   * An Allowed package that breaks the version rule: marked at its line. A Denied or
+   * Not listed one is marked for that, once, as Depos counts it.
+   */
+  isOutdated(ecosystem: ManifestKind, name: string): boolean {
+    return this.result(ecosystem, name)?.kind === 'allowed' && this.version(ecosystem, name)?.outdated === true;
   }
 
   /** Path of the package's page in Depos, below the server origin. */

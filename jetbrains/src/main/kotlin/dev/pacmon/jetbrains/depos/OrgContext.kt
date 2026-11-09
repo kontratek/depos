@@ -181,7 +181,14 @@ class OrgContext(private val project: Project) : Disposable {
         return result to layer.data.orgName
     }
 
-    /** What the quick documentation and the note editor show of the allowlist; null when not audited. */
+    /** The versions of an Allowed package that Depos says breaks the version rule; null otherwise. */
+    fun outdatedVersion(manifest: VirtualFile, name: String): OrgPackageVersion? {
+        val kind = ManifestRegistry.forPath(manifest.path)?.kind ?: return null
+        val layer = synchronized(lock) { folderKeyFor(manifest.path)?.let(folders::get)?.layer } ?: return null
+        return if (layer.isOutdated(kind, name)) layer.version(kind, name) else null
+    }
+
+    /** What the quick documentation and the note editor show from Depos; null when Depos has nothing for the package. */
     fun view(manifest: VirtualFile, name: String): OrgView? {
         val kind = ManifestRegistry.forPath(manifest.path)?.kind ?: return null
         val folder = synchronized(lock) { folderKeyFor(manifest.path)?.let(folders::get) } ?: return null

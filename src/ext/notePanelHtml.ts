@@ -376,15 +376,17 @@ export function renderHtml(): string {
     else vscode.postMessage({ type: 'openFile' });
   });
 
-  // The allowlist result from Depos, as a badge beside the name; the mode, reason
-  // and expiry are its tooltip. Every string is set as text.
+  // What Depos says, as a badge beside the name: the allowlist result, Outdated, or
+  // the risk level. The mode, the versions and the risk are its tooltip. Every
+  // string is set as text.
+  const TONE_CLASS = { allowed: ' green', denied: ' red', unlisted: ' yellow', outdated: ' yellow' };
   function showOrg(o) {
     const result = el('orgResult');
     result.hidden = !o;
     openInWeb = !!o;
     openFileBtn.textContent = o ? o.openWeb : openFileLabel;
     if (!o) return;
-    result.className = 'pill ' + (o.tone === 'denied' ? 'red' : o.tone === 'unlisted' ? 'yellow' : 'green');
+    result.className = 'pill' + (TONE_CLASS[o.tone] || '');
     result.textContent = o.text;
     result.title = o.detail;
   }

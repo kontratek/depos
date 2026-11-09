@@ -51,17 +51,43 @@ public static class DeposStrings
     public static string WebFolderNoRemote(string folder) => $"{folder}: no GitHub remote";
 
     // Allowlist.
-    public static string OrgDenied(string name, string org, string reason) =>
-        reason.Length > 0 ? $"{name} is denied in {org}. Reason: {reason}" : $"{name} is denied in {org}.";
+    public static string OrgDenied(string name, string org) => $"{name} is denied in {org}.";
     public static string OrgUnlisted(string name, string org) => $"{name} is not listed in the allowlist of {org}.";
+    public static string OrgOutdated(string name, string org, string installed, string latest, string behind) =>
+        $"{name} {installed} is {behind} behind the newest version, {latest}. The version rule of {org} does not allow this.";
+    public const string OrgResultOutdated = "Outdated";
+    public static string OrgOutdatedLine(string mode) => $"Version rule: not met ({mode})";
+    /// <summary>null for a kind that is not behind.</summary>
+    public static string? OrgBehind(string kind) => kind switch
+    {
+        "major" => "a major version",
+        "minor" => "a minor version",
+        "patch" => "a patch version",
+        _ => null,
+    };
+    public static string OrgVersionLine(string? installed, string? latest, string? behind)
+    {
+        var parts = new List<string>();
+        if (installed is not null) parts.Add($"Installed at last scan: {installed}");
+        if (latest is not null) parts.Add(behind is null ? $"Latest: {latest}" : $"Latest: {latest} ({behind} behind)");
+        return string.Join(" · ", parts);
+    }
+    public static string OrgRiskLevel(string level) => level switch
+    {
+        "high" => "High",
+        "medium" => "Medium",
+        "low" => "Low",
+        _ => "Unknown",
+    };
+    public static string OrgRiskLine(string level, string version) => $"Risk: {level} ({version})";
+    public static string OrgRiskBadge(string level) => $"{level} risk";
+    public const string OrgBadgeDepos = "Depos";
     public const string OrgResultAllowed = "Allowed";
     public const string OrgResultDenied = "Denied";
     public const string OrgResultUnlisted = "Not listed";
     public const string OrgModeAudit = "Audit";
     public const string OrgModeEnforce = "Enforce";
     public static string OrgAllowlistLine(string result, string mode) => $"Allowlist: {result} ({mode})";
-    public static string OrgReason(string reason) => $"Reason: {reason}";
-    public static string OrgExpires(string date) => $"Expires {date}";
     public static string OrgReceived(string time) => $"Updated from Depos at {time}";
     public const string OrgOpenWeb = "Open in Depos";
 

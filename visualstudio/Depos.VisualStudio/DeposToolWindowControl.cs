@@ -522,10 +522,10 @@ public sealed class DeposToolWindowControl : UserControl
             orgBadge.Visibility = Visibility.Collapsed;
             return;
         }
-        var colors = DeposBadgePalette.For(orgView.Kind, DeposMarkPalette.IsDarkTheme());
+        var colors = DeposBadgePalette.For(orgView, DeposMarkPalette.IsDarkTheme());
         orgBadge.Background = colors.Background;
         orgBadgeText.Foreground = colors.Foreground;
-        orgBadgeText.Text = orgView.Result;
+        orgBadgeText.Text = orgView.BadgeText();
         orgBadge.ToolTip = orgView.Tooltip();
         orgBadge.Visibility = Visibility.Visible;
     }

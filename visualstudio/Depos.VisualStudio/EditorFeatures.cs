@@ -112,7 +112,13 @@ internal sealed class DeposQuickInfoSource : IAsyncQuickInfoSource
         };
         if (view is not null)
         {
-            elements.Add(new ClassifiedTextElement(new ClassifiedTextRun("text", view.Line(), ClassifiedTextRunStyle.Bold)));
+            var lines = view.Lines();
+            for (var index = 0; index < lines.Count; index++)
+            {
+                // The allowlist result, or the first line Depos has, stands out; the rest follows plainly.
+                var style = index == 0 ? ClassifiedTextRunStyle.Bold : ClassifiedTextRunStyle.Plain;
+                elements.Add(new ClassifiedTextElement(new ClassifiedTextRun("text", lines[index], style)));
+            }
             elements.Add(new ClassifiedTextElement(new ClassifiedTextRun("comment", view.Received)));
         }
         var ordered = runtime.Options.InlineSource is InlineSource.AiFirst or InlineSource.AiOnly

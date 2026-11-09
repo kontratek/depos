@@ -7,6 +7,28 @@
 
 ## Unreleased
 
+- **The version rule of Depos shows at the manifest line.** In Depos, an npm
+  policy can say how far behind its newest version a package may be. A package
+  that is Allowed but further behind than that is now marked at its line, as a
+  Not listed one is: a warning in Audit, an error in Enforce. A Denied or Not
+  listed package is marked once, for that. Depos judges the rule on the
+  versions of its last scan of the repository, so an update you have not pushed
+  yet does not clear the mark.
+
+- **The hover and the note editor show the versions and the risk from Depos.**
+  For npm packages, they show the version the repository installs at Depos's
+  last scan, the newest version, how far behind it is, and the risk level, in
+  every policy mode. Where the ecosystem is not audited, the note editor's badge
+  shows the risk level. Agents that call `check_package` get the same, and
+  `AGENT-RULES.md` tells them what to do with a package that breaks the rule.
+
+- **The allowlist result no longer shows a reason or an expiry.** Depos no
+  longer keeps them for allowlist entries, so the hover, the note editor and
+  the message at the manifest line show the result and its mode only. The
+  extension now also reads an answer from Depos that has no reason or expiry
+  at all. Before, such an answer hid every allowlist result. The same in VS
+  Code, JetBrains IDEs and Visual Studio.
+
 ## 0.11.0 — 2026-10-26
 
 - **Pacmon is now Depos.** The extension, its commands, views and settings

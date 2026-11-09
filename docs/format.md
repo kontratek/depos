@@ -241,9 +241,15 @@ A section written later in file mode becomes a candidate again. It does not chan
 
 Each ecosystem has a policy mode: Off, Audit or Enforce. In an ecosystem set to Audit or Enforce, each package is Allowed, Denied or Not listed in each repository.
 
-- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed. A decision whose expiry has passed is Not listed.
+- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed.
 - A tool marks Denied and Not listed packages at their manifest line. In Audit this is a warning. In Enforce it is an error.
-- An ecosystem set to Off shows nothing.
+- An ecosystem set to Off shows no result.
+
+An ecosystem can also have a version rule: how far behind its newest version an installed package may be. The web app judges it on the versions the repository installs at its last scan. It sends, for each package it knows, the installed version, the newest version, how far behind it is, a risk level, and whether it breaks the rule.
+
+- A tool applies no version rule of its own. A package that breaks the rule and is Allowed is marked at its manifest line, as a Not listed one is. A Denied or Not listed package is marked once, for that.
+- A tool shows the installed version, the newest version and the risk level with the allowlist result, in any mode. They are the last scan's, not the manifest's on disk.
+- A tool that receives no version rule or no versions shows none. An answer without them is still valid.
 
 ### Local copy
 
@@ -264,7 +270,7 @@ The tools:
 |---|---|---|
 | `get_dependency_note` | ecosystem, package name | The note of the package for this repository, or nothing. |
 | `list_dependency_notes` | ecosystem (optional) | The notes for this repository. |
-| `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. |
+| `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. Also its installed and newest version, its risk level, and whether it breaks the version rule, when the web app knows them. |
 | `set_agent_fields` | ecosystem, package name, fields | Replaces the agent fields of the note. Adds the note when there is none. Admins only. |
 
 `AGENT-RULES.md` tells agents to use these tools when they have them.

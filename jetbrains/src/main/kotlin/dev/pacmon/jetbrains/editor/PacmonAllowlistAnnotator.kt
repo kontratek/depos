@@ -18,6 +18,8 @@ import dev.pacmon.jetbrains.service.PacmonProjectService
  * listed package is a warning in an ecosystem set to Audit and an error in one set
  * to Enforce — what the VS Code extension's `orgDiagnostics.ts` puts in Problems.
  * Allowed packages stay quiet, and an ecosystem Depos does not audit shows nothing.
+ * An Allowed package that Depos says breaks the version rule is marked the same way;
+ * its version is the one of Depos's last scan, so an unpushed update does not clear it.
  *
  * The result is looked up in the local copy of the allowlist, so a line just typed
  * is judged at once, before it is pushed. Registered for every manifest language,
@@ -33,12 +35,17 @@ class PacmonAllowlistAnnotator : Annotator {
         val end = file.textLength
         for (dependency in service.dependencies(manifest)) {
             val (result, orgName) = org.allowlist(manifest, dependency.name) ?: continue
-            if (!result.isViolation) continue
             val name = dependency.displayName
-            val message = if (result.kind == OrgResult.Kind.DENIED) {
-                DeposStrings.orgDenied(name, orgName, result.reason)
-            } else {
-                DeposStrings.orgUnlisted(name, orgName)
+            val message = when (result.kind) {
+                OrgResult.Kind.DENIED -> DeposStrings.orgDenied(name, orgName)
+                OrgResult.Kind.UNLISTED -> DeposStrings.orgUnlisted(name, orgName)
+                OrgResult.Kind.ALLOWED -> {
+                    val version = org.outdatedVersion(manifest, dependency.name) ?: continue
+                    val installed = version.installedVersion ?: continue
+                    val latest = version.latestVersion ?: continue
+                    val behind = version.updateKind?.let(DeposStrings::orgBehind) ?: continue
+                    DeposStrings.orgOutdated(name, orgName, installed, latest, behind)
+                }
             }
             val severity = if (result.mode == PolicyMode.ENFORCE) HighlightSeverity.ERROR else HighlightSeverity.WARNING
             val start = dependency.primaryRange.offset.coerceIn(0, end)

@@ -9,7 +9,7 @@ import { notesDirOf } from '../core/template';
 import type { Store } from './state';
 import { S } from './strings';
 import type { OrgContext } from './web/orgContext';
-import { orgView, type OrgView } from './web/orgView';
+import { orgLines, orgView, type OrgView } from './web/orgView';
 
 export function registerHover(store: Store, org: OrgContext): vscode.Disposable {
   return vscode.languages.registerHoverProvider(MANIFEST_SELECTOR, {
@@ -71,13 +71,11 @@ function shortTime(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-/** The allowlist result, after the note and apart from it. Server text goes in with appendText (escaped). */
+/** What Depos says, after the note and apart from it. Server text goes in with appendText (escaped). */
 function appendOrg(md: vscode.MarkdownString, view: OrgView): void {
   md.appendMarkdown('---\n\n');
-  md.appendText(S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode));
-  if (view.allowlist.reason) md.appendText(` — ${S.orgReason(view.allowlist.reason)}`);
-  if (view.allowlist.expires) md.appendText(` · ${S.orgExpires(view.allowlist.expires)}`);
-  md.appendMarkdown('\n\n');
-  md.appendText(view.received);
-  md.appendMarkdown('\n\n');
+  for (const line of orgLines(view)) {
+    md.appendText(line);
+    md.appendMarkdown('\n\n');
+  }
 }

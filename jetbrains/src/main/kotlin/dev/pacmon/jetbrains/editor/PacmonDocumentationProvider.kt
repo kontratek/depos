@@ -53,9 +53,9 @@ class PacmonDocumentationProvider : AbstractDocumentationProvider() {
             }
             append(DocumentationMarkup.SECTIONS_START)
             if (org != null) {
-                section("Allowlist", buildString {
-                    append(StringUtil.escapeXmlEntities(org.line()))
-                    append("<br><a href=\"").append(StringUtil.escapeXmlEntities(org.link)).append("\">")
+                section("Depos", buildString {
+                    for (line in org.lines(withTime = false)) append(StringUtil.escapeXmlEntities(line)).append("<br>")
+                    append("<a href=\"").append(StringUtil.escapeXmlEntities(org.link)).append("\">")
                     append(DeposStrings.orgOpenWeb).append("</a> · ")
                     append(StringUtil.escapeXmlEntities(org.received))
                 })
