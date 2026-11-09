@@ -50,17 +50,38 @@ object DeposStrings {
     fun webFolderNoRemote(folder: String): String = "$folder: no GitHub remote"
 
     // ── Allowlist ────────────────────────────────────────────────────────────
-    fun orgDenied(name: String, org: String, reason: String): String =
-        if (reason.isNotEmpty()) "$name is denied in $org. Reason: $reason" else "$name is denied in $org."
+    fun orgDenied(name: String, org: String): String = "$name is denied in $org."
     fun orgUnlisted(name: String, org: String): String = "$name is not listed in the allowlist of $org."
+    fun orgOutdated(name: String, org: String, installed: String, latest: String, behind: String): String =
+        "$name $installed is $behind behind the newest version, $latest. The version rule of $org does not allow this."
+    const val orgResultOutdated = "Outdated"
+    fun orgOutdatedLine(mode: String): String = "Version rule: not met ($mode)"
+    /** null for a kind that is not behind. */
+    fun orgBehind(kind: String): String? = when (kind) {
+        "major" -> "a major version"
+        "minor" -> "a minor version"
+        "patch" -> "a patch version"
+        else -> null
+    }
+    fun orgVersionLine(installed: String?, latest: String?, behind: String?): String = listOfNotNull(
+        installed?.let { "Installed at last scan: $it" },
+        latest?.let { "Latest: $it" + (behind?.let { b -> " ($b behind)" } ?: "") },
+    ).joinToString(" · ")
+    fun orgRiskLevel(level: String): String = when (level) {
+        "high" -> "High"
+        "medium" -> "Medium"
+        "low" -> "Low"
+        else -> "Unknown"
+    }
+    fun orgRiskLine(level: String, version: String): String = "Risk: $level ($version)"
+    fun orgRiskBadge(level: String): String = "$level risk"
+    const val orgBadgeDepos = "Depos"
     const val orgResultAllowed = "Allowed"
     const val orgResultDenied = "Denied"
     const val orgResultUnlisted = "Not listed"
     const val orgModeAudit = "Audit"
     const val orgModeEnforce = "Enforce"
     fun orgAllowlistLine(result: String, mode: String): String = "Allowlist: $result ($mode)"
-    fun orgReason(reason: String): String = "Reason: $reason"
-    fun orgExpires(date: String): String = "Expires $date"
     fun orgReceived(time: String): String = "Updated from Depos at $time"
     const val orgOpenWeb = "Open in Depos"
 

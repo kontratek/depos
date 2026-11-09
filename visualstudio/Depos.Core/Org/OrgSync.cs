@@ -163,18 +163,27 @@ public sealed class OrgSync
         if (EcosystemOf(manifestPath) is not { } ecosystem) return null;
         OrgLayer? layer;
         lock (gate) layer = FolderKeyFor(manifestPath) is { } key ? folders[key].Layer : null;
-        if (layer?.Result(ecosystem, name, clock()) is not { } result) return null;
+        if (layer?.Result(ecosystem, name) is not { } result) return null;
         return (result, layer.Data.OrgName);
     }
 
-    /// <summary>What the hover and the note editor show of the allowlist; null when not audited.</summary>
+    /// <summary>The versions of an Allowed package that Depos says breaks the version rule; null otherwise.</summary>
+    public OrgPackageVersion? OutdatedVersion(string manifestPath, string name)
+    {
+        if (EcosystemOf(manifestPath) is not { } ecosystem) return null;
+        OrgLayer? layer;
+        lock (gate) layer = FolderKeyFor(manifestPath) is { } key ? folders[key].Layer : null;
+        return layer is not null && layer.IsOutdated(ecosystem, name) ? layer.Version(ecosystem, name) : null;
+    }
+
+    /// <summary>What the hover and the note editor show from Depos; null when Depos has nothing for the package.</summary>
     public OrgView? View(string manifestPath, string name)
     {
         if (EcosystemOf(manifestPath) is not { } ecosystem) return null;
         FolderOrg? folder;
         lock (gate) folder = FolderKeyFor(manifestPath) is { } key ? folders[key] : null;
         if (folder?.Layer is not { } layer) return null;
-        return OrgView.Of(layer, folder.Origin, folder.ReceivedAt, ecosystem, name, FormatTime, clock());
+        return OrgView.Of(layer, folder.Origin, folder.ReceivedAt, ecosystem, name, FormatTime);
     }
 
     public static string FormatTime(long epochMillis) =>

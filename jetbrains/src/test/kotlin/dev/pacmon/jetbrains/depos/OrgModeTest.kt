@@ -34,9 +34,12 @@ class OrgModeTest : BasePlatformTestCase() {
 
     private fun layer(mode: String): OrgLayer = OrgLayer(OrgLayers.parse(JsonParser.parseString(
         """{"organization":{"ulid":"01HORG","name":"Kontra"},"repository":{"ulid":"$repo","fullName":"kontratek/api"},
-          |"dependencyPagePath":"/dashboard/01HORG/dependencies","policies":[{"ecosystem":"npm","mode":"$mode","decisions":[
-          |{"noteKey":"express","decision":"allow","reason":"","expiresAt":null},
-          |{"noteKey":"left-pad","decision":"deny","reason":"Use padStart.","expiresAt":null}]}]}""".trimMargin(),
+          |"dependencyPagePath":"/dashboard/01HORG/dependencies","policies":[{"ecosystem":"npm","mode":"$mode","versionRule":"major","decisions":[
+          |{"noteKey":"express","decision":"allow"},
+          |{"noteKey":"left-pad","decision":"deny"}]}],
+          |"packages":[
+          |{"ecosystem":"npm","noteKey":"express","installedVersion":"4.18.2","latestVersion":"5.1.0","updateKind":"major","outdated":true,"risk":null},
+          |{"ecosystem":"npm","noteKey":"left-pad","installedVersion":"1.0.0","latestVersion":"2.0.0","updateKind":"major","outdated":true,"risk":null}]}""".trimMargin(),
     ))!!)
 
     private fun orgMode(mode: String = "enforce", canEdit: Boolean = true) {
@@ -69,13 +72,14 @@ class OrgModeTest : BasePlatformTestCase() {
             .map { it.description to it.severity }
     }
 
-    fun testEnforceMarksDeniedAndUnlistedPackagesAsErrors() {
+    fun testEnforceMarksDeniedUnlistedAndOutdatedPackagesAsErrors() {
         orgMode("enforce")
         val found = highlights(HighlightSeverity.WARNING)
         assertSameElements(
             found,
-            "left-pad is denied in Kontra. Reason: Use padStart." to HighlightSeverity.ERROR,
+            "left-pad is denied in Kontra." to HighlightSeverity.ERROR,
             "react is not listed in the allowlist of Kontra." to HighlightSeverity.ERROR,
+            "express 4.18.2 is a major version behind the newest version, 5.1.0. The version rule of Kontra does not allow this." to HighlightSeverity.ERROR,
         )
     }
 
@@ -84,8 +88,9 @@ class OrgModeTest : BasePlatformTestCase() {
         val found = highlights(HighlightSeverity.WARNING)
         assertSameElements(
             found,
-            "left-pad is denied in Kontra. Reason: Use padStart." to HighlightSeverity.WARNING,
+            "left-pad is denied in Kontra." to HighlightSeverity.WARNING,
             "react is not listed in the allowlist of Kontra." to HighlightSeverity.WARNING,
+            "express 4.18.2 is a major version behind the newest version, 5.1.0. The version rule of Kontra does not allow this." to HighlightSeverity.WARNING,
         )
     }
 

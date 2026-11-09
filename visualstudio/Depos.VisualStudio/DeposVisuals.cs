@@ -122,7 +122,8 @@ internal static class DeposMarkPalette
 
 /// <summary>
 /// The allowlist badge's colors, the same as the other editors': green (the
-/// mark's colors) when allowed, yellow when not listed, red when denied.
+/// mark's colors) when allowed, yellow when not listed or outdated, red when
+/// denied, and neutral where the ecosystem is not audited.
 /// </summary>
 internal static class DeposBadgePalette
 {
@@ -134,6 +135,12 @@ internal static class DeposBadgePalette
         Depos.Core.Org.OrgResultKind.Unlisted => Colors(0xf2c200, 0x1a1a1a),
         _ => Colors(0xc72e2e, 0xffffff),
     };
+
+    /// <summary>Yellow for Outdated, as for Not listed; a neutral grey where the ecosystem is not audited.</summary>
+    public static BadgeColors For(Depos.Core.Org.OrgView view, bool darkTheme) =>
+        view.Outdated ? For(Depos.Core.Org.OrgResultKind.Unlisted, darkTheme)
+        : view.Kind is { } kind ? For(kind, darkTheme)
+        : darkTheme ? Colors(0x4b4d50, 0xeeeeee) : Colors(0xe4e4e4, 0x1a1a1a);
 
     private static BadgeColors Colors(int background, int foreground) =>
         new(Frozen(background), Frozen(foreground), background, foreground);

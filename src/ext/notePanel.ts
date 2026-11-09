@@ -13,7 +13,7 @@ import type { Store } from './state';
 import { S } from './strings';
 import { upsertNoteLayers } from './commands/writeNote';
 import type { OrgContext } from './web/orgContext';
-import { orgView } from './web/orgView';
+import { type OrgPayload, orgPayloadOf, orgView } from './web/orgView';
 
 const VIEW_TYPE = 'pacmon.noteEditor';
 
@@ -339,22 +339,10 @@ export class NotePanel implements vscode.Disposable {
     return kind && folder?.layer ? orgView({ ...folder, layer: folder.layer }, kind, target.name, clockAt) : undefined;
   }
 
-  /** The allowlist result as the webview shows it: plain strings, set as text. */
+  /** What Depos says as the webview shows it: plain strings, set as text. */
   private orgPayload(target: Target): OrgPayload | null {
     const view = this.orgFor(target);
-    if (!view) return null;
-    return {
-      tone: view.allowlist.tone,
-      text: view.allowlist.result,
-      detail: [
-        S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode),
-        view.allowlist.reason && S.orgReason(view.allowlist.reason),
-        view.allowlist.expires && S.orgExpires(view.allowlist.expires),
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      openWeb: S.orgOpenWeb,
-    };
+    return view ? orgPayloadOf(view) : null;
   }
 
   /**
@@ -373,13 +361,6 @@ export class NotePanel implements vscode.Disposable {
   }
 }
 
-interface OrgPayload {
-  tone: string;
-  text: string;
-  /** The badge's tooltip: the result with its mode, the reason and the expiry. */
-  detail: string;
-  openWeb: string;
-}
 
 function clockAt(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

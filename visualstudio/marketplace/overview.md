@@ -72,7 +72,7 @@ organizations works in org mode:
   Depos; other members read them.
 - Denied and Not listed packages are marked at their line and listed in the
   Error List: a warning in Audit, an error in Enforce. Quick Info and the note
-  editor show the result, its reason and expiry, and **Open in Depos**.
+  editor show the result and **Open in Depos**.
 - A copy stays on your machine, refreshed at start, when Visual Studio gets
   focus, every 5 minutes and with **Refresh Organization Notes**, and used
   while the server cannot be reached. **Sign Out** removes it.

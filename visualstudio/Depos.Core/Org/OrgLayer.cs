@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 
 namespace Depos.Core.Org;
@@ -10,9 +8,25 @@ public enum PolicyMode
     Enforce,
 }
 
-public sealed record OrgDecision(string NoteKey, bool Deny, string Reason, string? ExpiresAt);
+public sealed record OrgDecision(string NoteKey, bool Deny);
 
-public sealed record OrgPolicy(string Ecosystem, PolicyMode Mode, IReadOnlyList<OrgDecision> Decisions);
+/// <summary><c>VersionRule</c> is <c>off</c>, <c>major</c> or <c>any</c>; anything else, or nothing, reads as <c>off</c>.</summary>
+public sealed record OrgPolicy(string Ecosystem, PolicyMode Mode, IReadOnlyList<OrgDecision> Decisions, string VersionRule = "off");
+
+/// <summary><c>Level</c> is <c>high</c>, <c>medium</c>, <c>low</c> or <c>unknown</c>.</summary>
+public sealed record OrgRisk(string Level, string Version);
+
+/// <summary>How a package of the repository stands against its newest version, at Depos's last scan.</summary>
+/// <param name="UpdateKind"><c>current</c>, <c>patch</c>, <c>minor</c>, <c>major</c> or <c>ahead</c>; null when the two cannot be compared.</param>
+/// <param name="Outdated">Behind further than the version rule allows: a violation.</param>
+public sealed record OrgPackageVersion(
+    string Ecosystem,
+    string NoteKey,
+    string? InstalledVersion,
+    string? LatestVersion,
+    string? UpdateKind,
+    bool Outdated,
+    OrgRisk? Risk);
 
 public sealed record OrgContextData(
     string OrgUlid,
@@ -20,7 +34,11 @@ public sealed record OrgContextData(
     string RepoUlid,
     string RepoFullName,
     string DependencyPagePath,
-    IReadOnlyList<OrgPolicy> Policies);
+    IReadOnlyList<OrgPolicy> Policies)
+{
+    /// <summary>Empty from a Depos before the version rule.</summary>
+    public IReadOnlyList<OrgPackageVersion> Packages { get; init; } = Array.Empty<OrgPackageVersion>();
+}
 
 public enum OrgResultKind
 {
@@ -29,7 +47,7 @@ public enum OrgResultKind
     Unlisted,
 }
 
-public sealed record OrgResult(OrgResultKind Kind, PolicyMode Mode, string Reason = "", string? ExpiresAt = null)
+public sealed record OrgResult(OrgResultKind Kind, PolicyMode Mode)
 {
     /// <summary>A violation is shown at the manifest line: Denied or Not listed.</summary>
     public bool IsViolation => Kind != OrgResultKind.Allowed;
@@ -38,14 +56,20 @@ public sealed record OrgResult(OrgResultKind Kind, PolicyMode Mode, string Reaso
 /// <summary>
 /// The allowlist layer of one repository, as Depos sends it (docs/format.md, "The
 /// organization layer"). A port of <c>src/ext/web/orgLayer.ts</c>. Depos decides
-/// every allowlist result; this only looks a package up.
+/// every allowlist result, and which packages break the version rule; this only
+/// looks a package up.
 /// </summary>
 public static class OrgLayers
 {
-    private static readonly Regex DateOnly = new("^\\d{4}-\\d{2}-\\d{2}$");
-    private static readonly Regex DateTimeWithZone = new("^\\d{4}-\\d{2}-\\d{2}T[0-9:.]+(Z|[+-]\\d{2}:\\d{2})$", RegexOptions.IgnoreCase);
+    private static readonly HashSet<string> VersionRules = new(StringComparer.Ordinal) { "off", "major", "any" };
+    private static readonly HashSet<string> UpdateKinds = new(StringComparer.Ordinal) { "current", "patch", "minor", "major", "ahead" };
+    private static readonly HashSet<string> RiskLevels = new(StringComparer.Ordinal) { "high", "medium", "low", "unknown" };
 
-    /// <summary>The answer of <c>GET /api/extension/repositories/&lt;ulid&gt;/context</c>, checked; null when it has another shape.</summary>
+    /// <summary>
+    /// The answer of <c>GET /api/extension/repositories/&lt;ulid&gt;/context</c>, checked; null when it has another shape.
+    /// The version rule and the versions came later: without them, or with a value this version does not know, the
+    /// allowlist still shows. A package entry of another shape is left out on its own.
+    /// </summary>
     public static OrgContextData? Parse(JToken? json)
     {
         if (DeposJson.Obj(json) is not { } value
@@ -77,26 +101,49 @@ public static class OrgLayers
             foreach (var raw in rawDecisions)
             {
                 if (raw is not JObject decision) return null;
+                // Decisions have no reason or expiry any more. Depos still sends empty ones
+                // for older releases; they are not read, and an answer without them is accepted.
                 var noteKey = decision.Str("noteKey");
-                var reason = decision.Str("reason", DeposJson.Text);
                 bool? deny = decision.Str("decision") switch
                 {
                     "allow" => false,
                     "deny" => true,
                     _ => null,
                 };
-                if (noteKey is null || reason is null || deny is null) return null;
-                string? expiresAt = null;
-                if (!decision.IsNull("expiresAt"))
-                {
-                    expiresAt = decision.Str("expiresAt");
-                    if (expiresAt is null) return null;
-                }
-                decisions.Add(new OrgDecision(noteKey, deny.Value, reason, expiresAt));
+                if (noteKey is null || deny is null) return null;
+                decisions.Add(new OrgDecision(noteKey, deny.Value));
             }
-            policies.Add(new OrgPolicy(ecosystem, mode.Value, decisions));
+            var versionRule = policy.Str("versionRule") is { } rule && VersionRules.Contains(rule) ? rule : "off";
+            policies.Add(new OrgPolicy(ecosystem, mode.Value, decisions, versionRule));
         }
-        return new OrgContextData(orgUlid, orgName, repoUlid, repoFullName, pagePath, policies);
+        var packages = new List<OrgPackageVersion>();
+        foreach (var raw in value.List("packages") ?? new JArray())
+        {
+            if (PackageVersionOf(raw) is { } package) packages.Add(package);
+        }
+        return new OrgContextData(orgUlid, orgName, repoUlid, repoFullName, pagePath, policies) { Packages = packages };
+    }
+
+    /// <summary>False for a value of another type; a missing or null one is null.</summary>
+    private static bool TryOptionalText(JObject entry, string name, out string? text)
+    {
+        text = null;
+        if (entry[name] is null || entry.IsNull(name)) return true;
+        text = entry.Str(name);
+        return text is not null;
+    }
+
+    private static OrgPackageVersion? PackageVersionOf(JToken raw)
+    {
+        if (raw is not JObject entry || entry.Str("ecosystem") is not { } ecosystem || entry.Str("noteKey") is not { } noteKey) return null;
+        if (!TryOptionalText(entry, "installedVersion", out var installed) || !TryOptionalText(entry, "latestVersion", out var latest)) return null;
+        var updateKind = entry.Str("updateKind") is { } kind && UpdateKinds.Contains(kind) ? kind : null;
+        OrgRisk? risk = null;
+        if (entry["risk"] is JObject rawRisk
+            && rawRisk.Str("level") is { } level && RiskLevels.Contains(level)
+            && rawRisk.Str("version") is { } version)
+            risk = new OrgRisk(level, version);
+        return new OrgPackageVersion(ecosystem, noteKey, installed, latest, updateKind, entry.Bool("outdated") == true, risk);
     }
 
     /// <summary><c>&lt;base&gt;/&lt;ecosystem&gt;/&lt;key&gt;</c>; a key with slashes keeps them (a catch-all route).</summary>
@@ -105,18 +152,6 @@ public static class OrgLayers
         var key = DeposEcosystems.NormalizeName(name, ecosystem);
         var encoded = string.Join("/", key.Split('/').Select(DeposUri.EncodeComponent));
         return $"{basePath}/{DeposUri.EncodeComponent(ecosystem)}/{encoded}";
-    }
-
-    /// <summary><c>Date.parse</c> of an ISO time or date; null when it is neither, which never expires.</summary>
-    public static long? EpochMillis(string value)
-    {
-        if (DateOnly.IsMatch(value)
-            && DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date))
-            return new DateTimeOffset(date, TimeSpan.Zero).ToUnixTimeMilliseconds();
-        if (DateTimeWithZone.IsMatch(value)
-            && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var time))
-            return time.ToUnixTimeMilliseconds();
-        return null;
     }
 }
 
@@ -128,6 +163,7 @@ public sealed class OrgLayer
 {
     private readonly Dictionary<string, PolicyMode> modes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, OrgDecision> decisions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, OrgPackageVersion> versions = new(StringComparer.Ordinal);
 
     public OrgLayer(OrgContextData data)
     {
@@ -137,80 +173,104 @@ public sealed class OrgLayer
             modes[policy.Ecosystem] = policy.Mode;
             foreach (var decision in policy.Decisions) decisions[DeposJson.LookupKey(policy.Ecosystem, decision.NoteKey)] = decision;
         }
+        foreach (var version in data.Packages) versions[DeposJson.LookupKey(version.Ecosystem, version.NoteKey)] = version;
     }
 
     public OrgContextData Data { get; }
 
-    /// <summary>
-    /// null: the ecosystem is not audited, nothing is shown. A decision that has
-    /// expired since the copy was received reads as Not listed: Depos no longer
-    /// counts it.
-    /// </summary>
-    public OrgResult? Result(string ecosystem, string name, long now)
+    /// <summary>null: the ecosystem is not audited, nothing is shown.</summary>
+    public OrgResult? Result(string ecosystem, string name)
     {
         if (!modes.TryGetValue(ecosystem, out var mode)) return null;
-        decisions.TryGetValue(DeposJson.LookupKey(ecosystem, DeposEcosystems.NormalizeName(name, ecosystem)), out var decision);
-        var expiry = decision?.ExpiresAt is { } expiresAt ? OrgLayers.EpochMillis(expiresAt) : null;
-        if (decision is null || expiry <= now) return new OrgResult(OrgResultKind.Unlisted, mode);
-        return new OrgResult(decision.Deny ? OrgResultKind.Denied : OrgResultKind.Allowed, mode, decision.Reason, decision.ExpiresAt);
+        if (!decisions.TryGetValue(DeposJson.LookupKey(ecosystem, DeposEcosystems.NormalizeName(name, ecosystem)), out var decision))
+            return new OrgResult(OrgResultKind.Unlisted, mode);
+        return new OrgResult(decision.Deny ? OrgResultKind.Denied : OrgResultKind.Allowed, mode);
     }
+
+    /// <summary>The package's versions and risk at Depos's last scan; null when Depos knows none.</summary>
+    public OrgPackageVersion? Version(string ecosystem, string name) =>
+        versions.TryGetValue(DeposJson.LookupKey(ecosystem, DeposEcosystems.NormalizeName(name, ecosystem)), out var version) ? version : null;
+
+    /// <summary>
+    /// An Allowed package that breaks the version rule: marked at its line. A Denied or
+    /// Not listed one is marked for that, once, as Depos counts it.
+    /// </summary>
+    public bool IsOutdated(string ecosystem, string name) =>
+        Result(ecosystem, name)?.Kind == OrgResultKind.Allowed && Version(ecosystem, name)?.Outdated == true;
 
     /// <summary>Path of the package's page in Depos, below the server origin.</summary>
     public string DependencyPath(string ecosystem, string name) => OrgLayers.DependencyPagePath(Data.DependencyPagePath, ecosystem, name);
 }
 
-/// <summary>What the hover and the note editor show of the allowlist for one package.</summary>
+/// <summary>What Quick Info and the note editor show from Depos for one package.</summary>
+/// <param name="Kind">null when the package's ecosystem is not audited.</param>
+/// <param name="Version">The installed and newest version at Depos's last scan, when Depos knows one.</param>
+/// <param name="Outdated">Allowed, but further behind than the version rule allows.</param>
+/// <param name="RiskLevel">"High", "Medium", "Low" or "Unknown".</param>
 public sealed record OrgView(
-    OrgResultKind Kind,
-    string Result,
-    string Mode,
-    string? Reason,
-    string? Expires,
+    OrgResultKind? Kind,
+    string? Result,
+    string? Mode,
+    string? Version,
+    bool Outdated,
+    string? Risk,
+    string? RiskLevel,
     string Link,
     string Received)
 {
-    /// <summary><c>Allowlist: Denied (Enforce)</c>, then the reason and the expiry when there are any.</summary>
-    public string Line()
+    /// <summary><c>Allowlist: Denied (Enforce)</c>; null when not audited.</summary>
+    public string? Line() => Result is not null && Mode is not null ? DeposStrings.OrgAllowlistLine(Result, Mode) : null;
+
+    /// <summary>The lines Quick Info shows, in order, without the time.</summary>
+    public IReadOnlyList<string> Lines()
     {
-        var line = DeposStrings.OrgAllowlistLine(Result, Mode);
-        if (Reason is not null) line += " — " + DeposStrings.OrgReason(Reason);
-        if (Expires is not null) line += " · " + DeposStrings.OrgExpires(Expires);
-        return line;
+        var lines = new List<string>();
+        if (Line() is { } line) lines.Add(line);
+        if (Outdated && Mode is not null) lines.Add(DeposStrings.OrgOutdatedLine(Mode));
+        if (Version is not null) lines.Add(Version);
+        if (Risk is not null) lines.Add(Risk);
+        return lines;
     }
 
-    /// <summary>The badge's tooltip: the line, its parts on their own.</summary>
-    public string Tooltip()
-    {
-        var parts = new List<string> { DeposStrings.OrgAllowlistLine(Result, Mode) };
-        if (Reason is not null) parts.Add(DeposStrings.OrgReason(Reason));
-        if (Expires is not null) parts.Add(DeposStrings.OrgExpires(Expires));
-        return string.Join(" · ", parts);
-    }
+    /// <summary>The badge's tooltip: the lines, one per line.</summary>
+    public string Tooltip() => string.Join(Environment.NewLine, Lines());
 
-    /// <summary>null when the package's ecosystem is not audited.</summary>
+    /// <summary>The note editor's badge: the result, Outdated, or the risk level.</summary>
+    public string BadgeText() =>
+        Outdated ? DeposStrings.OrgResultOutdated
+        : Result ?? (RiskLevel is not null ? DeposStrings.OrgRiskBadge(RiskLevel) : DeposStrings.OrgBadgeDepos);
+
+    /// <summary>null when Depos has nothing for the package: its ecosystem is not audited and it has no version or risk.</summary>
     public static OrgView? Of(
         OrgLayer layer,
         string origin,
         long receivedAt,
         string ecosystem,
         string name,
-        Func<long, string> formatTime,
-        long now)
+        Func<long, string> formatTime)
     {
-        if (layer.Result(ecosystem, name, now) is not { } result) return null;
-        var text = result.Kind switch
+        var result = layer.Result(ecosystem, name);
+        var version = layer.Version(ecosystem, name);
+        if (result is null && version is null) return null;
+        var text = result?.Kind switch
         {
             OrgResultKind.Allowed => DeposStrings.OrgResultAllowed,
             OrgResultKind.Denied => DeposStrings.OrgResultDenied,
-            _ => DeposStrings.OrgResultUnlisted,
+            OrgResultKind.Unlisted => DeposStrings.OrgResultUnlisted,
+            _ => null,
         };
-        var unlisted = result.Kind == OrgResultKind.Unlisted;
+        var versionLine = version is null
+            ? null
+            : DeposStrings.OrgVersionLine(version.InstalledVersion, version.LatestVersion, version.UpdateKind is { } kind ? DeposStrings.OrgBehind(kind) : null);
+        var riskLevel = version?.Risk is { } risk ? DeposStrings.OrgRiskLevel(risk.Level) : null;
         return new OrgView(
-            result.Kind,
+            result?.Kind,
             text,
-            result.Mode == PolicyMode.Enforce ? DeposStrings.OrgModeEnforce : DeposStrings.OrgModeAudit,
-            !unlisted && result.Reason.Length > 0 ? result.Reason : null,
-            !unlisted && result.ExpiresAt is { } expires ? (expires.Length > 10 ? expires.Substring(0, 10) : expires) : null,
+            result is null ? null : result.Mode == PolicyMode.Enforce ? DeposStrings.OrgModeEnforce : DeposStrings.OrgModeAudit,
+            string.IsNullOrEmpty(versionLine) ? null : versionLine,
+            layer.IsOutdated(ecosystem, name),
+            version?.Risk is { } r ? DeposStrings.OrgRiskLine(riskLevel!, r.Version) : null,
+            riskLevel,
             origin + layer.DependencyPath(ecosystem, name),
             DeposStrings.OrgReceived(formatTime(receivedAt)));
     }

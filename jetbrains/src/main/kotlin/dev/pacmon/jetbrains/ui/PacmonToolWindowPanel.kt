@@ -3,6 +3,7 @@ package dev.pacmon.jetbrains.ui
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -334,20 +335,18 @@ class PacmonToolWindowPanel(
         orgBadge.isVisible = view != null
         openFileButton.text = if (view != null) DeposStrings.orgOpenWeb else OPEN_NOTES_FILE
         if (view != null) {
-            orgBadge.text = view.result
+            orgBadge.text = view.badgeText()
             orgBadge.tone(
-                when (view.kind) {
-                    OrgResult.Kind.ALLOWED -> Badge.Tone.GREEN
-                    OrgResult.Kind.UNLISTED -> Badge.Tone.YELLOW
-                    OrgResult.Kind.DENIED -> Badge.Tone.RED
+                when {
+                    view.outdated -> Badge.Tone.YELLOW
+                    view.kind == OrgResult.Kind.ALLOWED -> Badge.Tone.GREEN
+                    view.kind == OrgResult.Kind.UNLISTED -> Badge.Tone.YELLOW
+                    view.kind == OrgResult.Kind.DENIED -> Badge.Tone.RED
+                    else -> Badge.Tone.NEUTRAL
                 },
             )
-            // The mode, reason and expiry are the badge's tooltip.
-            orgBadge.toolTipText = listOfNotNull(
-                DeposStrings.orgAllowlistLine(view.result, view.mode),
-                view.reason?.let(DeposStrings::orgReason),
-                view.expires?.let(DeposStrings::orgExpires),
-            ).joinToString(" · ")
+            // The mode, the versions and the risk are the badge's tooltip.
+            orgBadge.toolTipText = view.lines(withTime = false).joinToString("<br>", "<html>", "</html>") { StringUtil.escapeXmlEntities(it) }
         }
         revalidate()
         repaint()
@@ -507,6 +506,7 @@ class PacmonToolWindowPanel(
             GREEN(JBColor(0x00662F, 0x00FF66), JBColor(0xFFFFFF, 0x0A0A0A)),
             YELLOW(JBColor(0xF2C200, 0xF2C200), JBColor(0x1A1A1A, 0x1A1A1A)),
             RED(JBColor(0xC72E2E, 0xC72E2E), JBColor(0xFFFFFF, 0xFFFFFF)),
+            NEUTRAL(JBColor(0xE4E4E4, 0x4B4D50), JBColor(0x1A1A1A, 0xEEEEEE)),
         }
 
         private var badgeBackground: Color = Tone.GREEN.background
