@@ -7,6 +7,17 @@
 
 ## Unreleased
 
+- **Denied versions and vulnerable versions show at the manifest line.** In
+  Depos, an Allow entry for an npm package can now deny some versions of it, and
+  an npm policy can make a version with a known vulnerability of critical or
+  high severity a violation. An Allowed package whose installed version is one
+  of these is marked at its line, as an Outdated one is: a warning in Audit, an
+  error in Enforce. When it breaks several rules, the message names one: a
+  denied version first, then a vulnerable one, then the version rule. The hover
+  and the note editor say the same, with a red badge. Agents that call
+  `check_package` get `version.deniedVersion` and `version.vulnerable`. The
+  same in VS Code, JetBrains IDEs and Visual Studio.
+
 - **The version rule of Depos shows at the manifest line.** In Depos, an npm
   policy can say how far behind its newest version a package may be. A package
   that is Allowed but further behind than that is now marked at its line, as a

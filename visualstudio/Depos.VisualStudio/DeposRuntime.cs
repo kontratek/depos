@@ -701,8 +701,9 @@ internal sealed class DeposRuntime : IDisposable
         if (!NugetManifest.MatchesPath(path)) return problems;
         foreach (var dependency in NugetManifest.ExtractDependencies(snapshot.GetText(), path))
         {
-            // Looked up in the local copy, so a line just typed is judged at once. The version
-            // rule is Depos's judgement of its last scan, so an unpushed update does not clear it.
+            // Looked up in the local copy, so a line just typed is judged at once. The rules on
+            // the installed version are Depos's judgement of its last scan, so an unpushed update
+            // does not clear them.
             if (Depos.Sync.Allowlist(path, dependency.NoteKey) is not { } allowlist) continue;
             string message;
             string code;
@@ -716,7 +717,17 @@ internal sealed class DeposRuntime : IDisposable
                 message = DeposStrings.OrgUnlisted(dependency.DisplayName, allowlist.OrgName);
                 code = "org-not-listed";
             }
-            else if (Depos.Sync.OutdatedVersion(path, dependency.NoteKey) is { InstalledVersion: { } installed, LatestVersion: { } latest, UpdateKind: { } kind }
+            else if (Depos.Sync.VersionViolationOf(path, dependency.NoteKey) is { Violation: VersionViolation.DeniedVersion })
+            {
+                message = DeposStrings.OrgDeniedVersion(dependency.DisplayName, allowlist.OrgName);
+                code = "org-denied-version";
+            }
+            else if (Depos.Sync.VersionViolationOf(path, dependency.NoteKey) is { Violation: VersionViolation.Vulnerable })
+            {
+                message = DeposStrings.OrgVulnerable(dependency.DisplayName, allowlist.OrgName);
+                code = "org-vulnerable";
+            }
+            else if (Depos.Sync.VersionViolationOf(path, dependency.NoteKey) is { Violation: VersionViolation.Outdated, Version: { InstalledVersion: { } installed, LatestVersion: { } latest, UpdateKind: { } kind } }
                 && DeposStrings.OrgBehind(kind) is { } behind)
             {
                 message = DeposStrings.OrgOutdated(dependency.DisplayName, allowlist.OrgName, installed, latest, behind);

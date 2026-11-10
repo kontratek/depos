@@ -10,13 +10,16 @@ import { isObject, list, lookupKey, str } from './json';
  * Depos decides every allowlist result. This module only looks a package up: a
  * governed ecosystem lists its decided packages, every other package of it is Not
  * listed, and an ecosystem that is not listed is not audited. The same goes for the
- * version rule: Depos says which packages break it, on the versions of its last scan.
+ * rules on the installed version (the version rule, denied versions, vulnerabilities):
+ * Depos says which packages break them, on the versions of its last scan.
  */
 
 export type PolicyMode = 'audit' | 'enforce';
 export type VersionRule = 'off' | 'major' | 'any';
 export type UpdateKind = 'current' | 'patch' | 'minor' | 'major' | 'ahead';
 export type RiskLevel = 'high' | 'medium' | 'low' | 'unknown';
+/** What an Allowed package's installed version breaks, the worst first. */
+export type VersionViolation = 'deniedVersion' | 'vulnerable' | 'outdated';
 
 export interface OrgDecision {
   noteKey: string;
@@ -33,6 +36,10 @@ export interface OrgPackageVersion {
   updateKind: UpdateKind | null;
   /** Behind further than the version rule allows: a violation. */
   outdated: boolean;
+  /** The version installed is one its Allow entry denies. False from a Depos before 0.13. */
+  deniedVersion: boolean;
+  /** The version installed has a known critical or high vulnerability, under the vulnerability rule. False from a Depos before 0.13. */
+  vulnerable: boolean;
   risk: { level: RiskLevel; version: string } | null;
 }
 
@@ -76,7 +83,17 @@ function packageVersionOf(v: unknown): OrgPackageVersion | undefined {
   const risk = isObject(v.risk) && str(v.risk.version) && typeof v.risk.level === 'string' && RISK_LEVELS.includes(v.risk.level)
     ? { level: v.risk.level as RiskLevel, version: v.risk.version }
     : null;
-  return { ecosystem: v.ecosystem, noteKey: v.noteKey, installedVersion, latestVersion, updateKind, outdated: v.outdated === true, risk };
+  return {
+    ecosystem: v.ecosystem,
+    noteKey: v.noteKey,
+    installedVersion,
+    latestVersion,
+    updateKind,
+    outdated: v.outdated === true,
+    deniedVersion: v.deniedVersion === true,
+    vulnerable: v.vulnerable === true,
+    risk,
+  };
 }
 
 /**
@@ -149,11 +166,16 @@ export class OrgLayer {
   }
 
   /**
-   * An Allowed package that breaks the version rule: marked at its line. A Denied or
-   * Not listed one is marked for that, once, as Depos counts it.
+   * What an Allowed package's installed version breaks, marked at its line: a denied
+   * version first, then a vulnerable one, then the version rule. A Denied or Not
+   * listed package is marked for that, once, as Depos counts it.
    */
-  isOutdated(ecosystem: ManifestKind, name: string): boolean {
-    return this.result(ecosystem, name)?.kind === 'allowed' && this.version(ecosystem, name)?.outdated === true;
+  versionViolation(ecosystem: ManifestKind, name: string): VersionViolation | undefined {
+    if (this.result(ecosystem, name)?.kind !== 'allowed') return undefined;
+    const version = this.version(ecosystem, name);
+    if (version?.deniedVersion) return 'deniedVersion';
+    if (version?.vulnerable) return 'vulnerable';
+    return version?.outdated ? 'outdated' : undefined;
   }
 
   /** Path of the package's page in Depos, below the server origin. */

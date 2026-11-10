@@ -56,6 +56,23 @@ object DeposStrings {
         "$name $installed is $behind behind the newest version, $latest. The version rule of $org does not allow this."
     const val orgResultOutdated = "Outdated"
     fun orgOutdatedLine(mode: String): String = "Version rule: not met ($mode)"
+    fun orgDeniedVersion(name: String, org: String): String = "The installed version of $name is denied in $org."
+    fun orgVulnerable(name: String, org: String): String =
+        "The installed version of $name has a known vulnerability of critical or high severity. The vulnerability rule of $org does not allow this."
+
+    /** The badge of an Allowed package whose installed version breaks a rule. */
+    fun orgVersionViolationResult(violation: VersionViolation): String = when (violation) {
+        VersionViolation.DENIED_VERSION -> "Denied version"
+        VersionViolation.VULNERABLE -> "Vulnerable"
+        VersionViolation.OUTDATED -> orgResultOutdated
+    }
+
+    /** The quick documentation line of an Allowed package whose installed version breaks a rule. */
+    fun orgVersionViolationLine(violation: VersionViolation, mode: String): String = when (violation) {
+        VersionViolation.DENIED_VERSION -> "Installed version: denied ($mode)"
+        VersionViolation.VULNERABLE -> "Installed version: known critical or high vulnerability ($mode)"
+        VersionViolation.OUTDATED -> orgOutdatedLine(mode)
+    }
     /** null for a kind that is not behind. */
     fun orgBehind(kind: String): String? = when (kind) {
         "major" -> "a major version"

@@ -167,13 +167,14 @@ public sealed class OrgSync
         return (result, layer.Data.OrgName);
     }
 
-    /// <summary>The versions of an Allowed package that Depos says breaks the version rule; null otherwise.</summary>
-    public OrgPackageVersion? OutdatedVersion(string manifestPath, string name)
+    /// <summary>What an Allowed package's installed version breaks, with its versions; null when it breaks nothing.</summary>
+    public (VersionViolation Violation, OrgPackageVersion Version)? VersionViolationOf(string manifestPath, string name)
     {
         if (EcosystemOf(manifestPath) is not { } ecosystem) return null;
         OrgLayer? layer;
         lock (gate) layer = FolderKeyFor(manifestPath) is { } key ? folders[key].Layer : null;
-        return layer is not null && layer.IsOutdated(ecosystem, name) ? layer.Version(ecosystem, name) : null;
+        if (layer?.VersionViolationOf(ecosystem, name) is not { } violation || layer.Version(ecosystem, name) is not { } version) return null;
+        return (violation, version);
     }
 
     /// <summary>What the hover and the note editor show from Depos; null when Depos has nothing for the package.</summary>

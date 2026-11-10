@@ -144,9 +144,29 @@ public sealed class OrgLayerTests
     public void OnlyAnAllowedPackageIsMarkedForTheVersionRule()
     {
         var layer = new OrgLayer(OrgLayers.Parse(DeposJson.Parse(Versioned()))!);
-        Assert.IsTrue(layer.IsOutdated("nuget", "Serilog"));
-        Assert.IsFalse(layer.IsOutdated("nuget", "left-pad"));
-        Assert.IsFalse(layer.IsOutdated("nuget", "Polly"));
+        Assert.AreEqual(VersionViolation.Outdated, layer.VersionViolationOf("nuget", "Serilog"));
+        Assert.IsNull(layer.VersionViolationOf("nuget", "left-pad"));
+        Assert.IsNull(layer.VersionViolationOf("nuget", "Polly"));
+    }
+
+    [TestMethod]
+    public void ADeniedVersionIsNamedFirstThenAVulnerableOneAndAnOlderDeposHasNeither()
+    {
+        const string marked =
+            "[{\"ecosystem\":\"nuget\",\"noteKey\":\"serilog\",\"installedVersion\":\"3.1.0\",\"latestVersion\":\"4.0.0\",\"updateKind\":\"major\",\"outdated\":true,\"deniedVersion\":true,\"vulnerable\":true,\"risk\":null},"
+            + "{\"ecosystem\":\"python\",\"noteKey\":\"django-rest\",\"installedVersion\":\"1.0.0\",\"latestVersion\":\"1.0.0\",\"updateKind\":\"current\",\"outdated\":false,\"vulnerable\":true,\"risk\":null},"
+            + "{\"ecosystem\":\"nuget\",\"noteKey\":\"left-pad\",\"installedVersion\":\"1.0.0\",\"latestVersion\":\"1.0.0\",\"updateKind\":\"current\",\"outdated\":false,\"deniedVersion\":\"yes\",\"risk\":null}]";
+        var layer = new OrgLayer(OrgLayers.Parse(DeposJson.Parse(Versioned(marked)))!);
+        Assert.AreEqual(VersionViolation.DeniedVersion, layer.VersionViolationOf("nuget", "Serilog"));
+        Assert.AreEqual(VersionViolation.Vulnerable, layer.VersionViolationOf("python", "django-rest"));
+        // Denied: marked for that, once.
+        Assert.IsNull(layer.VersionViolationOf("nuget", "left-pad"));
+
+        var vulnerable = OrgView.Of(layer, "https://depos.example.com", 0, "python", "django-rest", _ => "10:00")!;
+        Assert.AreEqual("Vulnerable", vulnerable.BadgeText());
+        Assert.AreEqual("Installed version: known critical or high vulnerability (Audit)", vulnerable.Lines()[1]);
+        Assert.AreEqual("Denied version", OrgView.Of(layer, "https://depos.example.com", 0, "nuget", "Serilog", _ => "10:00")!.BadgeText());
+        Assert.IsFalse(OrgLayers.Parse(DeposJson.Parse(Versioned()))!.Packages.Any(p => p.DeniedVersion || p.Vulnerable));
     }
 
     [TestMethod]
