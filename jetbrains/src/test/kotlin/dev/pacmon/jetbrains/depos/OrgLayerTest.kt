@@ -133,9 +133,31 @@ class OrgLayerTest {
     @Test
     fun `only an Allowed package is marked for the version rule`() {
         val layer = versioned()
-        assertTrue(layer.isOutdated(ManifestKind.NPM, "Express"))
-        assertFalse(layer.isOutdated(ManifestKind.NPM, "left-pad"))
-        assertFalse(layer.isOutdated(ManifestKind.NPM, "react"))
+        assertEquals(VersionViolation.OUTDATED, layer.versionViolation(ManifestKind.NPM, "Express"))
+        assertNull(layer.versionViolation(ManifestKind.NPM, "left-pad"))
+        assertNull(layer.versionViolation(ManifestKind.NPM, "react"))
+    }
+
+    @Test
+    fun `a denied version is named first, then a vulnerable one, and an older Depos has neither`() {
+        val marked = """[
+            |{"ecosystem":"npm","noteKey":"express","installedVersion":"4.18.2","latestVersion":"5.1.0","updateKind":"major","outdated":true,"deniedVersion":true,"vulnerable":true,"risk":null},
+            |{"ecosystem":"npm","noteKey":"zod","installedVersion":"1.0.0","latestVersion":"1.0.0","updateKind":"current","outdated":false,"vulnerable":true,"risk":null},
+            |{"ecosystem":"npm","noteKey":"left-pad","installedVersion":"1.0.0","latestVersion":"1.0.0","updateKind":"current","outdated":false,"deniedVersion":true,"risk":null}]""".trimMargin()
+        val policies = """[{"ecosystem":"npm","mode":"audit","decisions":[
+            |{"noteKey":"express","decision":"allow"},{"noteKey":"zod","decision":"allow"},{"noteKey":"left-pad","decision":"deny"}]}]""".trimMargin()
+        val text = answer(policies).replace(",\"extra\":true}", ",\"packages\":$marked}")
+        val layer = OrgLayer(OrgLayers.parse(JsonParser.parseString(text))!!)
+        assertEquals(VersionViolation.DENIED_VERSION, layer.versionViolation(ManifestKind.NPM, "express"))
+        assertEquals(VersionViolation.VULNERABLE, layer.versionViolation(ManifestKind.NPM, "zod"))
+        // Denied: marked for that, once.
+        assertNull(layer.versionViolation(ManifestKind.NPM, "left-pad"))
+
+        val vulnerable = OrgView.of(layer, "https://depos.example.com", 0, ManifestKind.NPM, "zod", { "10:00" })!!
+        assertEquals("Vulnerable", vulnerable.badgeText())
+        assertEquals("Installed version: known critical or high vulnerability (Audit)", vulnerable.lines(withTime = false)[1])
+        assertEquals("Denied version", OrgView.of(layer, "https://depos.example.com", 0, ManifestKind.NPM, "express", { "10:00" })!!.badgeText())
+        assertFalse(versioned().data.packages.any { it.deniedVersion || it.vulnerable })
     }
 
     @Test

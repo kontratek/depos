@@ -11,6 +11,7 @@ import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.depos.OrgContext
 import dev.pacmon.jetbrains.depos.OrgResult
 import dev.pacmon.jetbrains.depos.PolicyMode
+import dev.pacmon.jetbrains.depos.VersionViolation
 import dev.pacmon.jetbrains.service.PacmonProjectService
 
 /**
@@ -18,8 +19,9 @@ import dev.pacmon.jetbrains.service.PacmonProjectService
  * listed package is a warning in an ecosystem set to Audit and an error in one set
  * to Enforce — what the VS Code extension's `orgDiagnostics.ts` puts in Problems.
  * Allowed packages stay quiet, and an ecosystem Depos does not audit shows nothing.
- * An Allowed package that Depos says breaks the version rule is marked the same way;
- * its version is the one of Depos's last scan, so an unpushed update does not clear it.
+ * An Allowed package whose installed version Depos says is denied, vulnerable or past
+ * the version rule is marked the same way, naming the worst; its version is the one of
+ * Depos's last scan, so an unpushed update does not clear it.
  *
  * The result is looked up in the local copy of the allowlist, so a line just typed
  * is judged at once, before it is pushed. Registered for every manifest language,
@@ -40,11 +42,17 @@ class PacmonAllowlistAnnotator : Annotator {
                 OrgResult.Kind.DENIED -> DeposStrings.orgDenied(name, orgName)
                 OrgResult.Kind.UNLISTED -> DeposStrings.orgUnlisted(name, orgName)
                 OrgResult.Kind.ALLOWED -> {
-                    val version = org.outdatedVersion(manifest, dependency.name) ?: continue
-                    val installed = version.installedVersion ?: continue
-                    val latest = version.latestVersion ?: continue
-                    val behind = version.updateKind?.let(DeposStrings::orgBehind) ?: continue
-                    DeposStrings.orgOutdated(name, orgName, installed, latest, behind)
+                    val (violation, version) = org.versionViolation(manifest, dependency.name) ?: continue
+                    when (violation) {
+                        VersionViolation.DENIED_VERSION -> DeposStrings.orgDeniedVersion(name, orgName)
+                        VersionViolation.VULNERABLE -> DeposStrings.orgVulnerable(name, orgName)
+                        VersionViolation.OUTDATED -> {
+                            val installed = version.installedVersion ?: continue
+                            val latest = version.latestVersion ?: continue
+                            val behind = version.updateKind?.let(DeposStrings::orgBehind) ?: continue
+                            DeposStrings.orgOutdated(name, orgName, installed, latest, behind)
+                        }
+                    }
                 }
             }
             val severity = if (result.mode == PolicyMode.ENFORCE) HighlightSeverity.ERROR else HighlightSeverity.WARNING

@@ -136,9 +136,13 @@ internal static class DeposBadgePalette
         _ => Colors(0xc72e2e, 0xffffff),
     };
 
-    /// <summary>Yellow for Outdated, as for Not listed; a neutral grey where the ecosystem is not audited.</summary>
+    /// <summary>
+    /// Yellow for Outdated, as for Not listed; red for a denied or vulnerable version, as for
+    /// Denied; a neutral grey where the ecosystem is not audited.
+    /// </summary>
     public static BadgeColors For(Depos.Core.Org.OrgView view, bool darkTheme) =>
-        view.Outdated ? For(Depos.Core.Org.OrgResultKind.Unlisted, darkTheme)
+        view.Violation == Depos.Core.Org.VersionViolation.Outdated ? For(Depos.Core.Org.OrgResultKind.Unlisted, darkTheme)
+        : view.Violation is not null ? For(Depos.Core.Org.OrgResultKind.Denied, darkTheme)
         : view.Kind is { } kind ? For(kind, darkTheme)
         : darkTheme ? Colors(0x4b4d50, 0xeeeeee) : Colors(0xe4e4e4, 0x1a1a1a);
 

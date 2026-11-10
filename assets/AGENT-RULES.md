@@ -9,7 +9,7 @@
 If your tools include `get_dependency_note` from the Depos notes MCP server, this repository's notes live in the organization's Depos. Then:
 
 - Read notes with `get_dependency_note` and `list_dependency_notes`, not from the notes files. The files can be out of date.
-- Before you add a package, call `check_package`. Do not add a package that is Denied. Tell the user about a package that is Not listed. When its `version.outdated` is true, the installed version is further behind than the organization allows: tell the user, and suggest `version.latestVersion`.
+- Before you add a package, call `check_package`. Do not add a package that is Denied. Tell the user about a package that is Not listed. When its `version.outdated` is true, the installed version is further behind than the organization allows: tell the user, and suggest `version.latestVersion`. When `version.deniedVersion` is true, the organization denies the installed version: tell the user, and suggest another version. When `version.vulnerable` is true, the installed version has a known vulnerability of critical or high severity: tell the user, and suggest a fixed version.
 - Write with `set_agent_fields` only: the same keys and rules as `### Agent notes` below. It replaces all fields, so send the full list. Never edit the notes files.
 - If `set_agent_fields` is not offered, you can only read. Tell the user what you would change.
 

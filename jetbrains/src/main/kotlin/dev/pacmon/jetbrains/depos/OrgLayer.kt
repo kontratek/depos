@@ -40,7 +40,14 @@ data class OrgPackageVersion(
     val outdated: Boolean,
     /** Its level is `high`, `medium`, `low` or `unknown`. */
     val risk: OrgRisk?,
+    /** The version installed is one its Allow entry denies. False from a Depos before 0.13. */
+    val deniedVersion: Boolean = false,
+    /** The version installed has a known critical or high vulnerability, under the vulnerability rule. False from a Depos before 0.13. */
+    val vulnerable: Boolean = false,
 )
+
+/** What an Allowed package's installed version breaks, the worst first. */
+enum class VersionViolation { DENIED_VERSION, VULNERABLE, OUTDATED }
 
 data class OrgContextData(
     val orgUlid: String,
@@ -131,6 +138,8 @@ object OrgLayers {
             updateKind = entry.str("updateKind")?.takeIf { it in UPDATE_KINDS },
             outdated = entry.bool("outdated") == true,
             risk = risk,
+            deniedVersion = entry.bool("deniedVersion") == true,
+            vulnerable = entry.bool("vulnerable") == true,
         )
     }
 
@@ -173,11 +182,20 @@ class OrgLayer(val data: OrgContextData) {
         versions[DeposJson.lookupKey(ecosystem.id, ManifestRegistry.normalizeName(name, ecosystem))]
 
     /**
-     * An Allowed package that breaks the version rule: marked at its line. A Denied or
-     * Not listed one is marked for that, once, as Depos counts it.
+     * What an Allowed package's installed version breaks, marked at its line: a denied
+     * version first, then a vulnerable one, then the version rule. A Denied or Not
+     * listed package is marked for that, once, as Depos counts it.
      */
-    fun isOutdated(ecosystem: ManifestKind, name: String): Boolean =
-        result(ecosystem, name)?.kind == OrgResult.Kind.ALLOWED && version(ecosystem, name)?.outdated == true
+    fun versionViolation(ecosystem: ManifestKind, name: String): VersionViolation? {
+        if (result(ecosystem, name)?.kind != OrgResult.Kind.ALLOWED) return null
+        val version = version(ecosystem, name) ?: return null
+        return when {
+            version.deniedVersion -> VersionViolation.DENIED_VERSION
+            version.vulnerable -> VersionViolation.VULNERABLE
+            version.outdated -> VersionViolation.OUTDATED
+            else -> null
+        }
+    }
 
     /** Path of the package's page in Depos, below the server origin. */
     fun dependencyPath(ecosystem: ManifestKind, name: String): String =
@@ -193,8 +211,8 @@ data class OrgView(
     val mode: String?,
     /** The installed and newest version at Depos's last scan, when Depos knows one. */
     val version: String?,
-    /** Allowed, but further behind than the version rule allows. */
-    val outdated: Boolean,
+    /** Allowed, but its installed version is denied, vulnerable or past the version rule: the worst one. */
+    val versionViolation: VersionViolation?,
     val risk: String?,
     /** "High", "Medium", "Low" or "Unknown". */
     val riskLevel: String?,
@@ -208,15 +226,15 @@ data class OrgView(
     /** The lines the quick documentation shows, in order. The note editor's badge tooltip is the same, without the time. */
     fun lines(withTime: Boolean = true): List<String> = listOfNotNull(
         line(),
-        if (outdated && mode != null) DeposStrings.orgOutdatedLine(mode) else null,
+        if (mode != null) versionViolation?.let { DeposStrings.orgVersionViolationLine(it, mode) } else null,
         version,
         risk,
         received.takeIf { withTime },
     )
 
-    /** The note editor's badge: the result, Outdated, or the risk level. */
+    /** The note editor's badge: the result, what the installed version breaks, or the risk level. */
     fun badgeText(): String = when {
-        outdated -> DeposStrings.orgResultOutdated
+        versionViolation != null -> DeposStrings.orgVersionViolationResult(versionViolation)
         result != null -> result
         riskLevel != null -> DeposStrings.orgRiskBadge(riskLevel)
         else -> DeposStrings.orgBadgeDepos
@@ -249,7 +267,7 @@ data class OrgView(
                 version = version?.let {
                     DeposStrings.orgVersionLine(it.installedVersion, it.latestVersion, it.updateKind?.let(DeposStrings::orgBehind))
                 }?.takeIf { it.isNotEmpty() },
-                outdated = layer.isOutdated(kind, name),
+                versionViolation = layer.versionViolation(kind, name),
                 risk = version?.risk?.let { DeposStrings.orgRiskLine(riskLevel!!, it.version) },
                 riskLevel = riskLevel,
                 link = origin + layer.dependencyPath(kind, name),

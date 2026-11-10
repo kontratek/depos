@@ -57,6 +57,25 @@ public static class DeposStrings
         $"{name} {installed} is {behind} behind the newest version, {latest}. The version rule of {org} does not allow this.";
     public const string OrgResultOutdated = "Outdated";
     public static string OrgOutdatedLine(string mode) => $"Version rule: not met ({mode})";
+    public static string OrgDeniedVersion(string name, string org) => $"The installed version of {name} is denied in {org}.";
+    public static string OrgVulnerable(string name, string org) =>
+        $"The installed version of {name} has a known vulnerability of critical or high severity. The vulnerability rule of {org} does not allow this.";
+
+    /// <summary>The badge of an Allowed package whose installed version breaks a rule.</summary>
+    public static string OrgVersionViolationResult(VersionViolation violation) => violation switch
+    {
+        VersionViolation.DeniedVersion => "Denied version",
+        VersionViolation.Vulnerable => "Vulnerable",
+        _ => OrgResultOutdated,
+    };
+
+    /// <summary>The Quick Info line of an Allowed package whose installed version breaks a rule.</summary>
+    public static string OrgVersionViolationLine(VersionViolation violation, string mode) => violation switch
+    {
+        VersionViolation.DeniedVersion => $"Installed version: denied ({mode})",
+        VersionViolation.Vulnerable => $"Installed version: known critical or high vulnerability ({mode})",
+        _ => OrgOutdatedLine(mode),
+    };
     /// <summary>null for a kind that is not behind.</summary>
     public static string? OrgBehind(string kind) => kind switch
     {

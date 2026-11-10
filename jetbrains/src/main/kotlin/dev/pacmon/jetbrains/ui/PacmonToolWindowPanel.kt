@@ -18,6 +18,7 @@ import dev.pacmon.jetbrains.depos.DeposException
 import dev.pacmon.jetbrains.depos.DeposStrings
 import dev.pacmon.jetbrains.depos.OrgContext
 import dev.pacmon.jetbrains.depos.OrgResult
+import dev.pacmon.jetbrains.depos.VersionViolation
 import dev.pacmon.jetbrains.service.PacmonNotesListener
 import dev.pacmon.jetbrains.service.PacmonProjectService
 import com.intellij.ide.BrowserUtil
@@ -338,7 +339,8 @@ class PacmonToolWindowPanel(
             orgBadge.text = view.badgeText()
             orgBadge.tone(
                 when {
-                    view.outdated -> Badge.Tone.YELLOW
+                    view.versionViolation == VersionViolation.OUTDATED -> Badge.Tone.YELLOW
+                    view.versionViolation != null -> Badge.Tone.RED
                     view.kind == OrgResult.Kind.ALLOWED -> Badge.Tone.GREEN
                     view.kind == OrgResult.Kind.UNLISTED -> Badge.Tone.YELLOW
                     view.kind == OrgResult.Kind.DENIED -> Badge.Tone.RED

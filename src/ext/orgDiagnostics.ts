@@ -11,8 +11,9 @@ import type { OrgContext } from './web/orgContext';
  * - Allowlist results at the manifest line: Denied and Not listed only, a warning in
  *   Audit and an error in Enforce. Allowed and not-audited packages stay quiet. The
  *   result is looked up locally, so an edit that is not pushed yet is judged at once.
- * - An Allowed package that Depos says breaks the version rule, the same way. Its
- *   version is the one of Depos's last scan, so an unpushed update does not clear it.
+ * - An Allowed package whose installed version Depos says is denied, vulnerable, or
+ *   past the version rule, the same way, naming the worst. Its version is the one of
+ *   Depos's last scan, so an unpushed update does not clear it.
  * - In org mode, an error at the top of a notes file: it is no longer used and should
  *   be deleted.
  *
@@ -73,7 +74,8 @@ export class OrgDiagnostics implements vscode.Disposable {
     for (const dep of this.store.depsForDocument(doc)) {
       const result = layer.result(kind, dep.noteKey);
       if (!result) continue;
-      const version = layer.isOutdated(kind, dep.noteKey) ? layer.version(kind, dep.noteKey) : undefined;
+      const violation = layer.versionViolation(kind, dep.noteKey);
+      const version = violation === 'outdated' ? layer.version(kind, dep.noteKey) : undefined;
       let message: string;
       let code: string;
       if (result.kind === 'denied') {
@@ -82,6 +84,12 @@ export class OrgDiagnostics implements vscode.Disposable {
       } else if (result.kind === 'unlisted') {
         message = S.orgUnlisted(dep.displayName, orgName);
         code = 'org-not-listed';
+      } else if (violation === 'deniedVersion') {
+        message = S.orgDeniedVersion(dep.displayName, orgName);
+        code = 'org-denied-version';
+      } else if (violation === 'vulnerable') {
+        message = S.orgVulnerable(dep.displayName, orgName);
+        code = 'org-vulnerable';
       } else if (version?.installedVersion && version.latestVersion && version.updateKind) {
         const behind = S.orgBehind[version.updateKind] ?? version.updateKind;
         message = S.orgOutdated(dep.displayName, orgName, version.installedVersion, version.latestVersion, behind);

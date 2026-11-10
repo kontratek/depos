@@ -19,6 +19,8 @@ public sealed record OrgRisk(string Level, string Version);
 /// <summary>How a package of the repository stands against its newest version, at Depos's last scan.</summary>
 /// <param name="UpdateKind"><c>current</c>, <c>patch</c>, <c>minor</c>, <c>major</c> or <c>ahead</c>; null when the two cannot be compared.</param>
 /// <param name="Outdated">Behind further than the version rule allows: a violation.</param>
+/// <param name="DeniedVersion">The version installed is one its Allow entry denies. False from a Depos before 0.13.</param>
+/// <param name="Vulnerable">The version installed has a known critical or high vulnerability, under the vulnerability rule. False from a Depos before 0.13.</param>
 public sealed record OrgPackageVersion(
     string Ecosystem,
     string NoteKey,
@@ -26,7 +28,17 @@ public sealed record OrgPackageVersion(
     string? LatestVersion,
     string? UpdateKind,
     bool Outdated,
-    OrgRisk? Risk);
+    OrgRisk? Risk,
+    bool DeniedVersion = false,
+    bool Vulnerable = false);
+
+/// <summary>What an Allowed package's installed version breaks, the worst first.</summary>
+public enum VersionViolation
+{
+    DeniedVersion,
+    Vulnerable,
+    Outdated,
+}
 
 public sealed record OrgContextData(
     string OrgUlid,
@@ -143,7 +155,16 @@ public static class OrgLayers
             && rawRisk.Str("level") is { } level && RiskLevels.Contains(level)
             && rawRisk.Str("version") is { } version)
             risk = new OrgRisk(level, version);
-        return new OrgPackageVersion(ecosystem, noteKey, installed, latest, updateKind, entry.Bool("outdated") == true, risk);
+        return new OrgPackageVersion(
+            ecosystem,
+            noteKey,
+            installed,
+            latest,
+            updateKind,
+            entry.Bool("outdated") == true,
+            risk,
+            entry.Bool("deniedVersion") == true,
+            entry.Bool("vulnerable") == true);
     }
 
     /// <summary><c>&lt;base&gt;/&lt;ecosystem&gt;/&lt;key&gt;</c>; a key with slashes keeps them (a catch-all route).</summary>
@@ -192,11 +213,17 @@ public sealed class OrgLayer
         versions.TryGetValue(DeposJson.LookupKey(ecosystem, DeposEcosystems.NormalizeName(name, ecosystem)), out var version) ? version : null;
 
     /// <summary>
-    /// An Allowed package that breaks the version rule: marked at its line. A Denied or
-    /// Not listed one is marked for that, once, as Depos counts it.
+    /// What an Allowed package's installed version breaks, marked at its line: a denied
+    /// version first, then a vulnerable one, then the version rule. A Denied or Not
+    /// listed package is marked for that, once, as Depos counts it.
     /// </summary>
-    public bool IsOutdated(string ecosystem, string name) =>
-        Result(ecosystem, name)?.Kind == OrgResultKind.Allowed && Version(ecosystem, name)?.Outdated == true;
+    public VersionViolation? VersionViolationOf(string ecosystem, string name)
+    {
+        if (Result(ecosystem, name)?.Kind != OrgResultKind.Allowed || Version(ecosystem, name) is not { } version) return null;
+        if (version.DeniedVersion) return VersionViolation.DeniedVersion;
+        if (version.Vulnerable) return VersionViolation.Vulnerable;
+        return version.Outdated ? VersionViolation.Outdated : null;
+    }
 
     /// <summary>Path of the package's page in Depos, below the server origin.</summary>
     public string DependencyPath(string ecosystem, string name) => OrgLayers.DependencyPagePath(Data.DependencyPagePath, ecosystem, name);
@@ -205,14 +232,14 @@ public sealed class OrgLayer
 /// <summary>What Quick Info and the note editor show from Depos for one package.</summary>
 /// <param name="Kind">null when the package's ecosystem is not audited.</param>
 /// <param name="Version">The installed and newest version at Depos's last scan, when Depos knows one.</param>
-/// <param name="Outdated">Allowed, but further behind than the version rule allows.</param>
+/// <param name="Violation">Allowed, but its installed version is denied, vulnerable or past the version rule: the worst one.</param>
 /// <param name="RiskLevel">"High", "Medium", "Low" or "Unknown".</param>
 public sealed record OrgView(
     OrgResultKind? Kind,
     string? Result,
     string? Mode,
     string? Version,
-    bool Outdated,
+    VersionViolation? Violation,
     string? Risk,
     string? RiskLevel,
     string Link,
@@ -226,7 +253,7 @@ public sealed record OrgView(
     {
         var lines = new List<string>();
         if (Line() is { } line) lines.Add(line);
-        if (Outdated && Mode is not null) lines.Add(DeposStrings.OrgOutdatedLine(Mode));
+        if (Violation is { } violation && Mode is not null) lines.Add(DeposStrings.OrgVersionViolationLine(violation, Mode));
         if (Version is not null) lines.Add(Version);
         if (Risk is not null) lines.Add(Risk);
         return lines;
@@ -235,9 +262,9 @@ public sealed record OrgView(
     /// <summary>The badge's tooltip: the lines, one per line.</summary>
     public string Tooltip() => string.Join(Environment.NewLine, Lines());
 
-    /// <summary>The note editor's badge: the result, Outdated, or the risk level.</summary>
+    /// <summary>The note editor's badge: the result, what the installed version breaks, or the risk level.</summary>
     public string BadgeText() =>
-        Outdated ? DeposStrings.OrgResultOutdated
+        Violation is { } violation ? DeposStrings.OrgVersionViolationResult(violation)
         : Result ?? (RiskLevel is not null ? DeposStrings.OrgRiskBadge(RiskLevel) : DeposStrings.OrgBadgeDepos);
 
     /// <summary>null when Depos has nothing for the package: its ecosystem is not audited and it has no version or risk.</summary>
@@ -268,7 +295,7 @@ public sealed record OrgView(
             text,
             result is null ? null : result.Mode == PolicyMode.Enforce ? DeposStrings.OrgModeEnforce : DeposStrings.OrgModeAudit,
             string.IsNullOrEmpty(versionLine) ? null : versionLine,
-            layer.IsOutdated(ecosystem, name),
+            layer.VersionViolationOf(ecosystem, name),
             version?.Risk is { } r ? DeposStrings.OrgRiskLine(riskLevel!, r.Version) : null,
             riskLevel,
             origin + layer.DependencyPath(ecosystem, name),

@@ -251,6 +251,11 @@ An ecosystem can also have a version rule: how far behind its newest version an 
 - A tool shows the installed version, the newest version and the risk level with the allowlist result, in any mode. They are the last scan's, not the manifest's on disk.
 - A tool that receives no version rule or no versions shows none. An answer without them is still valid.
 
+Two more rules work on the installed version, and the web app decides them the same way. For each package, it sends whether the version installed is a **denied version** (one its Allow entry names) and whether it is **vulnerable** (it has a known vulnerability of critical or high severity, the ecosystem's vulnerability rule is on, and the organization has not accepted the risk of that version).
+
+- A tool marks an Allowed package at its manifest line when one of them is true, in Audit as a warning and in Enforce as an error. When several are true, it names one: a denied version first, then vulnerable, then the version rule.
+- A tool that receives neither shows none. An answer without them is still valid.
+
 ### Local copy
 
 A tool keeps a copy of the notes and the allowlist results on the user's machine. It asks the web app only for what changed since that copy. It uses the copy while the web app cannot be reached, and shows when the copy was received. Signing out removes the copy.
@@ -270,7 +275,7 @@ The tools:
 |---|---|---|
 | `get_dependency_note` | ecosystem, package name | The note of the package for this repository, or nothing. |
 | `list_dependency_notes` | ecosystem (optional) | The notes for this repository. |
-| `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. Also its installed and newest version, its risk level, and whether it breaks the version rule, when the web app knows them. |
+| `check_package` | ecosystem, package name | The package's allowlist result in the web app: Allowed, Denied, Not listed, or Not audited. Also its installed and newest version, its risk level, and whether it breaks the version rule, is a denied version, or is vulnerable, when the web app knows them. |
 | `set_agent_fields` | ecosystem, package name, fields | Replaces the agent fields of the note. Adds the note when there is none. Admins only. |
 
 `AGENT-RULES.md` tells agents to use these tools when they have them.
