@@ -3,6 +3,7 @@ import org.commonmark.renderer.html.HtmlRenderer
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 buildscript {
@@ -81,6 +82,12 @@ intellijPlatform {
         token = providers.environmentVariable("JETBRAINS_TOKEN")
     }
     pluginVerification {
+        // An API scheduled for removal fails the run too: it is a crash in the IDE
+        // release that removes it, and the Marketplace reports it only as a warning.
+        failureLevel = listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
+        )
         ides {
             // The build target is always verified. Without the property below, so is the
             // newest release of every IDE branch after it for IntelliJ IDEA and Rider: one
@@ -91,8 +98,11 @@ intellijPlatform {
             // sinceBuild here together with ideaVersion.sinceBuild above.
             current()
             if (providers.gradleProperty("pacmon.verify").orNull != "current") {
+                // IntelliJ IDEA ships as one product from 2025.3: there is no Community
+                // release after 253, so the later branches are only in Ultimate. The
+                // build target above stays Community, which is enough to compile against.
                 select {
-                    types = listOf(IntelliJPlatformType.IntellijIdeaCommunity)
+                    types = listOf(IntelliJPlatformType.IntellijIdeaUltimate)
                     channels = listOf(ProductRelease.Channel.RELEASE)
                     sinceBuild = "253"
                 }

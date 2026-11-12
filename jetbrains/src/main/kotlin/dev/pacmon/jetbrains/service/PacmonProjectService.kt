@@ -3,7 +3,6 @@ package dev.pacmon.jetbrains.service
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -345,7 +344,7 @@ class PacmonProjectService(private val project: Project) :
     }
 
     /** The project's files with this name, from the index: none from libraries or excluded folders. */
-    fun filesNamed(name: String): Collection<VirtualFile> = ReadAction.compute<Collection<VirtualFile>, RuntimeException> {
+    fun filesNamed(name: String): Collection<VirtualFile> = blockingRead {
         FilenameIndex.getVirtualFilesByName(name, GlobalSearchScope.projectScope(project))
     }
 
@@ -561,7 +560,7 @@ class PacmonProjectService(private val project: Project) :
 
     private fun manifests(kind: ManifestKind): List<VirtualFile> = manifestIndex.getOrPut(kind) {
         val adapter = ManifestRegistry.forKind(kind)
-        ReadAction.compute<List<VirtualFile>, RuntimeException> {
+        blockingRead {
             val names = when (kind) {
                 ManifestKind.PYTHON -> FilenameIndex.getAllFilenames(project).filter { name ->
                     name == "pyproject.toml" || name.endsWith(".txt")
@@ -638,7 +637,7 @@ class PacmonProjectService(private val project: Project) :
         return null
     }
 
-    private fun textOf(file: VirtualFile): String = ReadAction.compute<String, RuntimeException> {
+    private fun textOf(file: VirtualFile): String = blockingRead {
         FileDocumentManager.getInstance().getCachedDocument(file)?.text ?: VfsUtilCore.loadText(file)
     }
 

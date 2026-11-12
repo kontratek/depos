@@ -11,6 +11,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import java.awt.datatransfer.StringSelection
 
 /** Starts org mode for a project: listeners, the 5-minute timer, the first fetch. */
@@ -46,7 +47,7 @@ object DeposCommands {
             else -> JBPopupFactory.getInstance()
                 .createPopupChooserBuilder(folders)
                 .setTitle(DeposStrings.mcpPickFolder)
-                .setRenderer(com.intellij.ui.SimpleListCellRenderer.create("") { it.repoFullName ?: it.name })
+                .setRenderer(textListCellRenderer<OrgContext.OrgFolder>("") { it.repoFullName ?: it.name })
                 .setItemChosenCallback { copyMcpSetup(project, it) }
                 .createPopup()
                 .showCenteredInCurrentWindow(project)
