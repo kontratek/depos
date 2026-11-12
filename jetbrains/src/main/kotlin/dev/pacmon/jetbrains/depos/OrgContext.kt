@@ -6,7 +6,6 @@ import com.google.gson.JsonObject
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationActivationListener
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -23,6 +22,7 @@ import dev.pacmon.jetbrains.core.NotesFileModel
 import dev.pacmon.jetbrains.depos.DeposJson.number
 import dev.pacmon.jetbrains.depos.DeposJson.str
 import dev.pacmon.jetbrains.service.PacmonProjectService
+import dev.pacmon.jetbrains.service.blockingRead
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -123,8 +123,8 @@ class OrgContext(private val project: Project) : Disposable {
     // ── Roots ────────────────────────────────────────────────────────────────
 
     /** The project's base directory and its content roots, by name: VS Code's workspace folders. */
-    fun roots(): List<Pair<String, Path>> = ReadAction.compute<List<Pair<String, Path>>, RuntimeException> {
-        if (project.isDisposed) return@compute emptyList()
+    fun roots(): List<Pair<String, Path>> = blockingRead {
+        if (project.isDisposed) return@blockingRead emptyList()
         val paths = buildList {
             project.basePath?.let { add(it.replace('\\', '/').trimEnd('/')) }
             ProjectRootManager.getInstance(project).contentRoots.forEach { add(it.path.trimEnd('/')) }
