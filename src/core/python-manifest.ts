@@ -1,5 +1,6 @@
 import { dependencyEntry } from './dependency';
 import type { DependencyEntry, SourceRange } from './model';
+import { commentStart, lineRecords, nestingDelta, unquotedEquals } from './toml-scan';
 
 interface TomlString {
   value: string;
@@ -18,35 +19,6 @@ interface TomlAssignment {
 
 export function normalizePythonPackageName(value: string): string {
   return value.trim().toLowerCase().replace(/[._-]+/g, '-');
-}
-
-function lineRecords(text: string): Array<{ text: string; offset: number }> {
-  const out: Array<{ text: string; offset: number }> = [];
-  let offset = 0;
-  while (offset <= text.length) {
-    const newline = text.indexOf('\n', offset);
-    const rawEnd = newline < 0 ? text.length : newline;
-    const end = rawEnd > offset && text[rawEnd - 1] === '\r' ? rawEnd - 1 : rawEnd;
-    out.push({ text: text.slice(offset, end), offset });
-    if (newline < 0) break;
-    offset = newline + 1;
-  }
-  return out;
-}
-
-function commentStart(value: string): number {
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (let i = 0; i < value.length; i++) {
-    const char = value[i]!;
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '#') return i;
-  }
-  return value.length;
 }
 
 function splitDottedKey(raw: string): string[] | undefined {
@@ -75,37 +47,6 @@ function splitDottedKey(raw: string): string[] | undefined {
     }
   }
   return !quote && push(raw.length) ? parts : undefined;
-}
-
-function unquotedEquals(raw: string): number {
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw[i]!;
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '=') return i;
-  }
-  return -1;
-}
-
-function nestingDelta(raw: string): number {
-  let delta = 0;
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (const char of raw) {
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '[' || char === '{') delta++;
-    else if (char === ']' || char === '}') delta--;
-  }
-  return delta;
 }
 
 function tomlAssignments(text: string): TomlAssignment[] {
