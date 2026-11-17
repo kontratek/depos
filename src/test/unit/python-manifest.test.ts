@@ -4,6 +4,7 @@ import {
   extractPyprojectDependencies,
   extractRequirementsDependencies,
   normalizePythonPackageName,
+  pythonPinnedVersion,
 } from '../../core/python-manifest';
 
 describe('Python manifest matching', () => {
@@ -84,6 +85,40 @@ requests = { git = "https://example.test/requests.git" }
     expect(extractPyprojectDependencies('[project]\ndependencies = [')).toEqual([]);
     expect(extractPyprojectDependencies('[tool.uv.sources]\nfoo = { path = "../foo" }')).toEqual([]);
   });
+
+  it('keeps the version each declaration writes, without extras or markers', () => {
+    expect(Object.fromEntries(extractPyprojectDependencies(pyproject).map((dep) => [`${dep.scope}:${dep.noteKey}`, dep.versionSpec]))).toEqual({
+      'build-system:setuptools': '>=68',
+      'build-system:wheel': undefined,
+      'project:requests': '>=2.31',
+      'project:importlib-metadata': '@ https://example.test/importlib.whl',
+      'extra:docs:sphinx': '>=7',
+      'group:test:pytest': '>=8',
+      // Poetry's own syntax, as written; a path dependency has no version.
+      'poetry:main:django': '^5',
+      'poetry:main:local-lib': undefined,
+      'poetry:dev:black': '^24',
+      'poetry:group:lint:ruff': '^0.9',
+      'uv:dev:mypy': '>=1',
+    });
+    expect(extractPyprojectDependencies('[tool.poetry.dependencies]\nflask = { version = "2.0.1", extras = ["async"] }')[0]!.versionSpec).toBe('2.0.1');
+    expect(extractPyprojectDependencies('[project]\ndependencies = ["legacy (>=1.0)"]')[0]!.versionSpec).toBe('>=1.0');
+  });
+});
+
+describe('pythonPinnedVersion', () => {
+  it('names the release of an exact pin', () => {
+    expect(pythonPinnedVersion('==2.0.1')).toBe('2.0.1');
+    expect(pythonPinnedVersion(' == 2.0.1 ')).toBe('2.0.1');
+    expect(pythonPinnedVersion('===2.0.1')).toBe('2.0.1');
+    expect(pythonPinnedVersion('==1!2.0rc1+cpu')).toBe('1!2.0rc1+cpu');
+  });
+
+  it('names none for what can install more than one release', () => {
+    for (const spec of ['>=2.0', '==2.*', '==2.0.1,!=2.0.2', '~=2.0', '^2.0', '@ https://example.test/x.whl', '', undefined]) {
+      expect(pythonPinnedVersion(spec)).toBeUndefined();
+    }
+  });
 });
 
 describe('pip requirements dependencies', () => {
@@ -108,6 +143,17 @@ typing_extensions==4.12 \\
       'requirements/dev.txt:acme-plugin',
       'requirements/dev.txt:typing-extensions',
     ]);
+  });
+
+  it('keeps a named requirement\'s version, without options, and none for a checkout', () => {
+    expect(Object.fromEntries(extractRequirementsDependencies(requirements).map((dep) => [dep.noteKey, dep.versionSpec]))).toEqual({
+      'requests': '>=2.31',
+      'urllib3': '@ https://example.test/urllib3.whl',
+      'acme-plugin': undefined,
+      'typing-extensions': '==4.12',
+    });
+    expect(extractRequirementsDependencies('flask==2.0.1\nnumpy\n')[0]!.versionSpec).toBe('==2.0.1');
+    expect(extractRequirementsDependencies('flask==2.0.1\nnumpy\n')[1]!.versionSpec).toBeUndefined();
   });
 
   it('retains offsets across comments and continuations', () => {
