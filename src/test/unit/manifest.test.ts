@@ -10,7 +10,7 @@ import {
 } from '../../core/manifest';
 import { extractMavenDependencies } from '../../core/mavenManifest';
 import { extractGradleDependencies } from '../../core/gradleManifest';
-import { extractMixDependencies } from '../../core/mixManifest';
+import { extractMixDependencies, mixPinnedVersion } from '../../core/mixManifest';
 import { extractZigDependencies } from '../../core/zig-manifest';
 
 describe('manifest adapters', () => {
@@ -227,6 +227,45 @@ end`;
 
   it('fails safely on malformed dependency lists', () => {
     expect(extractMixDependencies('defp deps do [{:phoenix, "~> 1.8"}')).toEqual([]);
+  });
+
+  it('keeps the requirement each tuple writes, and where it comes from when not hex.pm', () => {
+    expect(Object.fromEntries(extractMixDependencies(mix).map((dep) => [dep.noteKey, dep.versionSpec]))).toEqual({
+      'phoenix': '~> 1.8',
+      'ecto_sql': '~> 3.13',
+      'wallaby': '~> 0.30',
+      'nerves_system': 'git+https://github.com/nerves-project/system',
+      'local_app': 'file:../local_app',
+      'accounts': 'workspace:umbrella',
+      'quoted-dep': '~> 1.0',
+    });
+    const text = `defp deps do [
+      {:plug, git: "https://example.test/plug.git", tag: "v1"},
+      {:renamed, "~> 2.0", hex: :real_name},
+      {:private, "~> 1.0", organization: "acme"},
+      {:mirrored, "~> 1.0", repo: "internal"},
+      {:public, "1.2.3", repo: "hexpm"},
+      {:sigil, ~S(1.0)}
+    ] end`;
+    expect(Object.fromEntries(extractMixDependencies(text).map((dep) => [dep.noteKey, dep.versionSpec]))).toEqual({
+      plug: 'git+https://example.test/plug.git',
+      renamed: 'package:real_name',
+      private: 'registry:acme',
+      mirrored: 'registry:internal',
+      public: '1.2.3',
+      sigil: undefined,
+    });
+  });
+});
+
+describe('mixPinnedVersion', () => {
+  it('names the release of an exact requirement, with or without ==', () => {
+    expect(mixPinnedVersion('== 1.2.3')).toBe('1.2.3');
+    expect(mixPinnedVersion('1.2.3')).toBe('1.2.3');
+    expect(mixPinnedVersion('2.0.0-rc.1')).toBe('2.0.0-rc.1');
+    for (const spec of ['~> 1.2', '>= 1.0.0 and < 2.0.0', '1.2', 'package:x', undefined]) {
+      expect(mixPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
   });
 });
 
