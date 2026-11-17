@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from '../../core/analyze';
-import { extractComposerDependencies } from '../../core/composer-manifest';
+import { composerLockfileFor, isComposerLockfilePath, parseComposerLockfile } from '../../core/composer-lockfile';
+import { composerPinnedVersion, extractComposerDependencies } from '../../core/composer-manifest';
 import { dependencyAtOffset, manifestAdapterForPath } from '../../core/manifest';
 import { parseNotes } from '../../core/parseNotes';
 
@@ -108,5 +109,62 @@ describe('Composer dependencies', () => {
     const notes = parseNotes('---\nformat: dependency-notes/2\necosystem: composer\n---\n# Dependency Notes\n\n## MONOLOG/MONOLOG\n\nLogging.\n');
     const dependency = extractComposerDependencies('{"require":{"monolog/monolog":"^3"}}')[0]!;
     expect(analyze([dependency], notes).documented).toEqual([dependency]);
+  });
+
+  it('keeps each constraint as written', () => {
+    expect(Object.fromEntries(extractComposerDependencies(manifest).map((dependency) => [dependency.noteKey, dependency.versionSpec]))).toEqual({
+      'php': '^8.3',
+      'ext-mbstring': '*',
+      'lib-curl': '>=7.0',
+      'composer-runtime-api': '^2.2',
+      'monolog/monolog': '^3.0',
+      'phpunit/phpunit': '^11.0',
+    });
+  });
+});
+
+describe('composerPinnedVersion', () => {
+  it('names the release of an exact constraint, bare or with =', () => {
+    expect(composerPinnedVersion('3.5.0')).toBe('3.5.0');
+    expect(composerPinnedVersion('v6.4.0')).toBe('v6.4.0');
+    expect(composerPinnedVersion('==1.2.3')).toBe('1.2.3');
+    expect(composerPinnedVersion('1.0.0-beta2')).toBe('1.0.0-beta2');
+    for (const spec of ['^3.0', '~2.1', '>=1.0 <2.0', '1.*', 'dev-main', '2.x-dev', '1.0.0@dev', '*', undefined]) {
+      expect(composerPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
+  });
+});
+
+describe('composer.lock', () => {
+  const lock = JSON.stringify({
+    'content-hash': 'abc',
+    'packages': [
+      { name: 'monolog/monolog', version: '3.5.0', dist: { type: 'zip' } },
+      { name: 'symfony/console', version: 'v6.4.0', dist: { type: 'zip' } },
+      { name: 'acme/branch', version: 'dev-main', source: { type: 'git' } },
+      { name: 'acme/local', version: '1.0.0', dist: { type: 'path', url: '../local' } },
+    ],
+    'packages-dev': [{ name: 'phpunit/phpunit', version: '11.0.1', dist: { type: 'zip' } }],
+  });
+  const parsed = parseComposerLockfile('composer.lock', lock);
+
+  it('gives each installed release its version, as Packagist writes it', () => {
+    expect(parsed.resolve('composer.json', 'monolog/monolog', '^3.0')).toBe('3.5.0');
+    expect(parsed.resolve('composer.json', 'symfony/console', '^6.4')).toBe('v6.4.0');
+    expect(parsed.resolve('composer.json', 'phpunit/phpunit', '^11.0')).toBe('11.0.1');
+  });
+
+  it('gives none for a branch, a path package, a platform requirement or what it does not hold', () => {
+    expect(parsed.resolve('composer.json', 'acme/branch', 'dev-main')).toBeUndefined();
+    expect(parsed.resolve('composer.json', 'acme/local', '*')).toBeUndefined();
+    expect(parsed.resolve('composer.json', 'php', '^8.3')).toBeUndefined();
+    expect(parsed.resolve('composer.json', 'missing/package', '^1.0')).toBeUndefined();
+  });
+
+  it('finds the lockfile beside composer.json, and refuses what is not one', () => {
+    expect(isComposerLockfilePath('app/composer.lock')).toBe(true);
+    expect(composerLockfileFor('app/composer.json', new Set(['app/composer.lock']))).toBe('app/composer.lock');
+    expect(() => parseComposerLockfile('composer.lock', '{"lockfileVersion": 3}')).toThrow();
+    expect(() => parseComposerLockfile('composer.lock', 'not json')).toThrow();
   });
 });
