@@ -108,17 +108,71 @@ function tableName(content: string): string | undefined {
   return match?.[1]?.trim();
 }
 
+/** A TOML basic or literal string's content, or undefined for any other value. */
+function stringValue(raw: string): string | undefined {
+  const match = /^\s*(?:"([^"\\]*)"|'([^']*)')\s*$/.exec(raw);
+  return match ? (match[1] ?? match[2]) : undefined;
+}
+
+/** One key of an inline table: `{ version = "~> 4.0", … }`. */
+function inlineValue(raw: string, key: string): string | undefined {
+  const match = new RegExp(`(?:^|[{,\\s])${key}\\s*=\\s*(?:"([^"\\\\]*)"|'([^']*)')`).exec(raw);
+  return match ? (match[1] ?? match[2]) : undefined;
+}
+
+/** A hex name, not a requirement: `hex = "other_name"` renames, `hex = "~> 1.0"` is the requirement. */
+const HEX_NAME = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * The requirement a dependency writes (`">= 0.44.0 and < 2.0.0"`, `{ version = "~> 4.0" }`),
+ * or where it comes from instead, prefixed as npm does so a consumer can leave it out of
+ * registry checks: `git+<url>`, `file:<path>` and `package:<name>` for a renamed package.
+ */
+function gleamSpec(name: string, value: string): string | undefined {
+  const plain = stringValue(value);
+  if (plain !== undefined) return plain.trim() || undefined;
+  const git = inlineValue(value, 'git');
+  if (git) return `git+${git}`;
+  const path = inlineValue(value, 'path');
+  if (path) return `file:${path}`;
+  const hex = inlineValue(value, 'hex');
+  if (hex && HEX_NAME.test(hex) && hex !== name) return `package:${hex}`;
+  const version = inlineValue(value, 'version') ?? (hex && !HEX_NAME.test(hex) ? hex : undefined);
+  return version?.trim() || undefined;
+}
+
+/**
+ * The one release an exact requirement names, or undefined. Gleam reads requirements
+ * as Hex does: a version with no operator is an exact match, as `==` is.
+ */
+export function gleamPinnedVersion(versionSpec: string | undefined): string | undefined {
+  return /^(?:==\s*)?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(versionSpec?.trim() ?? '')?.[1];
+}
+
 /** Extracts direct Gleam dependencies without invoking Gleam or resolving packages. */
 export function extractGleamDependencies(text: string): DependencyEntry[] {
   const out: DependencyEntry[] = [];
   const seen = new Set<string>();
   let activeScope: string | undefined;
   let continuationDepth = 0;
+  // An inline table that spans lines: its text so far, read once it closes.
+  let pending: { index: number; name: string; text: string } | undefined;
+  const setSpec = (index: number, name: string, value: string): void => {
+    const versionSpec = gleamSpec(name, value);
+    if (versionSpec) out[index] = { ...out[index]!, versionSpec };
+  };
 
   for (const line of splitLines(text)) {
     const content = contentBeforeComment(line.text);
     if (continuationDepth > 0) {
       continuationDepth = Math.max(0, continuationDepth + nestingDelta(content));
+      if (pending) {
+        pending.text += `\n${content}`;
+        if (continuationDepth === 0) {
+          setSpec(pending.index, pending.name, pending.text);
+          pending = undefined;
+        }
+      }
       continue;
     }
 
@@ -135,11 +189,14 @@ export function extractGleamDependencies(text: string): DependencyEntry[] {
     if (!key) continue;
 
     const id = `${activeScope}\0${key.value}`;
+    const value = content.slice(equals + 1);
+    continuationDepth = Math.max(0, nestingDelta(value));
     if (!seen.has(id)) {
       seen.add(id);
       out.push(dependencyEntry(key.value, activeScope, key.range));
+      if (continuationDepth > 0) pending = { index: out.length - 1, name: key.value, text: value };
+      else setSpec(out.length - 1, key.value, value);
     }
-    continuationDepth = Math.max(0, nestingDelta(content.slice(equals + 1)));
   }
 
   return out;
