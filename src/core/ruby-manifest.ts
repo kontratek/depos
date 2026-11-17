@@ -13,7 +13,8 @@ interface Token {
 }
 
 interface RubyBlock {
-  kind: 'group' | 'platform' | 'definition' | 'gemspec' | 'generic';
+  /** `source`, `git` and `path` blocks say where the gems inside them come from. */
+  kind: 'group' | 'platform' | 'definition' | 'gemspec' | 'source' | 'git' | 'path' | 'generic';
   values?: string[];
   receiver?: string;
 }
@@ -246,6 +247,58 @@ function orderedUnique(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+/**
+ * The requirement strings right after a gem's name (`'~> 7.0', '>= 7.0.4'`), joined as
+ * RubyGems writes a requirement list. Undefined when there are none.
+ */
+function requirementAfter(tokens: readonly Token[], nameIndex: number): string | undefined {
+  const parts: string[] = [];
+  for (let i = nameIndex + 1; tokens[i]?.value === ','; i += 2) {
+    const value = tokens[i + 1];
+    if (value?.kind !== 'string' || !value.literal || tokens[i + 2]?.value === ':') break;
+    parts.push(value.value.trim());
+  }
+  return parts.length ? parts.join(', ') : undefined;
+}
+
+/**
+ * Where a gem comes from when it is not rubygems.org, prefixed as npm does so a
+ * consumer can leave it out of registry checks: `git+<url>` (`git:`, `github:` or a
+ * `git` block), `file:<path>` (`path:` or a `path` block) and `registry:<url>`
+ * (`source:` or a `source` block other than rubygems.org).
+ */
+function rubySource(options: readonly Token[], blocks: readonly RubyBlock[]): string | undefined {
+  const git = optionValues(options, ['git'])[0];
+  if (git) return `git+${git}`;
+  const github = optionValues(options, ['github'])[0];
+  if (github) return `git+https://github.com/${github}`;
+  const path = optionValues(options, ['path'])[0];
+  if (path) return `file:${path}`;
+  const source = optionValues(options, ['source'])[0];
+  if (source && !RUBYGEMS_SOURCE.test(source)) return `registry:${source}`;
+  const block = [...blocks].reverse().find((candidate) => candidate.kind === 'git' || candidate.kind === 'path' || candidate.kind === 'source');
+  const value = block?.values?.[0];
+  if (block?.kind === 'git' && value) return `git+${value}`;
+  if (block?.kind === 'path' && value) return `file:${value}`;
+  if (block?.kind === 'source' && value && !RUBYGEMS_SOURCE.test(value)) return `registry:${value}`;
+  return undefined;
+}
+
+const RUBYGEMS_SOURCE = /^https?:\/\/rubygems\.org\/?$/i;
+
+function withSpec(entry: DependencyEntry, versionSpec: string | undefined): DependencyEntry {
+  return versionSpec ? { ...entry, versionSpec } : entry;
+}
+
+/**
+ * The one release an exact requirement names (`'1.2.3'` or `'= 1.2.3'`), or undefined.
+ * RubyGems reads a bare version as `=`. A pessimistic or ranged requirement, or more
+ * than one, can install more than one release.
+ */
+export function rubyPinnedVersion(versionSpec: string | undefined): string | undefined {
+  return /^(?:=\s*)?(\d+(?:\.[0-9A-Za-z]+)*)$/.exec(versionSpec?.trim() ?? '')?.[1];
+}
+
 function gemfileDependency(tokens: readonly Token[], blocks: readonly RubyBlock[]): DependencyEntry | undefined {
   if (blocks.some((block) => block.kind === 'definition')) return undefined;
   const call = tokens[0];
@@ -262,14 +315,14 @@ function gemfileDependency(tokens: readonly Token[], blocks: readonly RubyBlock[
     ...optionValues(tokens.slice(nameIndex + 1), ['platform', 'platforms']),
   ]);
   const scope = `${groups.length ? groups.join(',') : 'default'}${platforms.length ? `@${platforms.join(',')}` : ''}`;
-  return dependencyEntry(
+  return withSpec(dependencyEntry(
     name.value,
     scope,
     name.contentRange,
     [{ offset: name.offset, length: name.length }],
     name.value,
     { offset: call.offset, length: call.length },
-  );
+  ), rubySource(tokens.slice(nameIndex + 1), blocks) ?? requirementAfter(tokens, nameIndex));
 }
 
 function gemspecDependency(tokens: readonly Token[], blocks: readonly RubyBlock[]): DependencyEntry | undefined {
@@ -283,14 +336,14 @@ function gemspecDependency(tokens: readonly Token[], blocks: readonly RubyBlock[
   const nameIndex = tokens[3]?.value === '(' ? 4 : 3;
   const name = tokens[nameIndex];
   if (name?.kind !== 'string' || !name.literal || !name.contentRange || !GEM_NAME.test(name.value)) return undefined;
-  return dependencyEntry(
+  return withSpec(dependencyEntry(
     name.value,
     scope,
     name.contentRange,
     [{ offset: name.offset, length: name.length }],
     name.value,
     { offset: method.offset, length: method.length },
-  );
+  ), requirementAfter(tokens, nameIndex));
 }
 
 function openedBlock(tokens: readonly Token[]): RubyBlock | undefined {
@@ -305,6 +358,10 @@ function openedBlock(tokens: readonly Token[]): RubyBlock | undefined {
   }
   if (first.kind === 'word' && (first.value === 'platform' || first.value === 'platforms')) {
     return { kind: 'platform', values: tokens.slice(1, doIndex).filter((token) => token.kind === 'symbol').map((token) => token.value) };
+  }
+  if (first.kind === 'word' && (first.value === 'source' || first.value === 'git' || first.value === 'path')) {
+    const target = tokens.slice(1, doIndex).find((token) => token.kind === 'string' && token.literal);
+    return { kind: first.value, values: target ? [target.value] : [] };
   }
   const gemspecPrefix = tokens.slice(0, 6).map((token) => token.value).join(' ');
   if (gemspecPrefix === 'Gem :: Specification . new do' && tokens[6]?.value === '|' && tokens[7]?.kind === 'word') {
