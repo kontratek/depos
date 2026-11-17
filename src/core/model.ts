@@ -72,7 +72,7 @@ export interface DependencyEntry {
   displayName: string;
   /** Manifest-specific dependency scope. */
   scope: string;
-  /** The version as the manifest writes it. Only the npm reader gives one so far. */
+  /** The version as the manifest writes it. The npm and Python readers give one so far. */
   versionSpec?: string;
   /** Range used for line decorations and placement. */
   primaryRange: SourceRange;

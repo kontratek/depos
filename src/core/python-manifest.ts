@@ -1,5 +1,6 @@
 import { dependencyEntry } from './dependency';
 import type { DependencyEntry, SourceRange } from './model';
+import { commentStart, lineRecords, nestingDelta, unquotedEquals } from './toml-scan';
 
 interface TomlString {
   value: string;
@@ -18,35 +19,6 @@ interface TomlAssignment {
 
 export function normalizePythonPackageName(value: string): string {
   return value.trim().toLowerCase().replace(/[._-]+/g, '-');
-}
-
-function lineRecords(text: string): Array<{ text: string; offset: number }> {
-  const out: Array<{ text: string; offset: number }> = [];
-  let offset = 0;
-  while (offset <= text.length) {
-    const newline = text.indexOf('\n', offset);
-    const rawEnd = newline < 0 ? text.length : newline;
-    const end = rawEnd > offset && text[rawEnd - 1] === '\r' ? rawEnd - 1 : rawEnd;
-    out.push({ text: text.slice(offset, end), offset });
-    if (newline < 0) break;
-    offset = newline + 1;
-  }
-  return out;
-}
-
-function commentStart(value: string): number {
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (let i = 0; i < value.length; i++) {
-    const char = value[i]!;
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '#') return i;
-  }
-  return value.length;
 }
 
 function splitDottedKey(raw: string): string[] | undefined {
@@ -75,37 +47,6 @@ function splitDottedKey(raw: string): string[] | undefined {
     }
   }
   return !quote && push(raw.length) ? parts : undefined;
-}
-
-function unquotedEquals(raw: string): number {
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw[i]!;
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '=') return i;
-  }
-  return -1;
-}
-
-function nestingDelta(raw: string): number {
-  let delta = 0;
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-  for (const char of raw) {
-    if (quote === '"' && escaped) escaped = false;
-    else if (quote === '"' && char === '\\') escaped = true;
-    else if (quote) {
-      if (char === quote) quote = undefined;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === '[' || char === '{') delta++;
-    else if (char === ']' || char === '}') delta--;
-  }
-  return delta;
 }
 
 function tomlAssignments(text: string): TomlAssignment[] {
@@ -202,11 +143,67 @@ function requirementName(raw: string): { name: string; start: number; length: nu
   return { name: match[1], start: match[0].length - match[1].length, length: match[1].length };
 }
 
+/**
+ * What a PEP 508 requirement writes after its name and extras: the version
+ * specifier (`>=2.31`, `==2.0.1`), or `@ <url>` for a direct reference. The
+ * environment marker after `;` is left out. Undefined when it writes neither.
+ */
+export function requirementSpec(raw: string, nameEnd: number): string | undefined {
+  let rest = raw.slice(nameEnd).trimStart();
+  if (rest.startsWith('[')) {
+    const close = rest.indexOf(']');
+    if (close < 0) return undefined;
+    rest = rest.slice(close + 1).trimStart();
+  }
+  const marker = rest.indexOf(';');
+  if (marker >= 0) rest = rest.slice(0, marker);
+  rest = rest.trim();
+  if (rest.startsWith('@')) {
+    const url = rest.slice(1).trim();
+    return url ? `@ ${url}` : undefined;
+  }
+  // The old form in parentheses: `name (>=1.0)`.
+  if (rest.startsWith('(') && rest.endsWith(')')) rest = rest.slice(1, -1).trim();
+  return rest || undefined;
+}
+
+/**
+ * The one release an exact pin names (`==2.0.1`, `===2.0.1`), or undefined. A
+ * range, a wildcard (`==2.*`), several clauses or a URL can install more than
+ * one release. Requirements files from `pip freeze` and `pip-compile` pin
+ * every package this way.
+ */
+export function pythonPinnedVersion(versionSpec: string | undefined): string | undefined {
+  const match = /^===?\s*([A-Za-z0-9][A-Za-z0-9!+._-]*)$/.exec(versionSpec?.trim() ?? '');
+  return match?.[1];
+}
+
+function withSpec(entry: DependencyEntry, versionSpec: string | undefined): DependencyEntry {
+  return versionSpec ? { ...entry, versionSpec } : entry;
+}
+
 function entryFromRequirement(value: TomlString, scope: string): DependencyEntry | undefined {
   const parsed = requirementName(value.rawContent);
   if (!parsed) return undefined;
   const range = { offset: value.contentOffset + parsed.start, length: parsed.length };
-  return dependencyEntry(normalizePythonPackageName(parsed.name), scope, range, [range], parsed.name, value.range);
+  return withSpec(
+    dependencyEntry(normalizePythonPackageName(parsed.name), scope, range, [range], parsed.name, value.range),
+    requirementSpec(value.rawContent, parsed.start + parsed.length),
+  );
+}
+
+/**
+ * The version a Poetry dependency writes: the string (`"^2.0"`), or the
+ * `version` key of its inline table. Poetry's own syntax, not PEP 440; a
+ * path, git or url dependency has none.
+ */
+function poetrySpec(valueText: string): string | undefined {
+  const text = valueText.trim();
+  const plain = /^(["'])(.*)\1$/.exec(text);
+  if (plain) return plain[2]!.trim() || undefined;
+  if (!text.startsWith('{')) return undefined;
+  const version = /(?:^|[{,\s])version\s*=\s*(["'])([^"']*)\1/.exec(text);
+  return version?.[2]?.trim() || undefined;
 }
 
 function tableEquals(table: readonly string[], ...wanted: string[]): boolean {
@@ -243,14 +240,14 @@ export function extractPyprojectDependencies(text: string): DependencyEntry[] {
     ) poetryScope = `poetry:group:${assignment.table[3]}`;
     if (poetryScope && assignment.key.toLowerCase() !== 'python') {
       const displayName = assignment.key;
-      out.push(dependencyEntry(
+      out.push(withSpec(dependencyEntry(
         normalizePythonPackageName(displayName),
         poetryScope,
         assignment.keyRange,
         [assignment.keyRange],
         displayName,
         assignment.keyRange,
-      ));
+      ), poetrySpec(assignment.valueText)));
     }
   }
   return out;
@@ -306,10 +303,16 @@ export function extractRequirementsDependencies(text: string, scope = 'requireme
     } else if (candidate.startsWith('-')) continue;
 
     let parsed = requirementName(candidate);
+    // An editable install or an `#egg=` reference is a checkout, not a release: it has no version spec.
+    let versionSpec = parsed && !editable
+      // Per-requirement options (`--hash=…`) follow the requirement after a space.
+      ? requirementSpec(candidate.replace(/\s+--?[A-Za-z].*$/, ''), parsed.start + parsed.length)
+      : undefined;
     if (!parsed) {
       const egg = /[#&]egg=([A-Za-z0-9][A-Za-z0-9._-]*)/i.exec(candidate);
       if (egg?.[1] && egg.index >= 0) {
         parsed = { name: egg[1], start: egg.index + egg[0].length - egg[1].length, length: egg[1].length };
+        versionSpec = undefined;
       }
     }
     if (!parsed) continue;
@@ -317,14 +320,14 @@ export function extractRequirementsDependencies(text: string, scope = 'requireme
     const offset = logical.positions[logicalStart];
     if (offset === undefined) continue;
     const range = { offset, length: parsed.length };
-    out.push(dependencyEntry(
+    out.push(withSpec(dependencyEntry(
       normalizePythonPackageName(parsed.name),
       scope,
       range,
       [range],
       parsed.name,
       range,
-    ));
+    ), versionSpec));
   }
   return out;
 }

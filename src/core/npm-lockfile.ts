@@ -1,19 +1,16 @@
 import { parse as parseYaml } from 'yaml';
+import { baseName, directoryOf, isLockfilePathIn, type Lockfile, lockfileForIn, relativeDirectory } from './lockfile';
 
 /**
  * The installed version of a project's direct npm dependencies, read from its
- * lockfile. Lockfiles add a version to a dependency `package.json` declares; they
- * never add a dependency, so they are not part of the notes format. Transitive
- * packages are not read.
+ * lockfile. What every reader shares — the interface and the path helpers — is
+ * in `lockfile.ts`.
  */
 
 /** In the order they win when a directory holds more than one. */
 export const NPM_LOCKFILE_NAMES = ['pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json', 'package-lock.json'] as const;
 
-export interface NpmLockfile {
-  /** The installed version, or undefined when the lockfile does not give one for this dependency. */
-  resolve(manifestPath: string, name: string, versionSpec: string | undefined): string | undefined;
-}
+export type NpmLockfile = Lockfile;
 
 const SEMVER = /^\d+\.\d+\.\d+[^\s@]*$/;
 const ALIASED_SEMVER = /@(\d+\.\d+\.\d+[^\s@]*)$/;
@@ -25,43 +22,17 @@ function plainVersion(raw: unknown): string | undefined {
   return ALIASED_SEMVER.exec(raw)?.[1];
 }
 
-function baseName(path: string): string {
-  return path.slice(path.lastIndexOf('/') + 1);
-}
-
-function directoryOf(path: string): string {
-  const slash = path.lastIndexOf('/');
-  return slash === -1 ? '' : path.slice(0, slash);
-}
-
-/** The manifest's directory, relative to the lockfile's; undefined when the lockfile is not an ancestor. */
-function relativeDirectory(lockfilePath: string, manifestPath: string): string | undefined {
-  const lockfileDir = directoryOf(lockfilePath);
-  const manifestDir = directoryOf(manifestPath);
-  if (lockfileDir === '') return manifestDir;
-  if (manifestDir === lockfileDir) return '';
-  return manifestDir.startsWith(`${lockfileDir}/`) ? manifestDir.slice(lockfileDir.length + 1) : undefined;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function isNpmLockfilePath(path: string): boolean {
-  return (NPM_LOCKFILE_NAMES as readonly string[]).includes(baseName(path));
+  return isLockfilePathIn(NPM_LOCKFILE_NAMES, path);
 }
 
 /** The lockfile that covers a manifest: the closest one at or above its directory. */
 export function npmLockfileFor(manifestPath: string, paths: ReadonlySet<string>): string | undefined {
-  let directory = directoryOf(manifestPath);
-  for (;;) {
-    for (const name of NPM_LOCKFILE_NAMES) {
-      const candidate = directory ? `${directory}/${name}` : name;
-      if (paths.has(candidate)) return candidate;
-    }
-    if (directory === '') return undefined;
-    directory = directoryOf(directory);
-  }
+  return lockfileForIn(NPM_LOCKFILE_NAMES, manifestPath, paths);
 }
 
 function parsePackageLock(lockfilePath: string, text: string): NpmLockfile {
