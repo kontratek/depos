@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractCargoDependencies } from '../../core/cargoManifest';
+import { cargoPinnedVersion, extractCargoDependencies } from '../../core/cargoManifest';
 import {
   dependencyAtOffset,
   manifestAdapterForFileName,
@@ -341,6 +341,66 @@ not-direct = "1"
     expect(extractCargoDependencies('[dependencies\nserde = "1"')).toEqual([]);
   });
 
+  it('keeps the version each declaration writes, and where it comes from when not crates.io', () => {
+    const specs = Object.fromEntries(extractCargoDependencies(cargo).map((dep) => [dep.noteKey, dep.versionSpec]));
+    expect(specs).toEqual({
+      'serde': '1',
+      'quoted.dep': '1',
+      // Renamed: the key is not the crate's name, so it is not a crates.io release under it.
+      'local': 'package:upstream',
+      'multi': 'package:multiline-upstream',
+      'workspace-crate': undefined,
+      'pretty_assertions': '1',
+      'cc': '1',
+      'nix': '0.29',
+      'winres': '0.1',
+    });
+  });
+
+  it('reads every way to write a dependency\'s source', () => {
+    const text = String.raw`[dependencies]
+inline = { version = "=1.2.3", features = ["a"] }
+dotted.version = "~0.4"
+dotted.features = ["b"]
+from-git = { git = "https://example.test/x.git", version = "1" }
+from-path = { path = "../local" }
+other-registry = { version = "1", registry = "internal" }
+spread = { version = "2",
+  features = [
+    "x",
+  ] }
+
+[dependencies.tabled]
+version = "^3.1"
+features = [
+  "c",
+]
+
+[dependencies.tabled-git]
+git = 'https://example.test/y.git'
+`;
+    expect(Object.fromEntries(extractCargoDependencies(text).map((dep) => [dep.noteKey, dep.versionSpec]))).toEqual({
+      'inline': '=1.2.3',
+      'dotted': '~0.4',
+      'from-git': 'git+https://example.test/x.git',
+      'from-path': 'file:../local',
+      'other-registry': 'registry:internal',
+      'spread': '2',
+      'tabled': '^3.1',
+      'tabled-git': 'git+https://example.test/y.git',
+    });
+  });
+});
+
+describe('cargoPinnedVersion', () => {
+  it('names the release of an exact requirement only', () => {
+    expect(cargoPinnedVersion('=1.2.3')).toBe('1.2.3');
+    expect(cargoPinnedVersion('= 1.2.3-rc.1')).toBe('1.2.3-rc.1');
+    // A bare version is a caret requirement in Cargo.
+    for (const spec of ['1.2.3', '^1.2.3', '~1.2', '=1.2', '>=1, <2', 'git+https://x', undefined]) {
+      expect(cargoPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
+  });
 });
 
 describe('pom.xml dependencies', () => {

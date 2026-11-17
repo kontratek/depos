@@ -72,7 +72,12 @@ export interface DependencyEntry {
   displayName: string;
   /** Manifest-specific dependency scope. */
   scope: string;
-  /** The version as the manifest writes it. The npm and Python readers give one so far. */
+  /**
+   * The version as the manifest writes it. The npm, Python and Cargo readers give one
+   * so far. A dependency that is not a registry release under its own name is written
+   * with a prefix, as npm does (`git+…`, `file:…`; Cargo also `registry:…` and
+   * `package:…` for a renamed crate), so a consumer can leave it out of registry checks.
+   */
   versionSpec?: string;
   /** Range used for line decorations and placement. */
   primaryRange: SourceRange;
