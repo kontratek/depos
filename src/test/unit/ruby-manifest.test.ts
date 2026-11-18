@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { analyze } from '../../core/analyze';
 import { dependencyAtOffset, manifestAdapterForPath } from '../../core/manifest';
 import { parseNotes } from '../../core/parseNotes';
-import { extractRubyDependencies, uniqueRubyDependencies } from '../../core/ruby-manifest';
+import { isRubyLockfilePath, parseRubyLockfile, rubyLockfileFor } from '../../core/ruby-lockfile';
+import { extractRubyDependencies, rubyPinnedVersion, uniqueRubyDependencies } from '../../core/ruby-manifest';
 
 describe('Ruby manifest matching', () => {
   it('matches Bundler and RubyGems manifests but not lockfiles', () => {
@@ -101,6 +102,109 @@ gem "real"
     expect(extractRubyDependencies('gem "first"\ngem "unterminated\n')).toEqual([
       expect.objectContaining({ noteKey: 'first', scope: 'default' }),
     ]);
+  });
+
+  it('keeps the requirement each gem writes, and where it comes from when not rubygems.org', () => {
+    expect(Object.fromEntries(extractRubyDependencies(gemfile).map((dependency) => [dependency.noteKey, dependency.versionSpec]))).toEqual({
+      'rails': '~> 8.0',
+      'puma': '>= 6',
+      'rspec': undefined,
+      'debug': undefined,
+      'jruby-openssl': undefined,
+      // The innermost block names the source: the git checkout, inside a private server's block.
+      'private_gem': 'git+https://example.test/repo.git',
+      'local_component': 'file:components',
+    });
+    const text = `gem "rails", "~> 7.1", ">= 7.1.2"
+gem "pinned", "1.2.3"
+gem "forked", git: "https://example.test/forked.git", branch: "main"
+gem "hub", github: "acme/hub"
+gem "local", path: "../local"
+gem "mirrored", "~> 1.0", source: "https://gems.example.test"
+gem "official", "~> 1.0", source: "https://rubygems.org"
+source "https://gems.example.test" do
+  gem "private", "~> 2.0"
+end
+`;
+    expect(Object.fromEntries(extractRubyDependencies(text).map((dependency) => [dependency.noteKey, dependency.versionSpec]))).toEqual({
+      rails: '~> 7.1, >= 7.1.2',
+      pinned: '1.2.3',
+      forked: 'git+https://example.test/forked.git',
+      hub: 'git+https://github.com/acme/hub',
+      local: 'file:../local',
+      mirrored: 'registry:https://gems.example.test',
+      official: '~> 1.0',
+      private: 'registry:https://gems.example.test',
+    });
+  });
+});
+
+describe('rubyPinnedVersion', () => {
+  it('names the release of an exact requirement, bare or with =', () => {
+    expect(rubyPinnedVersion('1.2.3')).toBe('1.2.3');
+    expect(rubyPinnedVersion('= 7.1.2')).toBe('7.1.2');
+    expect(rubyPinnedVersion('1.0.0.rc1')).toBe('1.0.0.rc1');
+    for (const spec of ['~> 7.1', '>= 6', '~> 7.1, >= 7.1.2', 'git+https://x', undefined]) {
+      expect(rubyPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
+  });
+});
+
+describe('Gemfile.lock', () => {
+  const lock = [
+    'GIT',
+    '  remote: https://example.test/forked.git',
+    '  revision: 0123abc',
+    '  specs:',
+    '    forked (2.0.0)',
+    '',
+    'PATH',
+    '  remote: ../local',
+    '  specs:',
+    '    local (0.1.0)',
+    '',
+    'GEM',
+    '  remote: https://rubygems.org/',
+    '  specs:',
+    '    nokogiri (1.15.4-x86_64-linux)',
+    '      racc (~> 1.4)',
+    '    nokogiri (1.15.4-arm64-darwin)',
+    '    rails (7.1.2)',
+    '      actioncable (= 7.1.2)',
+    '    sorbet (0.5.11000.rc1)',
+    '',
+    'GEM',
+    '  remote: https://gems.example.test/',
+    '  specs:',
+    '    private (2.0.1)',
+    '',
+    'PLATFORMS',
+    '  x86_64-linux',
+    '',
+    'DEPENDENCIES',
+    '  rails (~> 7.1)',
+  ].join('\n');
+  const parsed = parseRubyLockfile('Gemfile.lock', lock);
+
+  it('gives each rubygems.org gem its locked version, without the platform', () => {
+    expect(parsed.resolve('Gemfile', 'rails', '~> 7.1')).toBe('7.1.2');
+    expect(parsed.resolve('Gemfile', 'nokogiri', undefined)).toBe('1.15.4');
+    expect(parsed.resolve('Gemfile', 'sorbet', undefined)).toBe('0.5.11000.rc1');
+    // A dependency of a gem, indented deeper, is not a gem of its own here.
+    expect(parsed.resolve('Gemfile', 'racc', undefined)).toBeUndefined();
+  });
+
+  it('gives none for a git, path or private-server gem', () => {
+    expect(parsed.resolve('Gemfile', 'forked', 'git+https://example.test/forked.git')).toBeUndefined();
+    expect(parsed.resolve('Gemfile', 'local', 'file:../local')).toBeUndefined();
+    expect(parsed.resolve('Gemfile', 'private', '~> 2.0')).toBeUndefined();
+  });
+
+  it('finds the lockfile beside the Gemfile or gems.rb, and refuses what is not one', () => {
+    expect(isRubyLockfilePath('app/Gemfile.lock')).toBe(true);
+    expect(isRubyLockfilePath('app/gems.locked')).toBe(true);
+    expect(rubyLockfileFor('app/Gemfile', new Set(['app/Gemfile.lock']))).toBe('app/Gemfile.lock');
+    expect(() => parseRubyLockfile('Gemfile.lock', '{"packages": []}')).toThrow();
   });
 });
 

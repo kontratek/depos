@@ -10,7 +10,16 @@ object GleamManifestAdapter : ManifestAdapter {
     override val notesRelativePath = ".depos/gleam/DEPENDENCY-NOTES.md"
     override fun normalizeNoteKey(raw: String): String = ManifestRegistry.stripName(raw)
 
-    private val dependencyScopes = setOf("dependencies", "dev_dependencies")
+    /**
+     * Dependency tables, by the scope each is reported under. Gleam documents
+     * `dev_dependencies`, and also reads the older `dev-dependencies` that many published
+     * packages still write: both are one scope.
+     */
+    private val dependencyScopes = mapOf(
+        "dependencies" to "dependencies",
+        "dev_dependencies" to "dev_dependencies",
+        "dev-dependencies" to "dev_dependencies",
+    )
     private val tablePattern = Regex("^\\s*\\[\\s*([^]]+)\\s*]\\s*$")
     private val bareKeyPattern = Regex("^[A-Za-z0-9_-]+$")
 
@@ -29,7 +38,7 @@ object GleamManifestAdapter : ManifestAdapter {
 
             if (content.trimStart().startsWith('[')) {
                 val table = tablePattern.matchEntire(content)?.groupValues?.get(1)?.trim()
-                activeScope = table?.takeIf(dependencyScopes::contains)
+                activeScope = table?.let(dependencyScopes::get)
                 continue
             }
 

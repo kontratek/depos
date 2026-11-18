@@ -2,6 +2,7 @@ package dev.pacmon.jetbrains.depos
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import dev.pacmon.jetbrains.core.ComposerManifestAdapter
 import dev.pacmon.jetbrains.core.ManifestKind
 import dev.pacmon.jetbrains.core.ManifestRegistry
 import dev.pacmon.jetbrains.depos.DeposJson.bool
@@ -168,9 +169,10 @@ class OrgLayer(val data: OrgContextData) {
         for (version in data.packages) versions[DeposJson.lookupKey(version.ecosystem, version.noteKey)] = version
     }
 
-    /** null: the ecosystem is not audited, nothing is shown. */
+    /** null: the ecosystem is not audited, or the name is a platform requirement (`php`, `ext-json`). Nothing is shown. */
     fun result(ecosystem: ManifestKind, name: String): OrgResult? {
         val mode = modes[ecosystem.id] ?: return null
+        if (ecosystem == ManifestKind.COMPOSER && ComposerManifestAdapter.isPlatformRequirement(name)) return null
         val decision = decisions[DeposJson.lookupKey(ecosystem.id, ManifestRegistry.normalizeName(name, ecosystem))]
             ?: return OrgResult(OrgResult.Kind.UNLISTED, mode)
         val kind = if (decision.deny) OrgResult.Kind.DENIED else OrgResult.Kind.ALLOWED

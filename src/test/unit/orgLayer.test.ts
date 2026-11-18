@@ -121,6 +121,16 @@ describe('OrgLayer', () => {
     expect(isViolation(layer.result('cargo', 'serde'))).toBe(false);
   });
 
+  it('shows nothing for a Composer platform requirement, which no allowlist decides', () => {
+    const composer = new OrgLayer(answer({ policies: [{ ecosystem: 'composer', mode: 'enforce', versionRule: 'off', decisions: [] }] }));
+    for (const name of ['php', 'PHP-64bit', 'ext-json', 'lib-curl', 'composer-runtime-api']) {
+      expect(composer.result('composer', name), name).toBeUndefined();
+    }
+    expect(composer.result('composer', 'monolog/monolog')).toEqual({ kind: 'unlisted', mode: 'enforce' });
+    // Only Composer has platform requirements: an npm package named php is a package.
+    expect(layer.result('npm', 'php')).toEqual({ kind: 'unlisted', mode: 'enforce' });
+  });
+
   it('matches names the way Depos stores them', () => {
     expect(layer.result('npm', 'Express')?.kind).toBe('allowed');
     expect(layer.result('python', 'Django_Rest')?.kind).toBe('allowed');

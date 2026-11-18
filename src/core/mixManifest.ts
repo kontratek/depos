@@ -229,11 +229,65 @@ function atomsFromOption(tokens: readonly Token[], name: string): string[] | und
   return undefined;
 }
 
+/** The token a top-level keyword option names (`git: "…"`), or undefined. */
+function keywordToken(tokens: readonly Token[], name: string): Token | undefined {
+  const stack: string[] = [];
+  for (let i = 0; i < tokens.length - 2; i++) {
+    const token = tokens[i]!;
+    if (stack.length === 0 && token.kind === 'word' && token.value === name && tokens[i + 1]?.value === ':') return tokens[i + 2];
+    const nested = OPEN_TO_CLOSE[token.value];
+    if (nested) stack.push(nested);
+    else if (token.value === stack[stack.length - 1]) stack.pop();
+  }
+  return undefined;
+}
+
+/** A plain double- or single-quoted string token's content, or undefined (a sigil, an atom, …). */
+function stringContent(token: Token | undefined): string | undefined {
+  if (token?.kind !== 'literal') return undefined;
+  const quote = token.value[0];
+  if ((quote !== '"' && quote !== "'") || token.value.length < 2 || token.value.at(-1) !== quote) return undefined;
+  return decodeQuoted(token.value.slice(1, -1), quote);
+}
+
+/**
+ * The requirement a dependency writes (`"~> 1.7"`), or where it comes from instead,
+ * prefixed as npm does so a consumer can leave it out of registry checks:
+ * `git+<url>` (`git:` and `github:`), `file:<path>`, `workspace:umbrella` (a sibling
+ * umbrella app), `package:<name>` (`hex: :name`, a renamed package) and
+ * `registry:<name>` (a private organization or repository).
+ */
+function mixSpec(options: readonly Token[]): string | undefined {
+  const git = stringContent(keywordToken(options, 'git'));
+  if (git) return `git+${git}`;
+  const github = stringContent(keywordToken(options, 'github'));
+  if (github) return `git+https://github.com/${github}`;
+  const path = stringContent(keywordToken(options, 'path'));
+  if (path) return `file:${path}`;
+  if (keywordToken(options, 'in_umbrella')?.value === 'true') return 'workspace:umbrella';
+  const organization = stringContent(keywordToken(options, 'organization'));
+  const repo = stringContent(keywordToken(options, 'repo'));
+  if (organization || (repo && repo !== 'hexpm')) return `registry:${organization ?? repo}`;
+  const hex = keywordToken(options, 'hex');
+  if (hex?.kind === 'atom') return `package:${hex.value}`;
+  const requirement = stringContent(options[0]);
+  return requirement?.trim() || undefined;
+}
+
+/**
+ * The one release an exact requirement names, or undefined. In Elixir a version
+ * with no operator is an exact match, as `==` is (`Version.match?/2`).
+ */
+export function mixPinnedVersion(versionSpec: string | undefined): string | undefined {
+  return /^(?:==\s*)?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(versionSpec?.trim() ?? '')?.[1];
+}
+
 function dependencyFromTuple(tokens: readonly Token[]): DependencyEntry | undefined {
   if (tokens.length < 4 || tokens[0]?.value !== '{' || tokens[tokens.length - 1]?.value !== '}') return undefined;
   const atom = tokens[1];
   if (!atom || atom.kind !== 'atom' || tokens[2]?.value !== ',') return undefined;
   const options = tokens.slice(3, -1);
+  const versionSpec = mixSpec(options);
   const environments = atomsFromOption(options, 'only');
   const targets = atomsFromOption(options, 'targets');
   let scope = 'deps';
@@ -243,7 +297,7 @@ function dependencyFromTuple(tokens: readonly Token[]): DependencyEntry | undefi
     offset: atom.contentStart ?? atom.start,
     length: (atom.contentEnd ?? atom.end) - (atom.contentStart ?? atom.start),
   };
-  return dependencyEntry(
+  const entry = dependencyEntry(
     atom.value,
     scope,
     primaryRange,
@@ -251,6 +305,7 @@ function dependencyFromTuple(tokens: readonly Token[]): DependencyEntry | undefi
     atom.value,
     { offset: tokens[0]!.start, length: 1 },
   );
+  return versionSpec ? { ...entry, versionSpec } : entry;
 }
 
 function dependenciesFromList(tokens: readonly Token[], open: number, close: number): DependencyEntry[] {

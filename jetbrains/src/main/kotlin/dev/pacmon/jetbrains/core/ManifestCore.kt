@@ -148,6 +148,13 @@ object ComposerManifestAdapter : ManifestAdapter {
         RegexOption.IGNORE_CASE,
     )
 
+    /**
+     * Whether a requirement is on the platform (the PHP version, an extension, a system
+     * library, Composer's own APIs) rather than a package. A notes file can document it,
+     * but no registry publishes it, so an allowlist has nothing to decide.
+     */
+    fun isPlatformRequirement(name: String): Boolean = platformPackage.matches(name)
+
     /** Reads direct Composer requirements without invoking PHP or Composer. */
     override fun extractDependencies(text: String): List<DependencyEntry> {
         val root = JsonReader(text).readValue() as? JsonObject ?: return emptyList()
@@ -169,7 +176,7 @@ object ComposerManifestAdapter : ManifestAdapter {
     }
 
     private fun isDependencyName(value: String): Boolean =
-        packageName.matches(value) || platformPackage.matches(value)
+        packageName.matches(value) || isPlatformRequirement(value)
 }
 
 object VcpkgManifestAdapter : ManifestAdapter {

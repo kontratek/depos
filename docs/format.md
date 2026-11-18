@@ -241,7 +241,7 @@ A section written later in file mode becomes a candidate again. It does not chan
 
 Each ecosystem has a policy mode: Off, Audit or Enforce. In an ecosystem set to Audit or Enforce, each package is Allowed, Denied or Not listed in each repository.
 
-- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed.
+- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed. A Composer platform requirement (`php`, `ext-*`, `lib-*`, Composer's APIs) is not a package: it has no result, and no mark.
 - A tool marks Denied and Not listed packages at their manifest line. In Audit this is a warning. In Enforce it is an error.
 - An ecosystem set to Off shows no result.
 

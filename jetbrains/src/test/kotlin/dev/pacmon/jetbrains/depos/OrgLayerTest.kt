@@ -74,6 +74,18 @@ class OrgLayerTest {
     }
 
     @Test
+    fun `a Composer platform requirement shows nothing, as no allowlist decides it`() {
+        val policies = """[{"ecosystem":"composer","mode":"enforce","decisions":[]},{"ecosystem":"npm","mode":"enforce","decisions":[]}]"""
+        val layer = OrgLayer(OrgLayers.parse(JsonParser.parseString(answer(policies)))!!)
+        for (name in listOf("php", "PHP-64bit", "ext-json", "lib-curl", "composer-runtime-api")) {
+            assertNull(name, layer.result(ManifestKind.COMPOSER, name))
+        }
+        assertEquals(OrgResult(OrgResult.Kind.UNLISTED, PolicyMode.ENFORCE), layer.result(ManifestKind.COMPOSER, "monolog/monolog"))
+        // Only Composer has platform requirements: an npm package named php is a package.
+        assertEquals(OrgResult(OrgResult.Kind.UNLISTED, PolicyMode.ENFORCE), layer.result(ManifestKind.NPM, "php"))
+    }
+
+    @Test
     fun `manifest names match the stored keys`() {
         val layer = layer()
         assertEquals(OrgResult.Kind.ALLOWED, layer.result(ManifestKind.NPM, "Express")?.kind)
