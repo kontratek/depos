@@ -49,6 +49,15 @@ class GleamManifestTest {
     }
 
     @Test
+    fun `reads the older dev-dependencies table as the same development scope`() {
+        val text = "[dependencies]\ngleam_stdlib = \"~> 0.40\"\n\n[dev-dependencies]\ngleeunit = \"~> 1.0\"\n\n[dev_dependencies]\ngleeunit = \"~> 1.0\"\n"
+        assertEquals(
+            listOf("dependencies:gleam_stdlib", "dev_dependencies:gleeunit"),
+            GleamManifestAdapter.extractDependencies(text).map { "${it.scope}:${it.noteKey}" },
+        )
+    }
+
+    @Test
     fun `keeps keys clickable and uses them as marker anchors`() {
         val dependencies = GleamManifestAdapter.extractDependencies(manifest)
         val stdlib = dependencies.first()

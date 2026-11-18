@@ -40,6 +40,12 @@ typescript_declarations = true`;
       ]);
   });
 
+  it('reads the older [dev-dependencies] table as the same development scope', () => {
+    const text = `[dependencies]\ngleam_stdlib = "~> 0.40"\n\n[dev-dependencies]\ngleeunit = "~> 1.0"\n\n[dev_dependencies]\ngleeunit = "~> 1.0"\n`;
+    expect(extractGleamDependencies(text).map((dependency) => `${dependency.scope}:${dependency.noteKey}`))
+      .toEqual(['dependencies:gleam_stdlib', 'dev_dependencies:gleeunit']);
+  });
+
   it('keeps dependency keys clickable and uses them as marker anchors', () => {
     const dependencies = extractGleamDependencies(manifest);
     const stdlib = dependencies[0]!;

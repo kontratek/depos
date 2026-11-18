@@ -6,7 +6,16 @@ interface ParsedKey {
   range: SourceRange;
 }
 
-const DEPENDENCY_SCOPES = new Set(['dependencies', 'dev_dependencies']);
+/**
+ * Dependency tables, by the scope each is reported under. Gleam documents
+ * `dev_dependencies`, and also reads the older `dev-dependencies` that many published
+ * packages still write: both are one scope.
+ */
+const DEPENDENCY_SCOPES = new Map([
+  ['dependencies', 'dependencies'],
+  ['dev_dependencies', 'dev_dependencies'],
+  ['dev-dependencies', 'dev_dependencies'],
+]);
 
 function splitLines(text: string): Array<{ text: string; offset: number }> {
   const lines: Array<{ text: string; offset: number }> = [];
@@ -178,7 +187,7 @@ export function extractGleamDependencies(text: string): DependencyEntry[] {
 
     if (content.trimStart().startsWith('[')) {
       const name = tableName(content);
-      activeScope = name && DEPENDENCY_SCOPES.has(name) ? name : undefined;
+      activeScope = name ? DEPENDENCY_SCOPES.get(name) : undefined;
       continue;
     }
     if (!activeScope) continue;
