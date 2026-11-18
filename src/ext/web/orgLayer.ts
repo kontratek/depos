@@ -1,5 +1,6 @@
 import { normalizeNameForEcosystem } from '../../core/match';
 import type { ManifestKind } from '../../core/model';
+import { isPlatformRequirement } from '../../core/platform-requirement';
 import { isObject, list, lookupKey, str } from './json';
 
 /**
@@ -151,10 +152,10 @@ export class OrgLayer {
     for (const v of data.packages ?? []) this.versions.set(lookupKey(v.ecosystem, v.noteKey), v);
   }
 
-  /** undefined: the ecosystem is not audited, nothing is shown. */
+  /** undefined: the ecosystem is not audited, or the name is a platform requirement (`php`, `ext-json`). Nothing is shown. */
   result(ecosystem: ManifestKind, name: string): OrgResult | undefined {
     const mode = this.modes.get(ecosystem);
-    if (!mode) return undefined;
+    if (!mode || isPlatformRequirement(ecosystem, name)) return undefined;
     const d = this.decisions.get(lookupKey(ecosystem, normalizeNameForEcosystem(name, ecosystem)));
     if (!d) return { kind: 'unlisted', mode };
     return { kind: d.decision === 'deny' ? 'denied' : 'allowed', mode };

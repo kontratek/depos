@@ -1,10 +1,10 @@
 import { parseTree, type Node as JsonNode } from 'jsonc-parser';
 import { dependencyEntry } from './dependency';
 import type { DependencyEntry, SourceRange } from './model';
+import { isPlatformRequirement } from './platform-requirement';
 
 const DEPENDENCY_SECTIONS = ['require', 'require-dev'] as const;
 const PACKAGE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/;
-const PLATFORM_PACKAGE = /^(?:php(?:-[A-Za-z0-9_.-]+)?|hhvm|ext-[A-Za-z0-9_.-]+|lib-[A-Za-z0-9_.-]+|composer(?:-(?:plugin|runtime)-api)?)$/i;
 
 function property(node: JsonNode, name: string): JsonNode | undefined {
   if (node.type !== 'object') return undefined;
@@ -23,7 +23,7 @@ function stringContentRange(node: JsonNode): SourceRange {
 }
 
 function isDependencyName(value: string): boolean {
-  return PACKAGE_NAME.test(value) || PLATFORM_PACKAGE.test(value);
+  return PACKAGE_NAME.test(value) || isPlatformRequirement('composer', value);
 }
 
 function dependenciesFrom(node: JsonNode | undefined, scope: string): DependencyEntry[] {

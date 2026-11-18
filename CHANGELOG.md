@@ -12,6 +12,11 @@
   versions did. Its dependencies now get markers and notes, as those under
   `[dev_dependencies]` do. The same in JetBrains IDEs.
 
+- **Composer platform requirements are no longer Not listed.** `php`,
+  `ext-*`, `lib-*` and Composer's own APIs are not packages, so no Depos
+  allowlist decides them, and their manifest lines get no allowlist mark. You
+  can still write notes for them. The same in JetBrains IDEs.
+
 - **Denied versions and vulnerable versions show at the manifest line.** In
   Depos, an Allow entry for an npm package can now deny some versions of it, and
   an npm policy can make a version with a known vulnerability of critical or
