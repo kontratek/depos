@@ -13,9 +13,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      # pnpm's version is packageManager in package.json, the one local runs use;
+      # the action refuses a second version here.
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -31,8 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -107,8 +105,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 22

@@ -5,6 +5,7 @@
   "version": "0.11.0",
   "publisher": "kontra",
   "private": true,
+  "packageManager": "pnpm@11.16.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -467,17 +468,18 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.20.1",
+    "@types/node": "^22.20.5",
     "@types/vscode": "~1.101.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
-    "eslint": "^10.9.1",
-    "ovsx": "^1.1.1",
-    "prettier": "^3.9.6",
+    "eslint": "^10.15.0",
+    "ovsx": "^1.4.0",
+    "prettier": "^3.10.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.69.0",
-    "vitest": "^4.1.11"
+    "typescript-eslint": "^8.73.0",
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12"
   }
 }

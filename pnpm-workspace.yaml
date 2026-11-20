@@ -2,3 +2,11 @@ allowBuilds:
   esbuild: true
   keytar: false
   '@vscode/vsce-sign': false
+
+# Security fixes for development tools whose own ranges do not take them yet.
+# Drop an entry once the parent's range moves past it (pnpm why <name>).
+overrides:
+  # mocha 11 (through @vscode/test-cli) asks for serialize-javascript 6 and diff 7;
+  # mocha 12 has moved to these, with the same API.
+  'serialize-javascript@<7.1.3': ^7.1.3
+  'diff@<8.0.3': ^8.0.3
