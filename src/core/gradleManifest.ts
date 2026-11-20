@@ -16,7 +16,10 @@ interface ParsedDependency {
   noteKey: string;
   primaryRange: SourceRange;
   sourceRanges: SourceRange[];
-  /** The version as written (`33.4.0-jre`, `1.0!!`, `$guavaVersion`); none for a catalog alias or a platform-managed module. */
+  /**
+   * The version as written (`33.4.0-jre`, `1.0!!`, `$guavaVersion`); none for a platform-managed
+   * module, or for a catalog alias, whose version is in the catalog (gradle-version-catalog.ts).
+   */
   versionSpec?: string;
 }
 
