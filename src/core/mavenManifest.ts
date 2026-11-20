@@ -30,11 +30,14 @@ interface ParentRef {
 
 /** What one pom.xml says about itself, as written. */
 interface PomModel {
+  /** The path in the repository, or `registry:` and `group:artifact:version` for a registry's pom. */
   path: string;
   text: string;
   project: XmlNode;
   /** `groupId:artifactId`, the group inherited from the parent when not written. */
   coordinate?: string;
+  /** The pom's version, inherited from the parent when not written. */
+  version?: string;
   parent?: ParentRef;
   properties: Map<string, string>;
   managed: ManagedEntry[];
@@ -108,11 +111,13 @@ function readPom(path: string, source: string): PomModel | undefined {
   const parent = parentOf(source, project);
   const group = text(source, project, 'groupId') ?? parent?.group;
   const artifact = text(source, project, 'artifactId');
+  const version = text(source, project, 'version') ?? parent?.version;
   return {
     path,
     text: source,
     project,
     ...(group && artifact ? { coordinate: `${group}:${artifact}` } : {}),
+    ...(version ? { version } : {}),
     ...(parent ? { parent } : {}),
     properties: propertiesOf(source, project),
     managed: managedEntriesOf(source, project),
@@ -154,26 +159,50 @@ function joinPath(directory: string, relative: string): string | undefined {
   return parts.join('/');
 }
 
+const REGISTRY_PREFIX = 'registry:';
+const COORDINATE_PART_RE = /^[A-Za-z0-9_][\w.-]*$/;
+
+/**
+ * The registry key of a released pom, `group:artifact:version`, or undefined when
+ * it names none: a property not filled in, a `-SNAPSHOT` (never on Maven Central),
+ * a range, or anything that is not a plain coordinate.
+ */
+export function mavenRegistryKey(group: string, artifact: string, version: string | undefined): string | undefined {
+  if (!version || /SNAPSHOT$/i.test(version)) return undefined;
+  if (![group, artifact, version].every((part) => COORDINATE_PART_RE.test(part) && !part.includes('..'))) return undefined;
+  return `${group}:${artifact}:${version}`;
+}
+
 /**
  * The poms of one repository, read together: a module inherits its parent's
  * properties and `<dependencyManagement>`, and a BOM it imports adds that BOM's
- * management. Only poms in the repository are read; a parent or a BOM from a
- * registry (`spring-boot-starter-parent`) is not, so a version only it gives is
- * unknown.
+ * management.
+ *
+ * A parent or a BOM the repository does not hold (`spring-boot-starter-parent`) is
+ * read from `registry`, the released poms the caller fetched by their
+ * `group:artifact:version`. `registryPomsNeeded` names the ones still missing: the
+ * caller fetches them and reads the build again, until nothing is missing. A pom
+ * `registry` maps to null is not there to read. Without it, a version only a
+ * registry's pom gives is unknown.
  *
  * As Maven does: inheritance first (a child's property or managed entry replaces
  * its parent's), then `${…}` is filled in from the merged properties, so a child can
- * change the version its parent manages. Imports come last: an imported BOM is read
- * with its own properties, and never replaces an entry the pom or its parents
- * manage; of two BOMs, the first imported wins.
+ * change the version its parent manages, even a BOM's version (Spring Boot's
+ * `jackson-bom.version`). Imports come last: an imported BOM is read with its own
+ * properties, and never replaces an entry the pom or its parents manage; of two
+ * BOMs, the first imported wins.
  */
 export class MavenBuild {
   private readonly models = new Map<string, PomModel | null>();
   private readonly inherited = new Map<string, InheritedPom>();
   private readonly versions = new Map<string, PomVersions>();
+  private readonly needed = new Set<string>();
   private byCoordinate?: Map<string, string | null>;
 
-  constructor(private readonly poms: ReadonlyMap<string, string>) {}
+  constructor(
+    private readonly poms: ReadonlyMap<string, string>,
+    private readonly registry: ReadonlyMap<string, string | null> = new Map(),
+  ) {}
 
   private model(path: string): PomModel | undefined {
     if (!this.models.has(path)) {
@@ -181,6 +210,34 @@ export class MavenBuild {
       this.models.set(path, source === undefined ? null : readPom(path, source) ?? null);
     }
     return this.models.get(path) ?? undefined;
+  }
+
+  /** A registry's pom by its key; a key `registry` does not hold yet is needed. */
+  private registryModel(key: string | undefined): PomModel | undefined {
+    if (!key) return undefined;
+    const path = `${REGISTRY_PREFIX}${key}`;
+    if (!this.models.has(path)) {
+      if (!this.registry.has(key)) {
+        this.needed.add(key);
+        return undefined;
+      }
+      const source = this.registry.get(key);
+      this.models.set(path, source == null ? null : readPom(path, source) ?? null);
+    }
+    return this.models.get(path) ?? undefined;
+  }
+
+  private static fromRegistry(model: PomModel): boolean {
+    return model.path.startsWith(REGISTRY_PREFIX);
+  }
+
+  /** The released poms the repository's poms need that `registry` does not hold, by `group:artifact:version`. */
+  registryPomsNeeded(): string[] {
+    for (const path of this.poms.keys()) {
+      const model = this.model(path);
+      if (model) this.pomVersions(model);
+    }
+    return [...this.needed];
   }
 
   /** The repository's pom for a `groupId:artifactId`, when exactly one has it. */
@@ -195,8 +252,16 @@ export class MavenBuild {
     return this.byCoordinate.get(coordinate) ?? undefined;
   }
 
-  /** The parent pom in the repository: at `<relativePath>` (by default `../pom.xml`) when it is that module, else the one module that is. */
+  /** The parent pom: the repository's, else the registry's. A registry's pom has only a registry parent. */
   private parentModel(model: PomModel): PomModel | undefined {
+    const parent = model.parent;
+    if (!parent) return undefined;
+    const inRepository = MavenBuild.fromRegistry(model) ? undefined : this.repositoryParent(model);
+    return inRepository ?? this.registryModel(mavenRegistryKey(parent.group, parent.artifact, parent.version));
+  }
+
+  /** The parent pom in the repository: at `<relativePath>` (by default `../pom.xml`) when it is that module, else the one module that is. */
+  private repositoryParent(model: PomModel): PomModel | undefined {
     const parent = model.parent;
     if (!parent) return undefined;
     const coordinate = `${parent.group}:${parent.artifact}`;
@@ -233,10 +298,18 @@ export class MavenBuild {
     visiting.add(model.path);
     const inherited = this.inherit(model, new Set());
     const properties = new Map(inherited.properties);
-    // Coordinates only: a version stays `${project.version}` (see interpolate).
+    const builtIn = (name: string, value: string | undefined) => {
+      if (value && !properties.has(name)) properties.set(name, value);
+    };
     const [group, artifact] = model.coordinate?.split(':') ?? [];
-    if (group && !properties.has('project.groupId')) properties.set('project.groupId', group);
-    if (artifact && !properties.has('project.artifactId')) properties.set('project.artifactId', artifact);
+    builtIn('project.groupId', group);
+    builtIn('project.artifactId', artifact);
+    // A repository's own version stays `${project.version}` (see interpolate); a
+    // released pom's is a release, and its BOM entries often name it.
+    if (MavenBuild.fromRegistry(model)) {
+      builtIn('project.version', model.version);
+      builtIn('project.parent.version', model.parent?.version);
+    }
     const managed = new Map<string, string>();
     const imports: ManagedEntry[] = [];
     for (const entry of inherited.managed.values()) {
@@ -249,8 +322,11 @@ export class MavenBuild {
       }
     }
     for (const entry of imports) {
-      const path = this.pathOf(`${interpolate(entry.group, properties)}:${interpolate(entry.artifact, properties)}`);
-      const bom = path ? this.model(path) : undefined;
+      const bomGroup = interpolate(entry.group, properties);
+      const bomArtifact = interpolate(entry.artifact, properties);
+      const path = MavenBuild.fromRegistry(model) ? undefined : this.pathOf(`${bomGroup}:${bomArtifact}`);
+      const bom = (path ? this.model(path) : undefined)
+        ?? this.registryModel(mavenRegistryKey(bomGroup, bomArtifact, entry.version && interpolate(entry.version, properties)));
       if (!bom || visiting.has(bom.path)) continue;
       for (const [key, version] of this.pomVersions(bom, visiting).managed) {
         if (!managed.has(key)) managed.set(key, version);
@@ -272,7 +348,7 @@ export class MavenBuild {
     if (!model) return [];
     const versions = this.pomVersions(model);
     const out: DependencyEntry[] = [];
-    if (options.parent && model.parent && !this.parentModel(model)) {
+    if (options.parent && model.parent && !this.repositoryParent(model)) {
       const { group, artifact, version, groupRange, artifactRange, iconRange } = model.parent;
       const noteKey = `${group}:${artifact}`;
       const entry = dependencyEntry(noteKey, 'parent', artifactRange, [groupRange, artifactRange], noteKey, iconRange);
@@ -288,9 +364,15 @@ export class MavenBuild {
   }
 }
 
-/** Reads a repository's poms together, by path. */
-export function readMavenBuild(poms: ReadonlyArray<{ path: string; text: string }>): MavenBuild {
-  return new MavenBuild(new Map(poms.map((pom) => [pom.path.replace(/\\/g, '/'), pom.text])));
+/**
+ * Reads a repository's poms together, by path, with the released poms fetched so
+ * far by `group:artifact:version` (null: not in the registry).
+ */
+export function readMavenBuild(
+  poms: ReadonlyArray<{ path: string; text: string }>,
+  registry: ReadonlyMap<string, string | null> = new Map(),
+): MavenBuild {
+  return new MavenBuild(new Map(poms.map((pom) => [pom.path.replace(/\\/g, '/'), pom.text])), registry);
 }
 
 /**
