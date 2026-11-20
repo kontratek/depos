@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dependencyAtOffset, manifestAdapterForPath } from '../../core/manifest';
-import { extractGoDependencies } from '../../core/go-manifest';
+import { extractGoDependencies, goPinnedVersion } from '../../core/go-manifest';
 
 describe('Go manifest matching', () => {
   it('matches go.mod only', () => {
@@ -76,5 +76,72 @@ godebug default=go1.21
 
   it('returns nothing for a go.mod without requirements', () => {
     expect(extractGoDependencies('module m\n\ngo 1.22\n')).toEqual([]);
+  });
+});
+
+describe('go.mod versions', () => {
+  const goMod = `module example.com/app
+
+go 1.23
+
+require (
+	github.com/gin-gonic/gin v1.9.1
+	golang.org/x/text v0.14.0 // indirect
+	example.com/local v1.0.0
+	example.com/forked v1.2.0
+	example.com/bumped v1.0.0
+	example.com/only-old v1.0.0
+	example.com/pseudo v0.0.0-20240101000000-abcdef123456
+	example.com/legacy v2.0.0+incompatible
+)
+
+require github.com/spf13/cobra v1.8.0
+
+replace example.com/local => ../local
+
+replace (
+	example.com/forked => github.com/me/forked v1.2.1
+	example.com/bumped => example.com/bumped v1.0.1
+	example.com/only-old v0.9.0 => ../never
+)
+`;
+
+  it('gives each requirement its version, after replace', () => {
+    expect(Object.fromEntries(extractGoDependencies(goMod).map((d) => [d.noteKey, d.versionSpec]))).toEqual({
+      'github.com/gin-gonic/gin': 'v1.9.1',
+      'golang.org/x/text': 'v0.14.0',
+      'example.com/local': 'file:../local',
+      'example.com/forked': 'package:github.com/me/forked@v1.2.1',
+      'example.com/bumped': 'v1.0.1',
+      'example.com/only-old': 'v1.0.0',
+      'example.com/pseudo': 'v0.0.0-20240101000000-abcdef123456',
+      'example.com/legacy': 'v2.0.0+incompatible',
+      'github.com/spf13/cobra': 'v1.8.0',
+    });
+  });
+
+  it('gives a standalone tool no version', () => {
+    const [tool] = extractGoDependencies('module m\n\ntool golang.org/x/tools/cmd/stringer\n');
+    expect(tool?.versionSpec).toBeUndefined();
+  });
+
+  it('a replacement for one version wins over one for every version', () => {
+    const text = 'module m\nrequire a.com/x v1.0.0\nreplace a.com/x => ../all\nreplace a.com/x v1.0.0 => a.com/x v1.0.5\n';
+    expect(extractGoDependencies(text)[0]?.versionSpec).toBe('v1.0.5');
+  });
+});
+
+describe('goPinnedVersion', () => {
+  it('installs a release or pseudo-version as written', () => {
+    expect(goPinnedVersion('v1.9.1')).toBe('v1.9.1');
+    expect(goPinnedVersion('v2.0.0+incompatible')).toBe('v2.0.0+incompatible');
+    expect(goPinnedVersion('v0.0.0-20240101000000-abcdef123456')).toBe('v0.0.0-20240101000000-abcdef123456');
+    expect(goPinnedVersion('v1.0.0-rc.1')).toBe('v1.0.0-rc.1');
+  });
+
+  it('reads nothing else as a release', () => {
+    for (const spec of [undefined, '', '1.9.1', 'v1.9', 'file:../local', 'package:github.com/me/forked@v1.2.1', 'latest']) {
+      expect(goPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
   });
 });
