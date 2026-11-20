@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractMavenDependencies, readMavenBuild } from '../../core/mavenManifest';
+import { extractMavenDependencies, mavenRegistryKey, readMavenBuild } from '../../core/mavenManifest';
 
 const pom = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>\n<project>\n<modelVersion>4.0.0</modelVersion>\n${body}\n</project>\n`;
 const dep = (group: string, artifact: string, extra = '') => `<dependency><groupId>${group}</groupId><artifactId>${artifact}</artifactId>${extra}</dependency>`;
@@ -132,5 +132,98 @@ describe('readMavenBuild', () => {
       ['junit:junit', 'test', undefined],
     ]);
     expect(build.dependencies('missing/pom.xml')).toEqual([]);
+  });
+
+  describe('with a registry\'s poms', () => {
+    const app = pom(`
+<parent><groupId>org.example</groupId><artifactId>starter-parent</artifactId><version>3.3.5</version><relativePath/></parent>
+<artifactId>service</artifactId>
+<properties>{{OVERRIDE}}</properties>
+<dependencies>
+  ${dep('org.example', 'starter-web')}
+  ${dep('com.fasterxml.jackson.core', 'jackson-databind')}
+  ${dep('org.slf4j', 'slf4j-api')}
+  ${dep('com.private', 'internal-lib')}
+</dependencies>`);
+    const registry = {
+      'org.example:starter-parent:3.3.5': pom(`<parent><groupId>org.example</groupId><artifactId>dependencies</artifactId><version>3.3.5</version></parent>
+<artifactId>starter-parent</artifactId><packaging>pom</packaging>`),
+      'org.example:dependencies:3.3.5': pom(`<groupId>org.example</groupId><artifactId>dependencies</artifactId><version>3.3.5</version><packaging>pom</packaging>
+<properties><jackson-bom.version>2.17.2</jackson-bom.version><slf4j.version>2.0.16</slf4j.version></properties>
+<dependencyManagement><dependencies>
+  ${dep('org.example', 'starter-web', '<version>3.3.5</version>')}
+  ${dep('org.slf4j', 'slf4j-api', '<version>${slf4j.version}</version>')}
+  ${dep('com.fasterxml.jackson', 'jackson-bom', '<version>${jackson-bom.version}</version><type>pom</type><scope>import</scope>')}
+  ${dep('com.private', 'private-bom', '<version>1.0</version><type>pom</type><scope>import</scope>')}
+</dependencies></dependencyManagement>`),
+      'com.fasterxml.jackson:jackson-bom:2.17.2': pom(`<groupId>com.fasterxml.jackson</groupId><artifactId>jackson-bom</artifactId><version>2.17.2</version>
+<dependencyManagement><dependencies>${dep('com.fasterxml.jackson.core', 'jackson-databind', '<version>${project.version}</version>')}</dependencies></dependencyManagement>`),
+      'com.fasterxml.jackson:jackson-bom:2.18.0': pom(`<groupId>com.fasterxml.jackson</groupId><artifactId>jackson-bom</artifactId><version>2.18.0</version>
+<dependencyManagement><dependencies>${dep('com.fasterxml.jackson.core', 'jackson-databind', '<version>${project.version}</version>')}</dependencies></dependencyManagement>`),
+      // Not on Maven Central: a company's own BOM.
+      'com.private:private-bom:1.0': null,
+    } as Record<string, string | null>;
+    const files = (override = '') => [{ path: 'pom.xml', text: app.replace('{{OVERRIDE}}', override) }];
+
+    /** Fetches what the build needs, round by round, as a caller does. */
+    function resolve(override = '') {
+      const fetched = new Map<string, string | null>();
+      const rounds: string[][] = [];
+      for (;;) {
+        const needed = readMavenBuild(files(override), fetched).registryPomsNeeded();
+        if (!needed.length) break;
+        rounds.push(needed);
+        for (const key of needed) fetched.set(key, key in registry ? registry[key]! : null);
+      }
+      return { rounds, build: readMavenBuild(files(override), fetched) };
+    }
+
+    it('asks for the parent chain and the BOMs it imports, one round at a time', () => {
+      expect(resolve().rounds).toEqual([
+        ['org.example:starter-parent:3.3.5'],
+        ['org.example:dependencies:3.3.5'],
+        ['com.fasterxml.jackson:jackson-bom:2.17.2', 'com.private:private-bom:1.0'],
+      ]);
+    });
+
+    it('gives the module the versions they manage, and still lists the registry parent', () => {
+      expect(versionsOf(resolve().build.dependencies('pom.xml', { parent: true }))).toEqual([
+        ['org.example:starter-parent', 'parent', '3.3.5'],
+        ['org.example:starter-web', 'compile', '3.3.5'],
+        // An imported BOM's ${project.version} is its own release.
+        ['com.fasterxml.jackson.core:jackson-databind', 'compile', '2.17.2'],
+        ['org.slf4j:slf4j-api', 'compile', '2.0.16'],
+        // In a BOM that is not in the registry.
+        ['com.private:internal-lib', 'compile', undefined],
+      ]);
+    });
+
+    it('lets the module choose the BOM version, as Spring Boot\'s properties do', () => {
+      const { rounds, build } = resolve('<jackson-bom.version>2.18.0</jackson-bom.version><slf4j.version>2.0.17</slf4j.version>');
+      expect(rounds[2]).toEqual(['com.fasterxml.jackson:jackson-bom:2.18.0', 'com.private:private-bom:1.0']);
+      const versions = Object.fromEntries(build.dependencies('pom.xml').map((entry) => [entry.noteKey, entry.versionSpec]));
+      expect(versions['com.fasterxml.jackson.core:jackson-databind']).toBe('2.18.0');
+      expect(versions['org.slf4j:slf4j-api']).toBe('2.0.17');
+    });
+
+    it('asks for no snapshot, no property it cannot fill in, and nothing the repository holds', () => {
+      const snapshot = pom(`<parent><groupId>g</groupId><artifactId>p</artifactId><version>1.0-SNAPSHOT</version></parent><artifactId>a</artifactId>`);
+      const property = pom(`<parent><groupId>g</groupId><artifactId>p</artifactId><version>\${revision}</version></parent><artifactId>b</artifactId>`);
+      expect(readMavenBuild([{ path: 'a/pom.xml', text: snapshot }, { path: 'b/pom.xml', text: property }]).registryPomsNeeded()).toEqual([]);
+      expect(readMavenBuild([{ path: 'pom.xml', text: ROOT }, { path: 'bom/pom.xml', text: BOM }, { path: 'app/pom.xml', text: APP }]).registryPomsNeeded()).toEqual([]);
+    });
+  });
+});
+
+describe('mavenRegistryKey', () => {
+  it('names a released pom, and nothing that is not a plain coordinate', () => {
+    expect(mavenRegistryKey('org.springframework.boot', 'spring-boot-dependencies', '3.3.5')).toBe('org.springframework.boot:spring-boot-dependencies:3.3.5');
+    expect(mavenRegistryKey('g', 'a', '1.0-SNAPSHOT')).toBeUndefined();
+    expect(mavenRegistryKey('g', 'a', '${revision}')).toBeUndefined();
+    expect(mavenRegistryKey('g', 'a', '[1.0,2.0)')).toBeUndefined();
+    expect(mavenRegistryKey('g', 'a', undefined)).toBeUndefined();
+    expect(mavenRegistryKey('..', 'a', '1')).toBeUndefined();
+    expect(mavenRegistryKey('g/../x', 'a', '1')).toBeUndefined();
+    expect(mavenRegistryKey('g', 'a', '1..2')).toBeUndefined();
   });
 });
