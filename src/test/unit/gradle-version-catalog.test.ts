@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractGradleDependencies } from '../../core/gradleManifest';
+import { extractGradleDependencies, extractGradleDependenciesWithBundles } from '../../core/gradleManifest';
 import {
   gradleCatalogAccessor,
   gradleCatalogFor,
@@ -119,5 +119,30 @@ describe('Gradle version catalogs', () => {
     expect(resolved[0]!.name).toBe('com.fasterxml.jackson.core:jackson-databind');
     expect(resolved[0]!.primaryRange).toEqual(entries[0]!.primaryRange);
     expect(script.slice(resolved[0]!.primaryRange.offset, resolved[0]!.primaryRange.offset + resolved[0]!.primaryRange.length)).toBe('libs.jackson.databind');
+  });
+
+  it('reads a bundle as the libraries it lists, once each, and leaves out what is no library', () => {
+    const withBundles = `${catalog}\n[bundles]\nweb = ["guava", 'groovy-core', "missing-alias", "guava"]\nhttp-stack = [ "okhttp" ]\n`;
+    const parsed = parseGradleVersionCatalog(withBundles);
+    expect(parsed.bundle('libs.bundles.web')?.map((library) => library.module)).toEqual(['com.google.guava:guava', 'org.apache.groovy:groovy']);
+    expect(parsed.bundle('libs.bundles.http.stack')).toEqual([{ module: 'com.squareup.okhttp3:okhttp', versionSpec: '4.12.0' }]);
+    // The bundle across lines in the catalog above.
+    expect(parsed.bundle('libs.bundles.jackson')?.map((library) => library.module)).toEqual(['com.fasterxml.jackson.core:jackson-databind', 'com.google.guava:guava']);
+    expect(parsed.bundle('libs.bundles.none')).toBeUndefined();
+  });
+
+  it('turns a bundle in a build file into its libraries, and drops a bundle the catalog does not name', () => {
+    const script = 'dependencies {\n  implementation(libs.bundles.jackson)\n  testImplementation(libs.bundles.unknown)\n  implementation(libs.guava)\n}\n';
+    // Read alone, a build file names no bundle: it is no package.
+    expect(extractGradleDependencies(script).map((dep) => dep.noteKey)).toEqual(['libs.guava']);
+    const entries = extractGradleDependenciesWithBundles(script);
+    expect(entries.map((dep) => dep.noteKey)).toEqual(['libs.bundles.jackson', 'libs.bundles.unknown', 'libs.guava']);
+    const resolved = resolveGradleCatalogAliases(entries, parseGradleVersionCatalog(catalog));
+    expect(resolved.map((dep) => [dep.noteKey, dep.versionSpec, dep.scope])).toEqual([
+      ['com.fasterxml.jackson.core:jackson-databind', '2.17.0', 'implementation'],
+      ['com.google.guava:guava', '33.4.0-jre', 'implementation'],
+      ['com.google.guava:guava', '33.4.0-jre', 'implementation'],
+    ]);
+    expect(script.slice(resolved[0]!.primaryRange.offset, resolved[0]!.primaryRange.offset + resolved[0]!.primaryRange.length)).toBe('libs.bundles.jackson');
   });
 });

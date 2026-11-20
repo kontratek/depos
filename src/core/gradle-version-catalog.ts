@@ -17,7 +17,8 @@ import { commentStart, lineRecords, nestingDelta, unquotedEquals } from './toml-
  * `groovy_core` and `groovy.core` are all `libs.groovy.core`. A library's version
  * is written inline (`version = "1.0"`), as a reference into `[versions]`
  * (`version.ref = "jackson"`), or in the rich form (`{ strictly = "1.0" }`), which
- * is given in Gradle's short notation (`1.0!!`). Bundles and plugins are not read.
+ * is given in Gradle's short notation (`1.0!!`). A bundle is the libraries it lists;
+ * plugins are not read.
  *
  * Not a TOML parser: it reads the shapes a catalog uses.
  */
@@ -34,9 +35,11 @@ export interface GradleCatalogLibrary {
 export interface GradleCatalog {
   /** The library a build script's accessor (`libs.jackson.databind`) names. */
   library(accessor: string): GradleCatalogLibrary | undefined;
+  /** The libraries a bundle's accessor (`libs.bundles.jackson`) names, in the catalog's order. */
+  bundle(accessor: string): GradleCatalogLibrary[] | undefined;
 }
 
-type TomlValue = string | TomlTable;
+type TomlValue = string | string[] | TomlTable;
 interface TomlTable { [key: string]: TomlValue | undefined }
 
 const table = (): TomlTable => Object.create(null) as TomlTable;
@@ -79,7 +82,7 @@ function assign(target: TomlTable, path: readonly string[], value: TomlValue): v
   let node = target;
   for (const part of path.slice(0, -1)) {
     const next = node[part];
-    if (typeof next === 'string') return;
+    if (typeof next === 'string' || Array.isArray(next)) return;
     node = next ?? (node[part] = table());
   }
   node[path.at(-1)!] = value;
@@ -120,7 +123,19 @@ function readValue(text: string, at: number): { value?: TomlValue; end: number }
       i = read.end;
     }
   }
-  // An array, number or boolean: skipped to the end of its nesting.
+  if (ch === '[') {
+    // An array: a bundle's aliases. Only its strings are kept.
+    const items: string[] = [];
+    i++;
+    for (;;) {
+      while (/[\s,]/.test(text[i] ?? '')) i++;
+      if (i >= text.length || text[i] === ']') return { value: items, end: i + 1 };
+      const read = readValue(text, i);
+      if (typeof read.value === 'string') items.push(read.value);
+      i = Math.max(read.end, i + 1);
+    }
+  }
+  // A number or boolean: skipped to the end of its nesting.
   let depth = 0;
   for (; i < text.length; i++) {
     const c = text[i];
@@ -174,13 +189,17 @@ function richVersion(value: TomlTable): string | undefined {
   return text('require') ?? text('prefer');
 }
 
+function isTable(value: TomlValue | undefined): value is TomlTable {
+  return typeof value === 'object' && !Array.isArray(value);
+}
+
 function versionOf(value: TomlValue | undefined, versions: TomlTable): string | undefined {
   if (typeof value === 'string') return value.trim() || undefined;
-  if (!value) return undefined;
+  if (!isTable(value)) return undefined;
   const ref = value.ref;
   if (typeof ref === 'string') {
     const target = versions[ref];
-    return typeof target === 'string' ? target.trim() || undefined : target ? richVersion(target) : undefined;
+    return typeof target === 'string' ? target.trim() || undefined : isTable(target) ? richVersion(target) : undefined;
   }
   return richVersion(value);
 }
@@ -196,11 +215,13 @@ function libraryOf(value: TomlValue, versions: TomlTable): GradleCatalogLibrary 
     const parts = value.split(':').map((part) => part.trim());
     [group, name] = parts;
     versionSpec = parts[2] || undefined;
-  } else {
+  } else if (isTable(value)) {
     const module = value.module;
     if (typeof module === 'string') [group, name] = module.split(':').map((part) => part.trim());
     else ({ group, name } = value);
     versionSpec = versionOf(value.version, versions);
+  } else {
+    return undefined;
   }
   if (typeof group !== 'string' || typeof name !== 'string' || !MODULE_PART_RE.test(group) || !MODULE_PART_RE.test(name)) return undefined;
   return { module: `${group}:${name}`, ...(versionSpec ? { versionSpec } : {}) };
@@ -214,35 +235,55 @@ export function gradleCatalogAccessor(alias: string): string {
 /** Never throws: a line it cannot read gives no library, and its aliases stay unresolved. */
 export function parseGradleVersionCatalog(text: string): GradleCatalog {
   const root = readToml(text);
-  const versions = typeof root.versions === 'object' ? root.versions : table();
+  const versions = isTable(root.versions) ? root.versions : table();
   const libraries = new Map<string, GradleCatalogLibrary>();
   const declared = root.libraries;
-  if (declared && typeof declared === 'object') {
+  if (isTable(declared)) {
     for (const [alias, value] of Object.entries(declared)) {
       const library = value === undefined ? undefined : libraryOf(value, versions);
       if (library) libraries.set(gradleCatalogAccessor(alias), library);
     }
   }
-  return { library: (accessor) => libraries.get(accessor) };
+  const bundles = new Map<string, GradleCatalogLibrary[]>();
+  if (isTable(root.bundles)) {
+    for (const [name, members] of Object.entries(root.bundles)) {
+      if (!Array.isArray(members)) continue;
+      const seen = new Set<string>();
+      const resolved = members
+        .map((alias) => libraries.get(gradleCatalogAccessor(alias)))
+        .filter((library): library is GradleCatalogLibrary => !!library && !seen.has(library.module) && !!seen.add(library.module));
+      bundles.set(gradleCatalogAccessor(`bundles.${name}`), resolved);
+    }
+  }
+  return { library: (accessor) => libraries.get(accessor), bundle: (accessor) => bundles.get(accessor) };
+}
+
+function asLibrary(entry: DependencyEntry, library: GradleCatalogLibrary): DependencyEntry {
+  const rest: DependencyEntry = { ...entry };
+  delete rest.versionSpec;
+  return {
+    ...rest,
+    noteKey: library.module,
+    name: library.module,
+    displayName: library.module,
+    ...(library.versionSpec ? { versionSpec: library.versionSpec } : {}),
+  };
 }
 
 /**
  * The build file's dependencies with each catalog alias the catalog names replaced
- * by its module and version. The source ranges stay on the alias in the build file.
- * An alias the catalog does not name is kept as written.
+ * by its module and version. A bundle (`libs.bundles.x`, from
+ * extractGradleDependenciesWithBundles) is each library in it; a bundle the catalog
+ * does not name is left out, as it is no package. The source ranges stay on the
+ * alias in the build file. A library alias the catalog does not name is kept as
+ * written.
  */
 export function resolveGradleCatalogAliases(entries: readonly DependencyEntry[], catalog: GradleCatalog): DependencyEntry[] {
-  return entries.map((entry) => {
+  return entries.flatMap((entry) => {
+    if (entry.noteKey.startsWith('libs.bundles.')) {
+      return (catalog.bundle(entry.noteKey) ?? []).map((library) => asLibrary(entry, library));
+    }
     const library = entry.noteKey.startsWith('libs.') ? catalog.library(entry.noteKey) : undefined;
-    if (!library) return entry;
-    const rest: DependencyEntry = { ...entry };
-    delete rest.versionSpec;
-    return {
-      ...rest,
-      noteKey: library.module,
-      name: library.module,
-      displayName: library.module,
-      ...(library.versionSpec ? { versionSpec: library.versionSpec } : {}),
-    };
+    return library ? [asLibrary(entry, library)] : [entry];
   });
 }

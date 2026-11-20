@@ -189,7 +189,12 @@ function mapNotation(tokens: readonly Token[], start: number, end: number): Pars
   };
 }
 
-function catalogAlias(tokens: readonly Token[], start: number, end: number): ParsedDependency | undefined {
+interface ExtractOptions {
+  /** Read `libs.bundles.x` too: a bundle is no package, but its catalog names the libraries in it. */
+  bundles?: boolean;
+}
+
+function catalogAlias(tokens: readonly Token[], start: number, end: number, options: ExtractOptions): ParsedDependency | undefined {
   for (let i = start; i < end; i++) {
     const root = tokens[i];
     if (root?.kind !== 'identifier' || root.value !== 'libs') continue;
@@ -203,21 +208,22 @@ function catalogAlias(tokens: readonly Token[], start: number, end: number): Par
       last = part;
       cursor += 2;
     }
-    if (parts.length < 2 || NON_LIBRARY_CATALOGS.has(parts[1]!)) continue;
+    const bundle = options.bundles && parts[1] === 'bundles' && parts.length > 2;
+    if (parts.length < 2 || (NON_LIBRARY_CATALOGS.has(parts[1]!) && !bundle)) continue;
     const range = { offset: root.start, length: last.end - root.start };
     return { noteKey: parts.join('.'), primaryRange: range, sourceRanges: [range] };
   }
   return undefined;
 }
 
-function expression(tokens: readonly Token[], start: number, end: number): ParsedDependency | undefined {
+function expression(tokens: readonly Token[], start: number, end: number, options: ExtractOptions): ParsedDependency | undefined {
   for (let i = start; i < end; i++) {
     const token = tokens[i];
     if (token?.kind === 'identifier' && NON_MODULE_FACTORIES.has(token.value)) return undefined;
   }
   const mapped = mapNotation(tokens, start, end);
   if (mapped) return mapped;
-  const alias = catalogAlias(tokens, start, end);
+  const alias = catalogAlias(tokens, start, end, options);
   if (alias) return alias;
   for (let i = start; i < end; i++) {
     const token = tokens[i]!;
@@ -230,7 +236,7 @@ function expression(tokens: readonly Token[], start: number, end: number): Parse
       if (tokens[open]?.value === '(') {
         const close = matching(tokens, open, end, '(', ')');
         if (close !== undefined) {
-          const nested = expression(tokens, open + 1, close);
+          const nested = expression(tokens, open + 1, close, options);
           if (nested) return nested;
         }
       }
@@ -253,7 +259,7 @@ function topLevelComma(tokens: readonly Token[], start: number, end: number): nu
   return undefined;
 }
 
-function dependencyBody(tokens: readonly Token[], start: number, end: number): DependencyEntry[] {
+function dependencyBody(tokens: readonly Token[], start: number, end: number, options: ExtractOptions): DependencyEntry[] {
   const out: DependencyEntry[] = [];
   let i = start;
   let braceDepth = 0;
@@ -325,7 +331,7 @@ function dependencyBody(tokens: readonly Token[], start: number, end: number): D
       expressionStart = comma + 1;
     }
 
-    const parsed = expression(tokens, expressionStart, expressionEnd);
+    const parsed = expression(tokens, expressionStart, expressionEnd, options);
     if (parsed && scope) {
       const entry = dependencyEntry(
         parsed.noteKey,
@@ -343,6 +349,19 @@ function dependencyBody(tokens: readonly Token[], start: number, end: number): D
 }
 
 export function extractGradleDependencies(text: string): DependencyEntry[] {
+  return extract(text, {});
+}
+
+/**
+ * Also gives each `libs.bundles.x` as an entry of its own, for
+ * resolveGradleCatalogAliases (gradle-version-catalog.ts) to turn into the libraries
+ * the catalog lists in it. Not a note key: a bundle is no package.
+ */
+export function extractGradleDependenciesWithBundles(text: string): DependencyEntry[] {
+  return extract(text, { bundles: true });
+}
+
+function extract(text: string, options: ExtractOptions): DependencyEntry[] {
   const tokens = tokenize(text);
   const out: DependencyEntry[] = [];
   const blocks: string[] = [];
@@ -362,7 +381,7 @@ export function extractGradleDependencies(text: string): DependencyEntry[] {
     if (tokens[open]?.value !== '{') continue;
     const close = matching(tokens, open, tokens.length, '{', '}');
     if (close === undefined) continue;
-    out.push(...dependencyBody(tokens, open + 1, close));
+    out.push(...dependencyBody(tokens, open + 1, close, options));
     i = close;
   }
   return out;
