@@ -16,6 +16,8 @@ interface ParsedDependency {
   noteKey: string;
   primaryRange: SourceRange;
   sourceRanges: SourceRange[];
+  /** The version as written (`33.4.0-jre`, `1.0!!`, `$guavaVersion`); none for a catalog alias or a platform-managed module. */
+  versionSpec?: string;
 }
 
 const WRAPPERS = new Set(['platform', 'enforcedPlatform', 'testFixtures']);
@@ -139,26 +141,35 @@ function coordinateFrom(token: Token): ParsedDependency | undefined {
   if (!group || !artifact) return undefined;
   const groupRange = stringRange(token, 0, first);
   const artifactRange = stringRange(token, first + 1, end - first - 1);
+  // `group:artifact:version[:classifier][@extension]`. An interpolated version (`$v`) is kept as written.
+  const third = second === -1 ? -1 : token.value.indexOf(':', second + 1);
+  const version = second === -1
+    ? ''
+    : decodeSimpleString(token.value.slice(second + 1, third === -1 ? undefined : third)).replace(/@[^@]*$/, '').trim();
   return {
     noteKey: `${group}:${artifact}`,
     primaryRange: artifactRange,
     sourceRanges: [groupRange, artifactRange],
+    ...(version ? { versionSpec: version } : {}),
   };
 }
 
 function mapNotation(tokens: readonly Token[], start: number, end: number): ParsedDependency | undefined {
   let group: Token | undefined;
   let name: Token | undefined;
+  let version: Token | undefined;
   for (let i = start; i < end; i++) {
     const key = tokens[i];
-    if (key?.kind !== 'identifier' || (key.value !== 'group' && key.value !== 'name')) continue;
+    if (key?.kind !== 'identifier' || !['group', 'name', 'version'].includes(key.value)) continue;
     const separator = nextCode(tokens, i + 1, end);
     if (![':', '='].includes(tokens[separator]?.value ?? '')) continue;
     const valueIndex = nextCode(tokens, separator + 1, end);
     const value = tokens[valueIndex];
+    // A variable (`version: pgVersion`) is not evaluated.
     if (value?.kind !== 'string') continue;
     if (key.value === 'group') group = value;
-    else name = value;
+    else if (key.value === 'name') name = value;
+    else version = value;
   }
   if (!group || !name) return undefined;
   const groupName = decodeSimpleString(group.value);
@@ -166,10 +177,12 @@ function mapNotation(tokens: readonly Token[], start: number, end: number): Pars
   if (!groupName || !artifactName) return undefined;
   const groupRange = stringRange(group);
   const nameRange = stringRange(name);
+  const versionSpec = version ? decodeSimpleString(version.value).trim() : '';
   return {
     noteKey: `${groupName}:${artifactName}`,
     primaryRange: nameRange,
     sourceRanges: [groupRange, nameRange],
+    ...(versionSpec ? { versionSpec } : {}),
   };
 }
 
@@ -311,14 +324,15 @@ function dependencyBody(tokens: readonly Token[], start: number, end: number): D
 
     const parsed = expression(tokens, expressionStart, expressionEnd);
     if (parsed && scope) {
-      out.push(dependencyEntry(
+      const entry = dependencyEntry(
         parsed.noteKey,
         scope,
         parsed.primaryRange,
         parsed.sourceRanges,
         parsed.noteKey,
         { offset: configuration.start, length: configuration.end - configuration.start },
-      ));
+      );
+      out.push(parsed.versionSpec ? { ...entry, versionSpec: parsed.versionSpec } : entry);
     }
     i = Math.max(statementEnd, i + 1);
   }
@@ -349,4 +363,17 @@ export function extractGradleDependencies(text: string): DependencyEntry[] {
     i = close;
   }
   return out;
+}
+
+/**
+ * The one release a version names, or undefined. Gradle resolves a conflict to the
+ * highest version any module asks for, so a plain `33.4.0-jre` is the least the
+ * build uses, not what it uses: only a lock file (gradle-lockfile.ts) says that.
+ * `1.0!!` is Gradle's short form of `strictly("1.0")`, which no other module can
+ * move. A range, a dynamic version (`1.+`, `latest.release`), a variable and a
+ * `-SNAPSHOT` name more than one.
+ */
+export function gradlePinnedVersion(versionSpec: string | undefined): string | undefined {
+  const version = /^([0-9A-Za-z][\w.-]*)!!$/.exec(versionSpec?.trim() ?? '')?.[1];
+  return version && !/SNAPSHOT$/i.test(version) ? version : undefined;
 }

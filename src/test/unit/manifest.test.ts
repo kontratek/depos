@@ -8,8 +8,8 @@ import {
   notesKindOfPath,
   notesRelativePathIn,
 } from '../../core/manifest';
-import { extractMavenDependencies } from '../../core/mavenManifest';
-import { extractGradleDependencies } from '../../core/gradleManifest';
+import { extractMavenDependencies, mavenPinnedVersion } from '../../core/mavenManifest';
+import { extractGradleDependencies, gradlePinnedVersion } from '../../core/gradleManifest';
 import { extractMixDependencies, mixPinnedVersion } from '../../core/mixManifest';
 import { extractZigDependencies } from '../../core/zig-manifest';
 
@@ -324,6 +324,47 @@ buildscript { dependencies { classpath("ignored:plugin:1") } }
     expect(extractGradleDependencies(multiline).map((dep) => dep.noteKey)).toEqual(['com.acme:bom']);
     expect(extractGradleDependencies('dependencies { implementation("g:a:1")')).toEqual([]);
   });
+
+  it('gives each module its version as written, and none it would have to evaluate', () => {
+    const versions = Object.fromEntries(extractGradleDependencies(gradle).map((dep) => [dep.noteKey, dep.versionSpec]));
+    expect(versions).toEqual({
+      'com.google.guava:guava': '33.4.0-jre',
+      'org.junit.jupiter:junit-jupiter': '5.12.0',
+      // `version = version` and `version: pgVersion` are variables.
+      'org.slf4j:slf4j-api': undefined,
+      'org.postgresql:postgresql': undefined,
+      'org.springframework.boot:spring-boot-dependencies': '3.5.0',
+      'libs.jackson.databind': undefined,
+      'org.assertj:assertj-core': '3.27.3',
+      'com.acme:tool': '1',
+    });
+  });
+
+  it('reads strict, classified, interpolated and map-notation versions', () => {
+    const script = String.raw`dependencies {
+  implementation("io.netty:netty-all:4.1.100.Final!!")
+  runtimeOnly("org.lwjgl:lwjgl:3.3.4:natives-linux@jar")
+  implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
+  implementation(group = "org.yaml", name = "snakeyaml", version = "2.2")
+  implementation("org.springframework.boot:spring-boot-starter-web")
+}`;
+    expect(extractGradleDependencies(script).map((dep) => [dep.noteKey, dep.versionSpec])).toEqual([
+      ['io.netty:netty-all', '4.1.100.Final!!'],
+      ['org.lwjgl:lwjgl', '3.3.4'],
+      ['com.squareup.okhttp3:okhttp', '$okhttpVersion'],
+      ['org.yaml:snakeyaml', '2.2'],
+      ['org.springframework.boot:spring-boot-starter-web', undefined],
+    ]);
+  });
+});
+
+describe('gradlePinnedVersion', () => {
+  it('pins a strict version only: Gradle may raise any other', () => {
+    expect(gradlePinnedVersion('4.1.100.Final!!')).toBe('4.1.100.Final');
+    for (const spec of [undefined, '33.4.0-jre', '[1.0,2.0)', '[1.0]', '1.+', 'latest.release', '$v!!', '1.0-SNAPSHOT!!', '1.+!!']) {
+      expect(gradlePinnedVersion(spec), String(spec)).toBeUndefined();
+    }
+  });
 });
 
 describe('Cargo.toml dependencies', () => {
@@ -495,5 +536,53 @@ describe('pom.xml dependencies', () => {
 
   it('fails safely on malformed input', () => {
     expect(extractMavenDependencies('<not-project><dependency>')).toEqual([]);
+  });
+
+  it('gives each dependency its version, with the pom\'s own properties and management filled in', () => {
+    const versioned = `<project>
+  <version>1.4.0</version>
+  <properties>
+    <jackson.version>2.17.0</jackson.version>
+    <jackson-bom.version>\${jackson.version}</jackson-bom.version>
+    <loop>\${loop}</loop>
+  </properties>
+  <dependencyManagement><dependencies>
+    <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>2.0.13</version></dependency>
+    <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version></dependency>
+  </dependencies></dependencyManagement>
+  <dependencies>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>\${jackson-bom.version}</version></dependency>
+    <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId></dependency>
+    <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.12</version></dependency>
+    <dependency><groupId>com.acme</groupId><artifactId>sibling</artifactId><version>\${project.version}</version></dependency>
+    <dependency><groupId>com.acme</groupId><artifactId>looping</artifactId><version>\${loop}</version></dependency>
+    <dependency><groupId>com.acme</groupId><artifactId>inherited</artifactId></dependency>
+    <dependency><groupId>com.oracle</groupId><artifactId>ojdbc</artifactId><scope>system</scope><systemPath>\${basedir}/lib/ojdbc.jar</systemPath></dependency>
+  </dependencies>
+</project>`;
+    expect(extractMavenDependencies(versioned).map((dep) => [dep.noteKey, dep.versionSpec])).toEqual([
+      ['com.fasterxml.jackson.core:jackson-databind', '2.17.0'],
+      ['org.slf4j:slf4j-api', '2.0.13'],
+      // The project's own version wins over its management.
+      ['junit:junit', '4.12'],
+      ['com.acme:sibling', '${project.version}'],
+      ['com.acme:looping', '${loop}'],
+      ['com.acme:inherited', undefined],
+      ['com.oracle:ojdbc', 'file:${basedir}/lib/ojdbc.jar'],
+    ]);
+  });
+});
+
+describe('mavenPinnedVersion', () => {
+  it('pins a direct dependency\'s plain or bracketed version', () => {
+    expect(mavenPinnedVersion('2.17.0')).toBe('2.17.0');
+    expect(mavenPinnedVersion(' [2.17.0] ')).toBe('2.17.0');
+    expect(mavenPinnedVersion('4.1.100.Final')).toBe('4.1.100.Final');
+  });
+
+  it('leaves out ranges, properties, snapshots, files and meta-versions', () => {
+    for (const spec of [undefined, '', '[1.0,2.0)', '(,1.0]', '${project.version}', '1.0-SNAPSHOT', 'file:lib/a.jar', 'LATEST', 'RELEASE']) {
+      expect(mavenPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
   });
 });
