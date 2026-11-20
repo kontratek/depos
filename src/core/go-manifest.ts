@@ -18,6 +18,7 @@ interface GoModule {
   scope: string;
   range: SourceRange;
   toolRanges: SourceRange[];
+  version?: string;
 }
 
 function decodeInterpreted(value: string): string {
@@ -96,20 +97,67 @@ function isIndirect(comment: string): boolean {
   return /^indirect(?:;|$)/.test(comment.trim());
 }
 
+/** A `replace` directive: `old [version] => new [version]`. */
+interface GoReplace {
+  path: string;
+  /** Set when only this version of `path` is replaced. */
+  version?: string;
+  target: string;
+  targetVersion?: string;
+}
+
+/** The tokens after `replace`, or a line of a `replace (…)` block. */
+function goReplace(tokens: readonly GoToken[]): GoReplace | undefined {
+  const arrow = tokens.findIndex((token) => token.value === '=>' && !token.quoted);
+  if (arrow !== 1 && arrow !== 2) return undefined;
+  const [path, version] = tokens.slice(0, arrow);
+  const [target, targetVersion] = tokens.slice(arrow + 1);
+  if (!isPath(path) || !isPath(target)) return undefined;
+  return { path: path.value, version: version?.value, target: target.value, targetVersion: targetVersion?.value };
+}
+
+/** Go's own rule: a replacement that starts with `./`, `../` or is absolute is a directory on disk. */
+function isLocalPath(target: string): boolean {
+  return /^(?:\.\.?[\\/]|[\\/]|[A-Za-z]:[\\/])/.test(target) || target === '.' || target === '..';
+}
+
+/**
+ * The version a requirement installs, after `replace`. A replacement for this exact
+ * version wins over one for every version, as in Go. A directory is no registry
+ * release (`file:…`), and another module is a renamed one (`package:<path>@<version>`).
+ */
+function replacedVersion(path: string, version: string | undefined, replaces: readonly GoReplace[]): string | undefined {
+  const replace = replaces.find((r) => r.path === path && r.version !== undefined && r.version === version)
+    ?? replaces.find((r) => r.path === path && r.version === undefined);
+  if (!replace) return version;
+  if (isLocalPath(replace.target)) return `file:${replace.target}`;
+  if (replace.target === path) return replace.targetVersion;
+  return `package:${replace.target}${replace.targetVersion ? `@${replace.targetVersion}` : ''}`;
+}
+
 /**
  * Extracts `require` and `tool` dependencies from go.mod. `// indirect`
  * requirements are kept with their own scope. A tool names a package, so it is
  * attached to the required module whose path is its longest prefix.
+ *
+ * A requirement's `versionSpec` is its version (`v1.9.1`), after any `replace`.
+ * A standalone tool has none.
  */
 export function extractGoDependencies(text: string): DependencyEntry[] {
   const modules: GoModule[] = [];
   const byPath = new Map<string, GoModule>();
   const tools: GoToken[] = [];
-  const addRequire = (token: GoToken, comment: string): void => {
+  const replaces: GoReplace[] = [];
+  const addRequire = (token: GoToken, version: GoToken | undefined, comment: string): void => {
     if (byPath.has(token.value)) return;
-    const module = { path: token.value, scope: isIndirect(comment) ? 'indirect' : 'require', range: token.range, toolRanges: [] };
+    const module: GoModule = { path: token.value, scope: isIndirect(comment) ? 'indirect' : 'require', range: token.range, toolRanges: [] };
+    if (version && !version.quoted && version.value !== '(' && version.value !== ')') module.version = version.value;
     byPath.set(token.value, module);
     modules.push(module);
+  };
+  const addReplace = (tokens: readonly GoToken[]): void => {
+    const replace = goReplace(tokens);
+    if (replace) replaces.push(replace);
   };
 
   let block: string | undefined;
@@ -120,8 +168,9 @@ export function extractGoDependencies(text: string): DependencyEntry[] {
         block = undefined;
         continue;
       }
-      if (block === 'require' && isPath(tokens[0])) addRequire(tokens[0], comment);
+      if (block === 'require' && isPath(tokens[0])) addRequire(tokens[0], tokens[1], comment);
       else if (block === 'tool' && isPath(tokens[0])) tools.push(tokens[0]);
+      else if (block === 'replace') addReplace(tokens);
       continue;
     }
     const verb = tokens[0]!.value;
@@ -131,9 +180,11 @@ export function extractGoDependencies(text: string): DependencyEntry[] {
       if (!(tokens[2]?.value === ')' && !tokens[2].quoted)) block = verb;
       continue;
     }
-    if (verb === 'require' && isPath(argument)) addRequire(argument, comment);
+    if (verb === 'require' && isPath(argument)) addRequire(argument, tokens[2], comment);
     else if (verb === 'tool' && isPath(argument)) tools.push(argument);
+    else if (verb === 'replace') addReplace(tokens.slice(1));
   }
+  for (const module of modules) module.version = replacedVersion(module.path, module.version, replaces);
 
   const standalone: GoModule[] = [];
   for (const tool of tools) {
@@ -153,5 +204,21 @@ export function extractGoDependencies(text: string): DependencyEntry[] {
 
   return [...modules, ...standalone]
     .sort((a, b) => a.range.offset - b.range.offset)
-    .map((module) => dependencyEntry(module.path, module.scope, module.range, [module.range, ...module.toolRanges]));
+    .map((module) => {
+      const entry = dependencyEntry(module.path, module.scope, module.range, [module.range, ...module.toolRanges]);
+      return module.version ? { ...entry, versionSpec: module.version } : entry;
+    });
+}
+
+/**
+ * The release a requirement installs, or undefined. go.mod has no ranges: the
+ * version a `require` names is the one the build uses, as the go command keeps
+ * go.mod in step with what it selects. So a release version (`v1.9.1`,
+ * `v2.0.0+incompatible`) or a pseudo-version of a commit is installed as written,
+ * with no lockfile; go.sum holds checksums, not a selection. A replaced requirement
+ * (`file:…`, `package:…`) is not a release of the module.
+ */
+export function goPinnedVersion(versionSpec: string | undefined): string | undefined {
+  const spec = versionSpec?.trim() ?? '';
+  return /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+incompatible)?$/.test(spec) ? spec : undefined;
 }

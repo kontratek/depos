@@ -73,11 +73,11 @@ export interface DependencyEntry {
   /** Manifest-specific dependency scope. */
   scope: string;
   /**
-   * The version as the manifest writes it. The npm, Python, Cargo, Mix, Gleam, Composer
-   * and Ruby readers give one so far. A dependency that is not a registry release under its own name is
-   * written with a prefix, as npm does (`git+…`, `file:…`, `workspace:…`; Cargo and Mix
-   * also `registry:…` for another registry and `package:…` for a renamed package), so a
-   * consumer can leave it out of registry checks.
+   * The version as the manifest writes it. The npm, Python, Cargo, Mix, Gleam, Composer,
+   * Ruby, NuGet and Go readers give one so far. A dependency that is not a registry release
+   * under its own name is written with a prefix, as npm does (`git+…`, `file:…`,
+   * `workspace:…`; Cargo, Mix and Go also `package:…` for a renamed package, and Cargo and
+   * Mix `registry:…` for another registry), so a consumer can leave it out of registry checks.
    */
   versionSpec?: string;
   /** Range used for line decorations and placement. */

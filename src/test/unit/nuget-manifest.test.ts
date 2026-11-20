@@ -5,6 +5,7 @@ import { manifestAdapterForPath } from '../../core/manifest';
 import {
   extractNugetDependencies,
   isNugetManifestPath,
+  nugetPinnedVersion,
   uniqueNugetDependencies,
 } from '../../core/nuget-manifest';
 import { parseNotes } from '../../core/parseNotes';
@@ -123,5 +124,54 @@ describe('central NuGet dependencies', () => {
     const dependency = dependencyEntry('Newtonsoft.Json', 'packageReference', { offset: 0, length: 1 });
     expect(analyze([dependency], notes).documented).toEqual([dependency]);
     expect(notes.sections[0]?.name).toBe('newtonsoft.json');
+  });
+});
+
+describe('NuGet versions', () => {
+  it('reads Version and VersionOverride as attributes or elements', () => {
+    const project = `<Project>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Serilog"><Version>[3.1.1]</Version></PackageReference>
+    <PackageReference Include="Polly" VersionOverride="8.2.0" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="AutoMapper" Version="$(AutoMapperVersion)" />
+  </ItemGroup>
+</Project>`;
+    expect(Object.fromEntries(extractNugetDependencies(project, 'App.csproj').map((d) => [d.noteKey, d.versionSpec]))).toEqual({
+      'Newtonsoft.Json': '13.0.3',
+      'Serilog': '[3.1.1]',
+      'Polly': '8.2.0',
+      'Dapper': undefined,
+      'AutoMapper': '$(AutoMapperVersion)',
+    });
+  });
+
+  it('reads central PackageVersion versions', () => {
+    const props = '<Project><ItemGroup><PackageVersion Include="Dapper" Version="2.1.35" /></ItemGroup></Project>';
+    expect(extractNugetDependencies(props, 'Directory.Packages.props')[0]?.versionSpec).toBe('2.1.35');
+  });
+});
+
+describe('nugetPinnedVersion', () => {
+  it('names the release NuGet restores', () => {
+    expect(nugetPinnedVersion('13.0.3')).toBe('13.0.3');
+    expect(nugetPinnedVersion('[13.0.3]')).toBe('13.0.3');
+    expect(nugetPinnedVersion('[ 1.0.0-beta.2 ]')).toBe('1.0.0-beta.2');
+    expect(nugetPinnedVersion('4.0.0.1')).toBe('4.0.0.1');
+  });
+
+  it('names it as nuget.org does', () => {
+    expect(nugetPinnedVersion('13.0')).toBe('13.0.0');
+    expect(nugetPinnedVersion('[2.1]')).toBe('2.1.0');
+    expect(nugetPinnedVersion('1.2.3.0')).toBe('1.2.3');
+    expect(nugetPinnedVersion('01.02.03')).toBe('1.2.3');
+    expect(nugetPinnedVersion('1.0-rc.1')).toBe('1.0.0-rc.1');
+  });
+
+  it('reads no range, float or property as a release', () => {
+    for (const spec of [undefined, '', '[1.0,2.0)', '(,2.0]', '13.*', '$(Version)', '[13.0.3', '13']) {
+      expect(nugetPinnedVersion(spec), String(spec)).toBeUndefined();
+    }
   });
 });
