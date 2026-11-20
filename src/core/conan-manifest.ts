@@ -15,13 +15,24 @@ interface Token {
   literal?: boolean;
 }
 
+/**
+ * The version a reference writes: `zlib/1.3.1` is `1.3.1`, a range `[>=1.2 <2]` stays
+ * as written, a recipe revision (`#…`) drops out, and a user and channel
+ * (`@user/channel`) stay on: such a package is not ConanCenter's.
+ */
+function versionSpecOf(reference: string): string | undefined {
+  const rest = reference.trim().slice(reference.trim().indexOf('/') + 1);
+  const version = rest.replace(/#[^@\s]*$/, '').replace(/#[^@]*(?=@)/, '').trim();
+  return version || undefined;
+}
+
 function conanEntry(token: Token, scope: string): DependencyEntry | undefined {
   if (token.kind !== 'string' || !token.literal || token.contentOffset === undefined) return undefined;
   const match = REFERENCE.exec(token.value);
   if (!match?.[1]) return undefined;
   const leading = token.value.length - token.value.trimStart().length;
   const range = { offset: token.contentOffset + leading, length: match[1].length };
-  return dependencyEntry(
+  const entry = dependencyEntry(
     match[1].toLowerCase(),
     scope,
     range,
@@ -29,6 +40,16 @@ function conanEntry(token: Token, scope: string): DependencyEntry | undefined {
     match[1],
     { offset: token.offset, length: 1 },
   );
+  const versionSpec = versionSpecOf(token.value);
+  return versionSpec ? { ...entry, versionSpec } : entry;
+}
+
+/**
+ * The one release a reference names: a plain version (`zlib/1.3.1`) is what Conan
+ * installs. A range, and a package with a user and channel, name none here.
+ */
+export function conanPinnedVersion(versionSpec: string | undefined): string | undefined {
+  return versionSpec && /^[0-9A-Za-z][\w.+-]*$/.test(versionSpec) ? versionSpec : undefined;
 }
 
 function tokenizePython(text: string): Token[] {

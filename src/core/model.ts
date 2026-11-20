@@ -73,15 +73,21 @@ export interface DependencyEntry {
   /** Manifest-specific dependency scope. */
   scope: string;
   /**
-   * The version as the manifest writes it. The npm, Python, Cargo, Mix, Gleam, Composer,
-   * Ruby, NuGet, Go, Maven and Gradle readers give one so far (Maven with the pom's own
-   * properties filled in). A dependency that is not a registry release under its own name
-   * is written with a prefix, as npm does (`git+…`, `file:…`, `workspace:…`; Cargo, Mix
-   * and Go also `package:…` for a renamed package, and Cargo and Mix `registry:…` for
-   * another registry; Maven `file:…` for a `system` jar), so a consumer can leave it out
-   * of registry checks.
+   * The version as the manifest writes it. Every reader gives one where the manifest
+   * has it (Maven with the pom's properties filled in; vcpkg `>=1.2` for a minimum,
+   * Conan `1.2@user/channel` for a package outside ConanCenter). A dependency that is
+   * not a registry release under its own name is written with a prefix, as npm does
+   * (`git+…`, `file:…`, `workspace:…`; Cargo, Mix and Go also `package:…` for a renamed
+   * package, and Cargo and Mix `registry:…` for another registry; Maven `file:…` for a
+   * `system` jar; Zig its URL), so a consumer can leave it out of registry checks.
    */
   versionSpec?: string;
+  /**
+   * The version the build installs, when the manifest decides it without a lock file
+   * and `versionSpec` alone does not say it: vcpkg's baseline, or the tag of a Zig
+   * archive its hash pins. A lock file's answer comes first.
+   */
+  installedVersion?: string;
   /** Range used for line decorations and placement. */
   primaryRange: SourceRange;
   /** Range before which the Depos icon is rendered. */

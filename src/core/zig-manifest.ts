@@ -174,7 +174,60 @@ function dependenciesOpen(tokens: readonly Token[]): number | undefined {
   return undefined;
 }
 
-/** Extracts direct build.zig.zon dependencies without evaluating build.zig or invoking Zig. */
+const SHA_RE = /^[0-9a-f]{40}$/i;
+const TAG_RE = /^v?\d+(?:\.\d+)*(?:[-+][0-9A-Za-z.-]+)?$/;
+
+/**
+ * The release a dependency's URL names, when it names one: a tag archive
+ * (`…/archive/refs/tags/v0.3.0.tar.gz`, `…/archive/v0.3.0.tar.gz`, GitLab's
+ * `…/-/archive/v0.3.0/…`), a release asset (`…/releases/download/v0.3.0/…`) or a git
+ * reference (`git+https://…#v0.3.0`). A commit is no release.
+ */
+export function zigTagOf(url: string): string | undefined {
+  const tag = /#([^#?]+)$/.exec(url)?.[1]
+    ?? /\/archive\/refs\/tags\/([^/?#]+?)(?:\.tar\.gz|\.tgz|\.tar\.xz|\.zip)(?:[?#]|$)/.exec(url)?.[1]
+    ?? /\/releases\/download\/([^/?#]+)\//.exec(url)?.[1]
+    ?? /\/-\/archive\/([^/?#]+)\//.exec(url)?.[1]
+    ?? /\/archive\/([^/?#]+?)(?:\.tar\.gz|\.tgz|\.tar\.xz|\.zip)(?:[?#]|$)/.exec(url)?.[1];
+  if (!tag) return undefined;
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(tag);
+    } catch {
+      return tag;
+    }
+  })();
+  return !SHA_RE.test(decoded) && TAG_RE.test(decoded) ? decoded : undefined;
+}
+
+/** The `.url` or `.path` of a dependency's `.{ … }`, from the token after its `=`. */
+function sourceOf(tokens: readonly Token[], valueIndex: number): { url?: string; path?: string } {
+  if (tokens[valueIndex]?.value !== '.' || tokens[valueIndex + 1]?.value !== '{') return {};
+  const out: { url?: string; path?: string } = {};
+  const stack = ['}'];
+  for (let index = valueIndex + 2; index < tokens.length && stack.length; index++) {
+    const token = tokens[index]!;
+    if (stack.length === 1) {
+      const field = fieldAt(tokens, index);
+      const value = field ? tokens[field.equalsIndex + 1] : undefined;
+      if (field && value?.kind === 'string') {
+        if (field.name === 'url') out.url = value.value;
+        else if (field.name === 'path') out.path = value.value;
+      }
+    }
+    const closing = OPEN_TO_CLOSE[token.value];
+    if (closing) stack.push(closing);
+    else if (token.value === stack[stack.length - 1]) stack.pop();
+  }
+  return out;
+}
+
+/**
+ * Extracts direct build.zig.zon dependencies without evaluating build.zig or invoking
+ * Zig. A dependency's version is its URL as written (Zig has no registry), or
+ * `file:<path>` for a local one. When the URL names a release, that release is
+ * installed: the hash beside it pins the contents.
+ */
 export function extractZigDependencies(text: string): DependencyEntry[] {
   const tokens = tokenize(text);
   const open = dependenciesOpen(tokens);
@@ -190,14 +243,22 @@ export function extractZigDependencies(text: string): DependencyEntry[] {
       const field = fieldAt(tokens, index);
       if (field && !seen.has(field.name)) {
         seen.add(field.name);
-        out.push(dependencyEntry(
+        const entry = dependencyEntry(
           field.name,
           'dependencies',
           field.primaryRange,
           [field.sourceRange],
           field.name,
           field.iconRange,
-        ));
+        );
+        const { url, path } = sourceOf(tokens, field.equalsIndex + 1);
+        const tag = url ? zigTagOf(url) : undefined;
+        const versionSpec = url ?? (path !== undefined ? `file:${path}` : undefined);
+        out.push({
+          ...entry,
+          ...(versionSpec ? { versionSpec } : {}),
+          ...(tag ? { installedVersion: tag } : {}),
+        });
       }
     }
     const closing = OPEN_TO_CLOSE[token.value];
