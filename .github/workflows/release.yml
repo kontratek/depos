@@ -81,8 +81,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -188,8 +186,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 22
