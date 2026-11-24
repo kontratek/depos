@@ -7,6 +7,12 @@
 
 ## Unreleased
 
+- **Allowlist marks are errors.** Depos no longer has a policy mode (Off,
+  Audit, Enforce) per ecosystem: it checks every package of every added
+  repository. So Denied and Not listed packages, and Allowed packages whose
+  installed version breaks a rule, are marked at their manifest line as an
+  error. The format reference and the README say so.
+
 - **Gleam development dependencies under `[dev-dependencies]` are read.**
   Many Gleam packages still write the table with a hyphen, as older Gleam
   versions did. Its dependencies now get markers and notes, as those under
@@ -21,8 +27,7 @@
   Depos, an Allow entry for an npm package can now deny some versions of it, and
   an npm policy can make a version with a known vulnerability of critical or
   high severity a violation. An Allowed package whose installed version is one
-  of these is marked at its line, as an Outdated one is: a warning in Audit, an
-  error in Enforce. When it breaks several rules, the message names one: a
+  of these is marked at its line as an error, as an Outdated one is. When it breaks several rules, the message names one: a
   denied version first, then a vulnerable one, then the version rule. The hover
   and the note editor say the same, with a red badge. Agents that call
   `check_package` get `version.deniedVersion` and `version.vulnerable`. The
@@ -30,8 +35,8 @@
 
 - **The version rule of Depos shows at the manifest line.** In Depos, an npm
   policy can say how far behind its newest version a package may be. A package
-  that is Allowed but further behind than that is now marked at its line, as a
-  Not listed one is: a warning in Audit, an error in Enforce. A Denied or Not
+  that is Allowed but further behind than that is now marked at its line as an
+  error, as a Not listed one is. A Denied or Not
   listed package is marked once, for that. Depos judges the rule on the
   versions of its last scan of the repository, so an update you have not pushed
   yet does not clear the mark.
