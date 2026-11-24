@@ -237,7 +237,6 @@ public sealed class OrgLayer
 public sealed record OrgView(
     OrgResultKind? Kind,
     string? Result,
-    string? Mode,
     string? Version,
     VersionViolation? Violation,
     string? Risk,
@@ -245,15 +244,15 @@ public sealed record OrgView(
     string Link,
     string Received)
 {
-    /// <summary><c>Allowlist: Denied (Enforce)</c>; null when not audited.</summary>
-    public string? Line() => Result is not null && Mode is not null ? DeposStrings.OrgAllowlistLine(Result, Mode) : null;
+    /// <summary><c>Allowlist: Denied</c>; null when not audited.</summary>
+    public string? Line() => Result is not null ? DeposStrings.OrgAllowlistLine(Result) : null;
 
     /// <summary>The lines Quick Info shows, in order, without the time.</summary>
     public IReadOnlyList<string> Lines()
     {
         var lines = new List<string>();
         if (Line() is { } line) lines.Add(line);
-        if (Violation is { } violation && Mode is not null) lines.Add(DeposStrings.OrgVersionViolationLine(violation, Mode));
+        if (Violation is { } violation && Result is not null) lines.Add(DeposStrings.OrgVersionViolationLine(violation));
         if (Version is not null) lines.Add(Version);
         if (Risk is not null) lines.Add(Risk);
         return lines;
@@ -293,7 +292,6 @@ public sealed record OrgView(
         return new OrgView(
             result?.Kind,
             text,
-            result is null ? null : result.Mode == PolicyMode.Enforce ? DeposStrings.OrgModeEnforce : DeposStrings.OrgModeAudit,
             string.IsNullOrEmpty(versionLine) ? null : versionLine,
             layer.VersionViolationOf(ecosystem, name),
             version?.Risk is { } r ? DeposStrings.OrgRiskLine(riskLevel!, r.Version) : null,

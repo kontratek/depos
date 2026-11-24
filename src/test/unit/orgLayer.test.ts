@@ -178,7 +178,7 @@ describe('orgView', () => {
 
   it('describes the allowlist result, with a link to the package page', () => {
     expect(orgView(org, 'npm', '@scope/pkg', time)).toEqual({
-      allowlist: { tone: 'allowed', result: 'Allowed', mode: 'Enforce' },
+      allowlist: { tone: 'allowed', result: 'Allowed' },
       version: 'Installed at last scan: 2.1.0 · Latest: 2.3.0 (a minor version behind)',
       link: `https://depos.example.com/dashboard/${'O'.repeat(26)}/dependencies/npm/%40scope/pkg`,
       received: 'Updated from Depos at 10:00',
@@ -186,14 +186,14 @@ describe('orgView', () => {
   });
 
   it('shows Not listed', () => {
-    expect(orgView(org, 'npm', 'lodash', time)?.allowlist).toEqual({ tone: 'unlisted', result: 'Not listed', mode: 'Enforce' });
+    expect(orgView(org, 'npm', 'lodash', time)?.allowlist).toEqual({ tone: 'unlisted', result: 'Not listed' });
   });
 
   it('says when the version rule is not met, with the versions and the risk', () => {
     const view = orgView(org, 'npm', 'express', time)!;
     expect(orgLines(view)).toEqual([
-      'Allowlist: Allowed (Enforce)',
-      'Version rule: not met (Enforce)',
+      'Allowlist: Allowed',
+      'Version rule: not met',
       'Installed at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)',
       'Risk: Medium (4.18.2)',
       'Updated from Depos at 10:00',
@@ -201,7 +201,7 @@ describe('orgView', () => {
     expect(orgPayloadOf(view)).toEqual({
       tone: 'outdated',
       text: 'Outdated',
-      detail: 'Allowlist: Allowed (Enforce)\nVersion rule: not met (Enforce)\nInstalled at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)\nRisk: Medium (4.18.2)',
+      detail: 'Allowlist: Allowed\nVersion rule: not met\nInstalled at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)\nRisk: Medium (4.18.2)',
       openWeb: 'Open in Depos',
     });
   });
@@ -210,8 +210,8 @@ describe('orgView', () => {
     const layer = new OrgLayer(answer({ packages: [version('express', { vulnerable: true }), version('@scope/pkg', { deniedVersion: true })] }));
     const vulnerable = orgView({ ...org, layer }, 'npm', 'express', time)!;
     expect(orgLines(vulnerable, false)).toEqual([
-      'Allowlist: Allowed (Enforce)',
-      'Installed version: known critical or high vulnerability (Enforce)',
+      'Allowlist: Allowed',
+      'Installed version: known critical or high vulnerability',
       'Installed at last scan: 1.0.0 · Latest: 1.0.0',
     ]);
     expect(orgPayloadOf(vulnerable)).toMatchObject({ tone: 'denied', text: 'Vulnerable' });

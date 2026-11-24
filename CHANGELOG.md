@@ -11,7 +11,10 @@
   Audit, Enforce) per ecosystem: it checks every package of every added
   repository. So Denied and Not listed packages, and Allowed packages whose
   installed version breaks a rule, are marked at their manifest line as an
-  error. The format reference and the README say so.
+  error. The hover, the note editor and the badge's tooltip no longer end their
+  lines with "(Audit)" or "(Enforce)": "Allowlist: Not listed", not
+  "Allowlist: Not listed (Enforce)". The same in JetBrains IDEs and Visual
+  Studio.
 
 - **Gleam development dependencies under `[dev-dependencies]` are read.**
   Many Gleam packages still write the table with a hyphen, as older Gleam

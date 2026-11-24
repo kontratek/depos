@@ -9,7 +9,6 @@ export interface OrgView {
     tone: 'allowed' | 'denied' | 'unlisted';
     /** "Allowed", "Denied" or "Not listed". */
     result: string;
-    mode: string;
   };
   /** The installed and newest version at Depos's last scan, when Depos knows one. */
   version?: string;
@@ -43,7 +42,6 @@ export function orgView(
     view.allowlist = {
       tone: result.kind,
       result: RESULT_TEXT[result.kind],
-      mode: result.mode === 'enforce' ? S.orgModeEnforce : S.orgModeAudit,
     };
   }
   if (version) {
@@ -77,7 +75,7 @@ const VERSION_BADGE: Record<VersionViolation, [OrgPayload['tone'], string]> = {
 };
 
 /** The hover line of an Allowed package whose installed version breaks a rule. */
-const VERSION_LINE: Record<VersionViolation, (mode: string) => string> = {
+const VERSION_LINE: Record<VersionViolation, string> = {
   deniedVersion: S.orgDeniedVersionLine,
   vulnerable: S.orgVulnerableLine,
   outdated: S.orgOutdatedLine,
@@ -101,8 +99,8 @@ export function orgPayloadOf(view: OrgView): OrgPayload {
 /** The lines the hover shows, in order. The note panel's badge tooltip is the same, without the time. */
 export function orgLines(view: OrgView, withTime = true): string[] {
   return [
-    view.allowlist && S.orgAllowlistLine(view.allowlist.result, view.allowlist.mode),
-    view.versionViolation && view.allowlist && VERSION_LINE[view.versionViolation](view.allowlist.mode),
+    view.allowlist && S.orgAllowlistLine(view.allowlist.result),
+    view.versionViolation && view.allowlist && VERSION_LINE[view.versionViolation],
     view.version,
     view.risk,
     withTime && view.received,

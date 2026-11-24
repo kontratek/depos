@@ -55,7 +55,7 @@ object DeposStrings {
     fun orgOutdated(name: String, org: String, installed: String, latest: String, behind: String): String =
         "$name $installed is $behind behind the newest version, $latest. The version rule of $org does not allow this."
     const val orgResultOutdated = "Outdated"
-    fun orgOutdatedLine(mode: String): String = "Version rule: not met ($mode)"
+    const val orgOutdatedLine = "Version rule: not met"
     fun orgDeniedVersion(name: String, org: String): String = "The installed version of $name is denied in $org."
     fun orgVulnerable(name: String, org: String): String =
         "The installed version of $name has a known vulnerability of critical or high severity. The vulnerability rule of $org does not allow this."
@@ -68,10 +68,10 @@ object DeposStrings {
     }
 
     /** The quick documentation line of an Allowed package whose installed version breaks a rule. */
-    fun orgVersionViolationLine(violation: VersionViolation, mode: String): String = when (violation) {
-        VersionViolation.DENIED_VERSION -> "Installed version: denied ($mode)"
-        VersionViolation.VULNERABLE -> "Installed version: known critical or high vulnerability ($mode)"
-        VersionViolation.OUTDATED -> orgOutdatedLine(mode)
+    fun orgVersionViolationLine(violation: VersionViolation): String = when (violation) {
+        VersionViolation.DENIED_VERSION -> "Installed version: denied"
+        VersionViolation.VULNERABLE -> "Installed version: known critical or high vulnerability"
+        VersionViolation.OUTDATED -> orgOutdatedLine
     }
     /** null for a kind that is not behind. */
     fun orgBehind(kind: String): String? = when (kind) {
@@ -96,9 +96,7 @@ object DeposStrings {
     const val orgResultAllowed = "Allowed"
     const val orgResultDenied = "Denied"
     const val orgResultUnlisted = "Not listed"
-    const val orgModeAudit = "Audit"
-    const val orgModeEnforce = "Enforce"
-    fun orgAllowlistLine(result: String, mode: String): String = "Allowlist: $result ($mode)"
+    fun orgAllowlistLine(result: String): String = "Allowlist: $result"
     fun orgReceived(time: String): String = "Updated from Depos at $time"
     const val orgOpenWeb = "Open in Depos"
 

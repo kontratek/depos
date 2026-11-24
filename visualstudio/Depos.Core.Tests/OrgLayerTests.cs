@@ -97,11 +97,11 @@ public sealed class OrgLayerTests
         var allowed = OrgView.Of(Layer(), "https://depos.example.com", received, "nuget", "Serilog", _ => "10:00")!;
         Assert.AreEqual($"https://depos.example.com/dashboard/{Org}/dependencies/nuget/serilog", allowed.Link);
         Assert.AreEqual("Updated from Depos at 10:00", allowed.Received);
-        Assert.AreEqual("Allowlist: Allowed (Enforce)", allowed.Line());
-        Assert.AreEqual("Allowlist: Allowed (Enforce)", allowed.Tooltip());
+        Assert.AreEqual("Allowlist: Allowed", allowed.Line());
+        Assert.AreEqual("Allowlist: Allowed", allowed.Tooltip());
 
         var unlisted = OrgView.Of(Layer(), "https://depos.example.com", received, "nuget", "Polly", _ => "10:00")!;
-        Assert.AreEqual("Allowlist: Not listed (Enforce)", unlisted.Line());
+        Assert.AreEqual("Allowlist: Not listed", unlisted.Line());
 
         Assert.IsNull(OrgView.Of(Layer(), "https://depos.example.com", received, "cargo", "serde", _ => "10:00"));
     }
@@ -164,7 +164,7 @@ public sealed class OrgLayerTests
 
         var vulnerable = OrgView.Of(layer, "https://depos.example.com", 0, "python", "django-rest", _ => "10:00")!;
         Assert.AreEqual("Vulnerable", vulnerable.BadgeText());
-        Assert.AreEqual("Installed version: known critical or high vulnerability (Audit)", vulnerable.Lines()[1]);
+        Assert.AreEqual("Installed version: known critical or high vulnerability", vulnerable.Lines()[1]);
         Assert.AreEqual("Denied version", OrgView.Of(layer, "https://depos.example.com", 0, "nuget", "Serilog", _ => "10:00")!.BadgeText());
         Assert.IsFalse(OrgLayers.Parse(DeposJson.Parse(Versioned()))!.Packages.Any(p => p.DeniedVersion || p.Vulnerable));
     }
@@ -177,8 +177,8 @@ public sealed class OrgLayerTests
         CollectionAssert.AreEqual(
             new[]
             {
-                "Allowlist: Allowed (Enforce)",
-                "Version rule: not met (Enforce)",
+                "Allowlist: Allowed",
+                "Version rule: not met",
                 "Installed at last scan: 3.1.0 · Latest: 4.0.0 (a major version behind)",
                 "Risk: Medium (3.1.0)",
             },
