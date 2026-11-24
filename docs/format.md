@@ -239,21 +239,21 @@ A section written later in file mode becomes a candidate again. It does not chan
 
 ### Allowlist results
 
-Each ecosystem has a policy mode: Off, Audit or Enforce. In an ecosystem set to Audit or Enforce, each package is Allowed, Denied or Not listed in each repository.
+The web app checks every package of every ecosystem in the repository. Each package is Allowed, Denied or Not listed in each repository.
 
-- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package of that ecosystem as Not listed. A Composer platform requirement (`php`, `ext-*`, `lib-*`, Composer's APIs) is not a package: it has no result, and no mark.
-- A tool marks Denied and Not listed packages at their manifest line. In Audit this is a warning. In Enforce it is an error.
-- An ecosystem set to Off shows no result.
+- The web app decides each result. A tool applies no allowlist rules of its own. It receives the decided packages of the folder's repository and treats every other package as Not listed. A Composer platform requirement (`php`, `ext-*`, `lib-*`, Composer's APIs) is not a package: it has no result, and no mark.
+- A tool marks Denied and Not listed packages at their manifest line, as an error.
+- The answer still names a mode for each ecosystem, for tools released when the web app had one per ecosystem. It is always Enforce now.
 
 An ecosystem can also have a version rule: how far behind its newest version an installed package may be. The web app judges it on the versions the repository installs at its last scan. It sends, for each package it knows, the installed version, the newest version, how far behind it is, a risk level, and whether it breaks the rule.
 
 - A tool applies no version rule of its own. A package that breaks the rule and is Allowed is marked at its manifest line, as a Not listed one is. A Denied or Not listed package is marked once, for that.
-- A tool shows the installed version, the newest version and the risk level with the allowlist result, in any mode. They are the last scan's, not the manifest's on disk.
+- A tool shows the installed version, the newest version and the risk level with the allowlist result. They are the last scan's, not the manifest's on disk.
 - A tool that receives no version rule or no versions shows none. An answer without them is still valid.
 
 Two more rules work on the installed version, and the web app decides them the same way. For each package, it sends whether the version installed is a **denied version** (one its Allow entry names) and whether it is **vulnerable** (it has a known vulnerability of critical or high severity, the ecosystem's vulnerability rule is on, and the organization has not accepted the risk of that version).
 
-- A tool marks an Allowed package at its manifest line when one of them is true, in Audit as a warning and in Enforce as an error. When several are true, it names one: a denied version first, then vulnerable, then the version rule.
+- A tool marks an Allowed package at its manifest line when one of them is true, as an error. When several are true, it names one: a denied version first, then vulnerable, then the version rule.
 - A tool that receives neither shows none. An answer without them is still valid.
 
 ### Local copy

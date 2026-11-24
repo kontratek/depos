@@ -56,7 +56,7 @@ public static class DeposStrings
     public static string OrgOutdated(string name, string org, string installed, string latest, string behind) =>
         $"{name} {installed} is {behind} behind the newest version, {latest}. The version rule of {org} does not allow this.";
     public const string OrgResultOutdated = "Outdated";
-    public static string OrgOutdatedLine(string mode) => $"Version rule: not met ({mode})";
+    public const string OrgOutdatedLine = "Version rule: not met";
     public static string OrgDeniedVersion(string name, string org) => $"The installed version of {name} is denied in {org}.";
     public static string OrgVulnerable(string name, string org) =>
         $"The installed version of {name} has a known vulnerability of critical or high severity. The vulnerability rule of {org} does not allow this.";
@@ -70,11 +70,11 @@ public static class DeposStrings
     };
 
     /// <summary>The Quick Info line of an Allowed package whose installed version breaks a rule.</summary>
-    public static string OrgVersionViolationLine(VersionViolation violation, string mode) => violation switch
+    public static string OrgVersionViolationLine(VersionViolation violation) => violation switch
     {
-        VersionViolation.DeniedVersion => $"Installed version: denied ({mode})",
-        VersionViolation.Vulnerable => $"Installed version: known critical or high vulnerability ({mode})",
-        _ => OrgOutdatedLine(mode),
+        VersionViolation.DeniedVersion => "Installed version: denied",
+        VersionViolation.Vulnerable => "Installed version: known critical or high vulnerability",
+        _ => OrgOutdatedLine,
     };
     /// <summary>null for a kind that is not behind.</summary>
     public static string? OrgBehind(string kind) => kind switch
@@ -104,9 +104,7 @@ public static class DeposStrings
     public const string OrgResultAllowed = "Allowed";
     public const string OrgResultDenied = "Denied";
     public const string OrgResultUnlisted = "Not listed";
-    public const string OrgModeAudit = "Audit";
-    public const string OrgModeEnforce = "Enforce";
-    public static string OrgAllowlistLine(string result, string mode) => $"Allowlist: {result} ({mode})";
+    public static string OrgAllowlistLine(string result) => $"Allowlist: {result}";
     public static string OrgReceived(string time) => $"Updated from Depos at {time}";
     public const string OrgOpenWeb = "Open in Depos";
 

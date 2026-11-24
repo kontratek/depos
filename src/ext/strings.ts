@@ -226,14 +226,14 @@ export const S = {
   orgOutdated: (name: string, org: string, installed: string, latest: string, behind: string) =>
     `${name} ${installed} is ${behind} behind the newest version, ${latest}. The version rule of ${org} does not allow this.`,
   orgResultOutdated: 'Outdated',
-  orgOutdatedLine: (mode: string) => `Version rule: not met (${mode})`,
+  orgOutdatedLine: 'Version rule: not met',
   orgDeniedVersion: (name: string, org: string) => `The installed version of ${name} is denied in ${org}.`,
   orgResultDeniedVersion: 'Denied version',
-  orgDeniedVersionLine: (mode: string) => `Installed version: denied (${mode})`,
+  orgDeniedVersionLine: 'Installed version: denied',
   orgVulnerable: (name: string, org: string) =>
     `The installed version of ${name} has a known vulnerability of critical or high severity. The vulnerability rule of ${org} does not allow this.`,
   orgResultVulnerable: 'Vulnerable',
-  orgVulnerableLine: (mode: string) => `Installed version: known critical or high vulnerability (${mode})`,
+  orgVulnerableLine: 'Installed version: known critical or high vulnerability',
   orgBehind: { major: 'a major version', minor: 'a minor version', patch: 'a patch version' } as Record<string, string>,
   orgVersionLine: (installed: string | null, latest: string | null, behind: string | undefined) =>
     [
@@ -249,9 +249,7 @@ export const S = {
   orgResultAllowed: 'Allowed',
   orgResultDenied: 'Denied',
   orgResultUnlisted: 'Not listed',
-  orgModeAudit: 'Audit',
-  orgModeEnforce: 'Enforce',
-  orgAllowlistLine: (result: string, mode: string) => `Allowlist: ${result} (${mode})`,
+  orgAllowlistLine: (result: string) => `Allowlist: ${result}`,
   orgReceived: (time: string) => `Updated from Depos at ${time}`,
   orgOpenWeb: 'Open in Depos',
   orgNotesLabel: (org: string) => `notes of ${org} in Depos`,

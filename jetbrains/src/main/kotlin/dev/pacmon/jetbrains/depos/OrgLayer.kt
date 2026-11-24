@@ -210,7 +210,6 @@ data class OrgView(
     val kind: OrgResult.Kind?,
     /** "Allowed", "Denied" or "Not listed"; null when not audited. */
     val result: String?,
-    val mode: String?,
     /** The installed and newest version at Depos's last scan, when Depos knows one. */
     val version: String?,
     /** Allowed, but its installed version is denied, vulnerable or past the version rule: the worst one. */
@@ -222,13 +221,13 @@ data class OrgView(
     val link: String,
     val received: String,
 ) {
-    /** `Allowlist: Denied (Enforce)`; null when not audited. */
-    fun line(): String? = if (result != null && mode != null) DeposStrings.orgAllowlistLine(result, mode) else null
+    /** `Allowlist: Denied`; null when not audited. */
+    fun line(): String? = result?.let(DeposStrings::orgAllowlistLine)
 
     /** The lines the quick documentation shows, in order. The note editor's badge tooltip is the same, without the time. */
     fun lines(withTime: Boolean = true): List<String> = listOfNotNull(
         line(),
-        if (mode != null) versionViolation?.let { DeposStrings.orgVersionViolationLine(it, mode) } else null,
+        if (result != null) versionViolation?.let(DeposStrings::orgVersionViolationLine) else null,
         version,
         risk,
         received.takeIf { withTime },
@@ -265,7 +264,6 @@ data class OrgView(
             return OrgView(
                 kind = result?.kind,
                 result = text,
-                mode = result?.let { if (it.mode == PolicyMode.ENFORCE) DeposStrings.orgModeEnforce else DeposStrings.orgModeAudit },
                 version = version?.let {
                     DeposStrings.orgVersionLine(it.installedVersion, it.latestVersion, it.updateKind?.let(DeposStrings::orgBehind))
                 }?.takeIf { it.isNotEmpty() },

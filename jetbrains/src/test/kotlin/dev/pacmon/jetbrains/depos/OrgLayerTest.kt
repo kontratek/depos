@@ -104,10 +104,10 @@ class OrgLayerTest {
         val allowed = OrgView.of(layer(), "https://depos.example.com", received, ManifestKind.NPM, "express", { "10:00" })!!
         assertEquals("https://depos.example.com/dashboard/$org/dependencies/npm/express", allowed.link)
         assertEquals("Updated from Depos at 10:00", allowed.received)
-        assertEquals("Allowlist: Allowed (Enforce)", allowed.line())
+        assertEquals("Allowlist: Allowed", allowed.line())
 
         val unlisted = OrgView.of(layer(), "https://depos.example.com", received, ManifestKind.NPM, "react", { "10:00" })!!
-        assertEquals("Allowlist: Not listed (Enforce)", unlisted.line())
+        assertEquals("Allowlist: Not listed", unlisted.line())
 
         assertNull(OrgView.of(layer(), "https://depos.example.com", received, ManifestKind.CARGO, "serde", { "10:00" }))
     }
@@ -167,7 +167,7 @@ class OrgLayerTest {
 
         val vulnerable = OrgView.of(layer, "https://depos.example.com", 0, ManifestKind.NPM, "zod", { "10:00" })!!
         assertEquals("Vulnerable", vulnerable.badgeText())
-        assertEquals("Installed version: known critical or high vulnerability (Audit)", vulnerable.lines(withTime = false)[1])
+        assertEquals("Installed version: known critical or high vulnerability", vulnerable.lines(withTime = false)[1])
         assertEquals("Denied version", OrgView.of(layer, "https://depos.example.com", 0, ManifestKind.NPM, "express", { "10:00" })!!.badgeText())
         assertFalse(versioned().data.packages.any { it.deniedVersion || it.vulnerable })
     }
@@ -177,8 +177,8 @@ class OrgLayerTest {
         val outdated = OrgView.of(versioned(), "https://depos.example.com", 0, ManifestKind.NPM, "express", { "10:00" })!!
         assertEquals(
             listOf(
-                "Allowlist: Allowed (Enforce)",
-                "Version rule: not met (Enforce)",
+                "Allowlist: Allowed",
+                "Version rule: not met",
                 "Installed at last scan: 4.18.2 · Latest: 5.1.0 (a major version behind)",
                 "Risk: Medium (4.18.2)",
                 "Updated from Depos at 10:00",
